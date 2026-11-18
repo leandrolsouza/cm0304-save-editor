@@ -11,7 +11,10 @@ for (const [label, save] of [['inicial', 'save_inicial.cm4'], ['modificado', 'sa
   execFileSync('target/debug/cm0304-cli.exe', ['export', path, output]);
   const rust = JSON.parse(await readFile(output));
   const { players: js, database } = await loadPlayers(path);
-  assert.deepStrictEqual(rust, js, `${label}: all player fields, attributes and offsets`);
+  // New Rust fields are tested separately; the complete historical JS model
+  // must continue to match byte-for-byte and value-for-value.
+  const historical = rust.map(p => { const { fields, ...original } = p; return original; });
+  assert.deepStrictEqual(historical, js, `${label}: all historical player fields, attributes and offsets`);
   const container = JSON.parse(execFileSync('target/debug/cm0304-cli.exe', ['inspect', path], { maxBuffer: 4e6 }));
   const reference = readSave(await readFile(path));
   assert.deepStrictEqual(container.blocks, reference.blocks);

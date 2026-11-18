@@ -68,6 +68,68 @@ São metas de implementação, não recursos já demonstrados. Cada domínio dep
 
 ## Marcos
 
+### Escopo detalhado por versão
+
+**v0.4 — Editor completo de jogadores**
+
+- Editar técnicos, mentais, físicos, atributos de goleiro e ocultos individualmente ou em conjunto.
+- Editar CA, PA, reputação nacional/atual/mundial e personalidade: profissionalismo, ambição, lealdade e demais campos identificados.
+- Editar familiaridade por posição, lado de atuação e habilidade com cada pé.
+- Editar nascimento, nacionalidade principal, altura e peso; calcular idade na data do save.
+- Mostrar valor original, valor proposto e alterações indiretas causadas por CA ou posição.
+- Organizar o perfil em abas e sinalizar campos ainda sem validação; procurar jogadores com e sem acentos.
+
+**v0.5 — Carreira, estado e contratos**
+
+- Recuperar condição física, reduzir cansaço e ajustar moral de um jogador ou seleção.
+- Consultar lesão, previsão de retorno e suspensão; operações para recuperar/remover apenas quando as referências estiverem validadas.
+- Editar salário e vencimento de contratos existentes, camisa e situação no elenco.
+- Consultar clube proprietário, equipe atual e vínculo de empréstimo, evitando confundir essas entidades.
+- Editar valor de venda e outros valores financeiros identificados, explicando o que o jogo recalcula.
+- Exibir resumo contratual e avisos de datas inconsistentes antes de aplicar.
+
+**v0.6 — Staff e gestão de clubes**
+
+- Buscar membros da comissão por nome, clube e função; navegar entre clube, elenco e comissão.
+- Editar atributos de treino, observação e gestão, além de CA/PA, reputação e personalidade suportadas.
+- Tratar jogadores que também integram a comissão sem perder nenhum dos vínculos.
+- Editar saldo, orçamento de transferências e orçamento salarial nos campos existentes e confirmados.
+- Editar níveis de instalações de treino e formação identificados; consultar reputação do clube e permitir edição após validação.
+- Mostrar quantidade de jogadores, distribuição por posição, salários e contratos próximos do vencimento.
+
+**v0.7 — Ferramentas para editar e analisar em escala**
+
+- Filtrar por clube, nacionalidade, idade, posição, pé, CA/PA, atributo e situação contratual; combinar filtros e ordenar resultados.
+- Selecionar jogadores individualmente, todo o elenco ou todos os resultados filtrados, com contagem explícita.
+- Aplicar valor fixo, incremento/redução e limites mínimo/máximo em campos compatíveis.
+- Criar e salvar presets locais, por exemplo: recuperar elenco, ajustar profissionalismo ou melhorar fundamentos de uma posição.
+- Copiar atributos selecionados de um jogador para outro, preservando identidade e vínculos; validar conversões e limites de cada destino.
+- Comparar jogadores lado a lado e comparar a mesma entidade entre dois saves por UID.
+- Exportar resultados e diferenças para CSV/JSON, salvar filtros e manter histórico local das alterações realizadas.
+- Desfazer/refazer transações inteiras e remover uma alteração pendente antes de salvar.
+
+**v0.8 — Produto utilizável no Windows**
+
+- Gerar instalador e documentar dependências de execução do Tauri/WebView2.
+- Implementar recentes, restauração de filtros/preferências, atalhos e estados de carregamento/erro claros.
+- Permitir cancelar buscas ou análises demoradas e confirmar descarte de alterações pendentes.
+- Medir abertura, busca, consumo de memória e gravação nas amostras; registrar limites e corrigir travamentos.
+- Testar instalação e fluxo completo em máquina sem Rust/Node.js e ampliar a matriz de saves e usuários.
+
+**v0.9 — Estabilização**
+
+- Congelar funcionalidades, corrigir regressões e concluir a matriz de operações e variantes suportadas.
+- Finalizar ajuda em português, exemplos, limitações, notas de versão e instruções de recuperação usando a cópia original.
+- Revisar mensagens, navegação por teclado, legibilidade, licenças e conteúdo do pacote.
+
+**v1.0 — Lançamento**
+
+- Publicar pacote versionado para Windows, hashes de verificação e documentação.
+- Publicar uma lista precisa dos campos editáveis, formatos aceitos e limitações conhecidas.
+- Entregar todas as funções acima que compõem o escopo aprovado; qualquer retirada exige revisão explícita deste documento.
+
+As funções de edição dependem de evidência do formato e do efeito no jogo. Encontrar um campo no leitor não basta para declarar sua escrita suportada. Implementações em andamento só mudam o estado de um marco após cumprir seu critério de conclusão.
+
 | Versão | Entrega | Critério de conclusão |
 |---|---|---|
 | **0.2 — Núcleo Rust** | Migrar leitor, conversões, busca e escritor; plano de múltiplas alterações e CLI Rust de diagnóstico. | Paridade com a prova de conceito e edição de vários campos/jogadores, com diferenças binárias limitadas ao plano. |

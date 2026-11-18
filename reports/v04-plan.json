@@ -1,0 +1,14 @@
+[
+ {"uid":2001642,"attribute":"currentAbility","value":150,"policy":"preserveValues"},
+ {"uid":2001642,"attribute":"potentialAbility","value":180},
+ {"uid":2001642,"attribute":"height","value":170},
+ {"uid":2001642,"attribute":"weight","value":65},
+ {"uid":2001642,"attribute":"birth.year","value":1980},
+ {"uid":2001642,"attribute":"birth.day","value":59},
+ {"uid":2001642,"attribute":"nationality","value":162},
+ {"uid":2001642,"attribute":"personality.professionalism","value":20},
+ {"uid":2001642,"attribute":"reputation.current","value":7000},
+ {"uid":2001642,"attribute":"leftFoot","value":19},
+ {"uid":2001642,"attribute":"consistency","value":20},
+ {"uid":2001642,"attribute":"passing","value":20}
+]

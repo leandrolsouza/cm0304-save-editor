@@ -1,7 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use cm0304_core::{
-    attributes::{DIRECT, FIELDS},
     container::hash,
     database::{self, Player},
     editor::{self, Edit},
@@ -20,6 +19,7 @@ struct Loaded {
     source: PathBuf,
     bytes: Arc<Vec<u8>>,
     players: Vec<Player>,
+    nations: Vec<String>,
 }
 #[derive(Default)]
 struct Session {
@@ -54,8 +54,10 @@ struct Page {
 #[derive(Serialize)]
 struct Detail {
     player: Player,
+    effective: Player,
     editable: Vec<String>,
     pending: Vec<Edit>,
+    nations: Vec<String>,
 }
 #[derive(Serialize)]
 struct Pending {
@@ -100,6 +102,7 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
             let bytes = std::fs::read(&source).map_err(|e| e.to_string())?;
             let (db, base) = database::load(&bytes)?;
             let players = db.players(base)?;
+            let nations = db.nations.iter().map(|n| n.name.clone()).collect();
             let summary = Summary {
                 name: source
                     .file_name()
@@ -115,6 +118,7 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
                     source,
                     bytes: Arc::new(bytes),
                     players,
+                    nations,
                 }),
                 summary,
             )))
@@ -169,31 +173,48 @@ fn search_players(query: String, page: usize, state: State<Shared>) -> Result<Pa
     })
 }
 #[tauri::command]
-fn player_detail(uid: i32, state: State<Shared>) -> Result<Detail> {
+async fn player_detail(uid: i32, state: State<'_, Shared>) -> Result<Detail> {
     let data = loaded(&state)?;
     let p = data
         .players
         .iter()
         .find(|p| p.uid == uid)
         .ok_or("Jogador não encontrado")?;
-    let editable = FIELDS
-        .iter()
-        .enumerate()
-        .filter(|(i, f)| {
-            DIRECT.contains(f)
-                || cm0304_core::attributes::mode(*i, p.raw_attributes["goalkeeper"]).is_some()
+    let editable = p.fields.keys().cloned().collect();
+    let pending = state
+        .lock()
+        .map_err(|e| e.to_string())?
+        .edits
+        .values()
+        .filter(|e| e.uid == uid)
+        .cloned()
+        .collect::<Vec<_>>();
+    let effective = if pending.is_empty() {
+        p.clone()
+    } else {
+        let bytes = data.bytes.clone();
+        let edits = pending.clone();
+        tauri::async_runtime::spawn_blocking(move || -> Result<Player> {
+            let (output, _) = editor::apply(&bytes, &edits)?;
+            let (db, base) = database::load(&output)?;
+            db.players(base)?
+                .into_iter()
+                .find(|p| p.uid == uid)
+                .ok_or("Jogador não encontrado após revisão".into())
         })
-        .map(|(_, f)| f.to_string())
-        .collect();
-    let s = state.lock().map_err(|e| e.to_string())?;
+        .await
+        .map_err(|e| e.to_string())??
+    };
     Ok(Detail {
         player: p.clone(),
+        effective,
         editable,
-        pending: s.edits.values().filter(|e| e.uid == uid).cloned().collect(),
+        pending,
+        nations: data.nations.clone(),
     })
 }
 #[tauri::command]
-fn stage_edits(edits: Vec<Edit>, state: State<Shared>) -> Result<Pending> {
+async fn stage_edits(edits: Vec<Edit>, state: State<'_, Shared>) -> Result<Pending> {
     let data = loaded(&state)?;
     // Validate values and representation before accepting the plan. Full binary
     // transaction validation is performed again at review and save.
@@ -203,37 +224,45 @@ fn stage_edits(edits: Vec<Edit>, state: State<Shared>) -> Result<Pending> {
             .iter()
             .find(|p| p.uid == e.uid)
             .ok_or("Jogador não encontrado")?;
-        if !(1..=20).contains(&e.value) {
-            return Err("Valor deve estar entre 1 e 20".into());
-        }
-        let i = FIELDS
-            .iter()
-            .position(|f| *f == e.attribute)
-            .ok_or("Atributo desconhecido")?;
-        match cm0304_core::attributes::mode(i, p.raw_attributes["goalkeeper"]) {
-            Some(low) => {
-                cm0304_core::attributes::encode(
-                    e.value,
-                    p.current_ability,
-                    low,
-                    p.raw_attributes[&e.attribute],
-                )?;
-            }
-            None if DIRECT.contains(&e.attribute.as_str()) => (),
-            _ => return Err("Campo somente para consulta".into()),
-        }
+        cm0304_core::extended::validate_value(p, e)?;
     }
-    let mut s = state.lock().map_err(|e| e.to_string())?;
-    record(&mut s);
+    let (previous, mut next) = {
+        let s = state.lock().map_err(|e| e.to_string())?;
+        (s.edits.clone(), s.edits.clone())
+    };
+    // A relative attribute explicitly restored to its source value can still
+    // override a CA-induced change. Keep that target while dependencies change.
+    let dependency_uids = next
+        .values()
+        .chain(edits.iter())
+        .filter(|e| e.attribute == "currentAbility" || e.attribute == "position.goalkeeper")
+        .map(|e| e.uid)
+        .collect::<std::collections::BTreeSet<_>>();
     for e in edits {
         let p = data.players.iter().find(|p| p.uid == e.uid).unwrap();
         let key = (e.uid, e.attribute.clone());
-        if p.attributes[&e.attribute] == e.value {
-            s.edits.remove(&key);
+        let relative = cm0304_core::attributes::FIELDS[12..37].contains(&e.attribute.as_str());
+        if p.fields[&e.attribute].value == e.value
+            && !(relative && dependency_uids.contains(&e.uid))
+        {
+            next.remove(&key);
         } else {
-            s.edits.insert(key, e);
+            next.insert(key, e);
         }
     }
+    if !next.is_empty() {
+        let bytes = data.bytes.clone();
+        let plan = next.values().cloned().collect::<Vec<_>>();
+        tauri::async_runtime::spawn_blocking(move || editor::apply(&bytes, &plan).map(|_| ()))
+            .await
+            .map_err(|e| e.to_string())??;
+    }
+    let mut s = state.lock().map_err(|e| e.to_string())?;
+    if s.edits != previous || !s.loaded.as_ref().is_some_and(|p| Arc::ptr_eq(p, &data)) {
+        return Err("A sessão mudou durante a validação; tente novamente".into());
+    }
+    record(&mut s);
+    s.edits = next;
     Ok(pending(&s))
 }
 #[tauri::command]

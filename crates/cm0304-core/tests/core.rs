@@ -18,16 +18,19 @@ fn edits() -> Vec<Edit> {
             uid: 2001642,
             attribute: "passing".into(),
             value: 20,
+            policy: None,
         },
         Edit {
             uid: 2001642,
             attribute: "flair".into(),
             value: 20,
+            policy: None,
         },
         Edit {
             uid: 9888,
             attribute: "pace".into(),
             value: 19,
+            policy: None,
         },
     ]
 }
@@ -128,7 +131,7 @@ fn multi_player_transaction_changes_only_planned_bytes() {
     for e in edits() {
         assert_eq!(
             players.iter().find(|p| p.uid == e.uid).unwrap().attributes[&e.attribute],
-            e.value
+            e.value as i8
         );
     }
     assert_eq!(

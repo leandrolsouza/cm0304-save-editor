@@ -46,6 +46,9 @@ pub struct PlayingInfo {
     pub ca: i16,
     pub pa: i16,
     pub playing_index: i32,
+    pub reputation: [u16; 3],
+    pub weight: i16,
+    pub height: i16,
 }
 #[derive(Debug)]
 pub struct Person {
@@ -58,6 +61,7 @@ pub struct Person {
     pub surname: i32,
     pub common: i32,
     pub birth: Option<Date>,
+    pub common_offset: usize,
     pub nation: i32,
     pub team: i32,
     pub personality: i32,
@@ -74,6 +78,7 @@ pub struct Database {
     pub names: [Vec<String>; 3],
     pub people: Vec<Person>,
     pub personalities: Vec<Attributes>,
+    pub personality_offsets: Vec<usize>,
     pub playing: Vec<Playing>,
     pub parsed_until: usize,
 }
@@ -105,7 +110,28 @@ pub struct Player {
     pub attributes: Attributes,
     pub personality: Option<Attributes>,
     pub offsets: Offsets,
+    pub fields: BTreeMap<String, Field>,
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Field {
+    pub value: i32,
+    pub offset: usize,
+    pub width: u8,
+    pub min: i32,
+    pub max: i32,
+}
+
+pub const PERSONALITY_FIELDS: [&str; 8] = [
+    "adaptability",
+    "ambition",
+    "loyalty",
+    "pressure",
+    "professionalism",
+    "sportsmanship",
+    "temperament",
+    "controversy",
+];
 
 fn table<T>(
     r: &mut Reader,
@@ -329,8 +355,10 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
     })?;
     fixed(&mut r, &mut s, "playerTypes", 10)?;
     let people = table(&mut r, &mut s, "people", read_person)?;
+    let mut personality_offsets = Vec::new();
     let personalities = table(&mut r, &mut s, "personData", |r, t, _| {
         check_type(t, &[0], r.pos - 1)?;
+        personality_offsets.push(r.pos);
         let mut attrs = BTreeMap::new();
         for key in [
             "adaptability",
@@ -368,6 +396,7 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
         names,
         people,
         personalities,
+        personality_offsets,
         playing,
         parsed_until: r.pos,
     })
@@ -375,11 +404,14 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
 
 fn read_player_info(r: &mut Reader) -> Result<PlayingInfo> {
     let offset = r.pos;
-    r.skip(6)?;
+    let reputation = [r.u16()?, r.u16()?, r.u16()?];
     let ca = r.i16()?;
     let pa = r.i16()?;
     let playing_index = r.i32()?;
-    r.skip(32)?;
+    r.skip(23)?;
+    let weight = r.i16()?;
+    let height = r.i16()?;
+    r.skip(5)?;
     if r.boolean()? {
         r.skip(16)?;
     }
@@ -430,6 +462,9 @@ fn read_player_info(r: &mut Reader) -> Result<PlayingInfo> {
         ca,
         pa,
         playing_index,
+        reputation,
+        weight,
+        height,
     })
 }
 fn contract(r: &mut Reader, t: u8) -> Result<()> {
@@ -464,6 +499,7 @@ fn read_person(r: &mut Reader, t: u8, index: usize) -> Result<Person> {
         surname: -1,
         common: -1,
         birth: None,
+        common_offset: 0,
         nation: -1,
         team: -1,
         personality: -1,
@@ -497,6 +533,7 @@ fn read_person(r: &mut Reader, t: u8, index: usize) -> Result<Person> {
     if t == 4 {
         r.skip(24)?;
     }
+    person.common_offset = r.pos;
     person.first = r.i32()?;
     person.surname = r.i32()?;
     person.common = r.i32()?;
@@ -646,6 +683,118 @@ impl Database {
                     Some(reference(&self.personalities, p.personality, "personality")?.clone())
                 };
                 let birth = p.birth.as_ref().ok_or("Missing birth date")?;
+                let decoded = attributes::decoded(&playing.raw, d.ca)?;
+                let mut fields = BTreeMap::new();
+                for (i, key) in FIELDS.iter().enumerate() {
+                    let name = if i < 12 {
+                        format!("position.{key}")
+                    } else {
+                        key.to_string()
+                    };
+                    fields.insert(
+                        name,
+                        Field {
+                            value: decoded[*key] as i32,
+                            offset: base + playing.offset + i,
+                            width: 1,
+                            min: if i < 12 { 0 } else { 1 },
+                            max: 20,
+                        },
+                    );
+                }
+                for (key, value, offset, width, min, max) in [
+                    ("currentAbility", d.ca as i32, d.offset + 6, 2, 1, 200),
+                    ("potentialAbility", d.pa as i32, d.offset + 8, 2, -2, 200),
+                    (
+                        "reputation.home",
+                        d.reputation[0] as i32,
+                        d.offset,
+                        2,
+                        0,
+                        10000,
+                    ),
+                    (
+                        "reputation.current",
+                        d.reputation[1] as i32,
+                        d.offset + 2,
+                        2,
+                        0,
+                        10000,
+                    ),
+                    (
+                        "reputation.world",
+                        d.reputation[2] as i32,
+                        d.offset + 4,
+                        2,
+                        0,
+                        10000,
+                    ),
+                    ("weight", d.weight as i32, d.offset + 37, 2, 0, 300),
+                    // CM4 stores height in whole inches; the public field uses
+                    // rounded centimetres. Zero denotes an unspecified measure.
+                    (
+                        "height",
+                        (d.height as f64 * 2.54).round() as i32,
+                        d.offset + 39,
+                        2,
+                        0,
+                        300,
+                    ),
+                    (
+                        "birth.day",
+                        birth.day as i32,
+                        p.common_offset + 12,
+                        2,
+                        0,
+                        365,
+                    ),
+                    (
+                        "birth.year",
+                        birth.year as i32,
+                        p.common_offset + 14,
+                        2,
+                        1850,
+                        self.game_date.year as i32,
+                    ),
+                    (
+                        "nationality",
+                        p.nation,
+                        p.common_offset + 16,
+                        4,
+                        0,
+                        self.nations.len() as i32 - 1,
+                    ),
+                ] {
+                    fields.insert(
+                        key.into(),
+                        Field {
+                            value,
+                            offset: base + offset,
+                            width,
+                            min,
+                            max,
+                        },
+                    );
+                }
+                if p.personality >= 0 {
+                    let offset = *reference(
+                        &self.personality_offsets,
+                        p.personality,
+                        "personality offset",
+                    )?;
+                    for (i, key) in PERSONALITY_FIELDS.iter().enumerate() {
+                        fields.insert(
+                            format!("personality.{key}"),
+                            Field {
+                                value: self.personalities[p.personality as usize][*key] as i32,
+                                offset: base + offset + i,
+                                width: 1,
+                                min: 1,
+                                max: 20,
+                            },
+                        );
+                    }
+                }
                 Ok(Player {
                     uid: p.uid,
                     id: p.id,
@@ -667,7 +816,7 @@ impl Database {
                         .zip(playing.raw)
                         .map(|(k, v)| (k.to_string(), v))
                         .collect(),
-                    attributes: attributes::decoded(&playing.raw, d.ca)?,
+                    attributes: decoded,
                     personality,
                     offsets: Offsets {
                         person: base + p.offset,
@@ -675,6 +824,7 @@ impl Database {
                         potential_ability: base + d.offset + 8,
                         attributes: base + playing.offset,
                     },
+                    fields,
                 })
             })
             .collect()

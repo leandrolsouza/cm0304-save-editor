@@ -1,23 +1,25 @@
-use crate::{
-    Result,
-    attributes::{self, DIRECT, FIELDS},
-    container::hash,
-    database,
-};
+use crate::Result;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, BTreeSet},
     fs::{self, File},
     io::{Read, Write},
     path::Path,
     sync::atomic::{AtomicBool, Ordering},
 };
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Edit {
     pub uid: i32,
     pub attribute: String,
-    pub value: i8,
+    pub value: i32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy: Option<AbilityPolicy>,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AbilityPolicy {
+    PreserveValues,
+    PreserveRelative,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,11 +27,13 @@ pub struct Change {
     pub uid: i32,
     pub name: String,
     pub attribute: String,
-    pub before: i8,
-    pub after: i8,
-    pub raw_before: i8,
-    pub raw_after: i8,
+    pub before: i32,
+    pub after: i32,
+    pub raw_before: i32,
+    pub raw_after: i32,
     pub offset: usize,
+    pub width: u8,
+    pub derived: bool,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -41,112 +45,7 @@ pub struct Report {
     pub changes: Vec<Change>,
 }
 pub fn apply(input: &[u8], edits: &[Edit]) -> Result<(Vec<u8>, Report)> {
-    if edits.is_empty() {
-        return Err("Empty edit plan".into());
-    }
-    let (db, base) = database::load(input)?;
-    let players = db.players(base)?;
-    let mut by_uid = BTreeMap::new();
-    for p in &players {
-        if by_uid.insert(p.uid, p).is_some() {
-            return Err(format!("Duplicate player UID {}", p.uid));
-        }
-    }
-    let mut seen = BTreeSet::new();
-    let mut patches = BTreeMap::new();
-    let mut changes = Vec::new();
-    for edit in edits {
-        if !seen.insert((edit.uid, &edit.attribute)) {
-            return Err(format!(
-                "Duplicate field {} for UID {}",
-                edit.attribute, edit.uid
-            ));
-        }
-        if !(1..=20).contains(&edit.value) {
-            return Err("Attribute must be 1–20".into());
-        }
-        let p = by_uid
-            .get(&edit.uid)
-            .ok_or_else(|| format!("Unknown player UID {}", edit.uid))?;
-        let i = FIELDS
-            .iter()
-            .position(|f| *f == edit.attribute)
-            .ok_or("Unknown attribute")?;
-        let mode = attributes::mode(i, p.raw_attributes["goalkeeper"]);
-        if mode.is_none() && !DIRECT.contains(&edit.attribute.as_str()) {
-            return Err(format!("Unsupported attribute {}", edit.attribute));
-        }
-        let person = db
-            .people
-            .iter()
-            .find(|v| v.uid == edit.uid && v.playing.is_some())
-            .ok_or("Missing person")?;
-        let index = person.playing.as_ref().unwrap().playing_index;
-        if db
-            .people
-            .iter()
-            .filter(|v| v.playing.as_ref().is_some_and(|d| d.playing_index == index))
-            .count()
-            != 1
-        {
-            return Err("Shared playing data cannot be edited".into());
-        }
-        let before = p.attributes[&edit.attribute];
-        if before == edit.value {
-            return Err(format!("No change for {} / {}", edit.uid, edit.attribute));
-        }
-        let raw_before = p.raw_attributes[&edit.attribute];
-        let raw_after = match mode {
-            Some(low) => attributes::encode(edit.value, p.current_ability, low, raw_before)?,
-            None => edit.value,
-        };
-        let offset = p.offsets.attributes + i;
-        if patches.insert(offset, raw_after as u8).is_some() {
-            return Err("Overlapping edit offsets".into());
-        }
-        changes.push(Change {
-            uid: edit.uid,
-            name: p.name.clone(),
-            attribute: edit.attribute.clone(),
-            before,
-            after: edit.value,
-            raw_before,
-            raw_after,
-            offset,
-        });
-    }
-    let mut output = input.to_vec();
-    for (&offset, &value) in &patches {
-        output[offset] = value;
-    }
-    let (verified, verified_base) = database::load(&output)?;
-    let verified_players = verified.players(verified_base)?;
-    for change in &changes {
-        let p = verified_players
-            .iter()
-            .find(|p| p.uid == change.uid)
-            .ok_or("Edited player missing")?;
-        if p.attributes[&change.attribute] != change.after {
-            return Err("Post-write value mismatch".into());
-        }
-    }
-    let differences = input
-        .iter()
-        .zip(&output)
-        .enumerate()
-        .filter_map(|(i, (a, b))| (a != b).then_some(i))
-        .collect::<BTreeSet<_>>();
-    if differences != patches.keys().copied().collect() {
-        return Err("Unexpected byte differences".into());
-    }
-    let report = Report {
-        source_sha256: hash(input),
-        copy_sha256: hash(&output),
-        size: output.len(),
-        changed_bytes: differences.len(),
-        changes,
-    };
-    Ok((output, report))
+    crate::extended::apply(input, edits)
 }
 fn cancelled(cancel: &AtomicBool) -> Result<()> {
     if cancel.load(Ordering::Relaxed) {
