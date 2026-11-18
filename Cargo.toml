@@ -1,0 +1,14 @@
+[workspace]
+members = ["crates/cm0304-core", "crates/cm0304-cli", "apps/desktop/src-tauri"]
+default-members = ["crates/cm0304-core", "crates/cm0304-cli"]
+resolver = "2"
+
+[workspace.package]
+version = "0.2.0"
+edition = "2024"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tempfile = "3"

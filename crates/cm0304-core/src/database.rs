@@ -1,0 +1,698 @@
+use crate::{
+    Result,
+    attributes::{self, Attributes, FIELDS},
+    binary::{Reader, check_type},
+    container::read_container,
+};
+use serde::Serialize;
+use std::collections::BTreeMap;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Date {
+    pub day: u16,
+    pub year: u16,
+}
+fn date(r: &mut Reader) -> Result<Date> {
+    Ok(Date {
+        day: r.u16()?,
+        year: r.u16()?,
+    })
+}
+#[derive(Debug, Serialize)]
+pub struct Section {
+    pub name: String,
+    pub offset: usize,
+    pub count: usize,
+    pub end: usize,
+}
+#[derive(Debug)]
+pub struct Club {
+    pub name: String,
+    pub short_name: String,
+}
+#[derive(Debug)]
+pub struct Team {
+    pub container_type: u8,
+    pub container_index: i32,
+}
+#[derive(Debug)]
+pub struct Playing {
+    pub offset: usize,
+    pub raw: [i8; 65],
+}
+#[derive(Debug)]
+pub struct PlayingInfo {
+    pub offset: usize,
+    pub ca: i16,
+    pub pa: i16,
+    pub playing_index: i32,
+}
+#[derive(Debug)]
+pub struct Person {
+    pub index: usize,
+    pub offset: usize,
+    pub kind: u8,
+    pub id: i32,
+    pub uid: i32,
+    pub first: i32,
+    pub surname: i32,
+    pub common: i32,
+    pub birth: Option<Date>,
+    pub nation: i32,
+    pub team: i32,
+    pub personality: i32,
+    pub playing: Option<PlayingInfo>,
+}
+#[derive(Debug)]
+pub struct Database {
+    pub version: u16,
+    pub game_date: Date,
+    pub sections: Vec<Section>,
+    pub clubs: Vec<Club>,
+    pub nations: Vec<Club>,
+    pub teams: Vec<Team>,
+    pub names: [Vec<String>; 3],
+    pub people: Vec<Person>,
+    pub personalities: Vec<Attributes>,
+    pub playing: Vec<Playing>,
+    pub parsed_until: usize,
+}
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Offsets {
+    pub person: usize,
+    pub current_ability: usize,
+    pub potential_ability: usize,
+    pub attributes: usize,
+}
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Player {
+    pub uid: i32,
+    pub id: i32,
+    #[serde(rename = "type")]
+    pub kind: u8,
+    pub first_name: String,
+    pub surname: String,
+    pub common_name: String,
+    pub name: String,
+    pub club: Option<String>,
+    pub nation: Option<String>,
+    pub date_of_birth: Date,
+    pub current_ability: i16,
+    pub potential_ability: i16,
+    pub raw_attributes: Attributes,
+    pub attributes: Attributes,
+    pub personality: Option<Attributes>,
+    pub offsets: Offsets,
+}
+
+fn table<T>(
+    r: &mut Reader,
+    sections: &mut Vec<Section>,
+    name: &str,
+    mut read: impl FnMut(&mut Reader, u8, usize) -> Result<T>,
+) -> Result<Vec<T>> {
+    let offset = r.pos;
+    let count = r.count()?;
+    let mut rows = Vec::new();
+    for i in 0..count {
+        let start = r.pos;
+        let t = r.u8()?;
+        rows.push(read(r, t, i).map_err(|e| format!("{name}[{i}] at {start}: {e}"))?);
+    }
+    sections.push(Section {
+        name: name.into(),
+        offset,
+        count,
+        end: r.pos,
+    });
+    Ok(rows)
+}
+fn fixed(r: &mut Reader, s: &mut Vec<Section>, name: &str, width: usize) -> Result<()> {
+    let offset = r.pos;
+    let count = r.count()?;
+    r.skip(count.checked_mul(width).ok_or("Size overflow")?)?;
+    s.push(Section {
+        name: name.into(),
+        offset,
+        count,
+        end: r.pos,
+    });
+    Ok(())
+}
+fn team_container(r: &mut Reader) -> Result<Club> {
+    r.kind(&[0, 1])?;
+    r.skip(2)?;
+    let name = r.string()?;
+    let short_name = r.string()?;
+    r.array(6, 1)?;
+    r.array(4, 1)?;
+    r.array(8, 1)?;
+    r.identity()?;
+    Ok(Club { name, short_name })
+}
+pub fn read_database(bytes: &[u8]) -> Result<Database> {
+    let mut r = Reader::new(bytes);
+    let mut s = Vec::new();
+    if r.take(9)? != [0, 46, 0, 100, 0, 97, 0, 116, 0] {
+        return Err("Invalid game_db signature".into());
+    }
+    let version = r.u16()?;
+    if version != 147 {
+        return Err(format!("Unsupported game_db version {version}"));
+    }
+    r.skip(6)?;
+    let game_date = date(&mut r)?;
+    r.skip(16)?;
+    fixed(&mut r, &mut s, "awards", 45)?;
+    table(&mut r, &mut s, "cities", |r, _, _| {
+        r.skip(18)?;
+        r.string()?;
+        r.skip(11)
+    })?;
+    let clubs = table(&mut r, &mut s, "clubs", |r, t, _| {
+        check_type(t, &[0, 12], r.pos - 1)?;
+        if t == 12 {
+            r.skip(9)?;
+        }
+        r.skip(5)?;
+        r.string()?;
+        r.skip(1)?;
+        r.string()?;
+        r.skip(23)?;
+        r.array(4, 1)?;
+        r.array(4, 1)?;
+        let finance = r.kind(&[0, 1, 2])?;
+        r.skip(match finance {
+            0 => 4,
+            1 => 438,
+            _ => 0,
+        })?;
+        if r.i32()? != 0 {
+            r.skip(13)?;
+        }
+        r.array(4, 2)?;
+        for _ in 0..r.u16()? {
+            match r.u8()? {
+                0 | 2 => r.skip(5)?,
+                1 | 8 => r.skip(1)?,
+                3 => {
+                    if r.boolean()? {
+                        r.array(4, 1)?;
+                    }
+                    r.skip(5)?;
+                }
+                4 => r.skip(16)?,
+                5 => r.skip(10)?,
+                6 => r.skip(15)?,
+                7 => r.skip(12)?,
+                t => return Err(format!("Unknown transfer info {t}")),
+            }
+        }
+        r.array(6, 1)?;
+        r.skip(12)?;
+        r.array(4, 2)?;
+        r.array(5, 1)?;
+        r.skip(5)?;
+        team_container(r)
+    })?;
+    table(&mut r, &mut s, "competitions", |r, _, _| {
+        r.skip(11)?;
+        let t = r.u8()?;
+        r.skip(1)?;
+        if t == 4 {
+            r.string()?;
+            r.string()?;
+        }
+        r.skip(29)
+    })?;
+    fixed(&mut r, &mut s, "continents", 17)?;
+    table(&mut r, &mut s, "injuries", |r, _, _| {
+        r.string()?;
+        r.skip(2)?;
+        r.string()?;
+        r.skip(17)
+    })?;
+    table(&mut r, &mut s, "media", |r, _, _| {
+        r.string()?;
+        r.skip(1)?;
+        r.string()?;
+        r.skip(2)?;
+        r.array(4, 1)?;
+        r.skip(14)
+    })?;
+    table(&mut r, &mut s, "languages", |r, _, _| {
+        r.string()?;
+        r.skip(21)
+    })?;
+    let nations = table(&mut r, &mut s, "nations", |r, t, _| {
+        check_type(t, &[0], r.pos - 1)?;
+        r.skip(51)?;
+        r.array(2, 1)?;
+        r.array(4, 1)?;
+        r.array(4, 1)?;
+        r.array(4, 2)?;
+        for _ in 0..8 {
+            r.skip(2)?;
+            r.array(4, 1)?;
+        }
+        match r.u16()? {
+            0 => (),
+            1 => {
+                r.skip(13)?;
+                for _ in 0..4 {
+                    r.string()?;
+                }
+            }
+            v => return Err(format!("Unknown important player flag {v}")),
+        }
+        r.skip(21)?;
+        r.array(4, 1)?;
+        r.skip(2)?;
+        team_container(r)
+    })?;
+    let mut names: [Vec<String>; 3] = Default::default();
+    for (i, name) in ["firstNames", "surnames", "commonNames"].iter().enumerate() {
+        names[i] = table(&mut r, &mut s, name, |r, t, _| {
+            check_type(t, &[0], r.pos - 1)?;
+            let value = r.string()?;
+            r.skip(6)?;
+            r.identity()?;
+            Ok(value)
+        })?;
+    }
+    fixed(&mut r, &mut s, "regions", 9)?;
+    table(&mut r, &mut s, "sponsors", |r, _, _| {
+        r.string()?;
+        r.skip(1)?;
+        r.string()?;
+        r.skip(10)
+    })?;
+    fixed(&mut r, &mut s, "stadiums", 48)?;
+    fixed(&mut r, &mut s, "stadiumChanges", 38)?;
+    table(&mut r, &mut s, "stages", |r, _, _| {
+        r.string()?;
+        r.skip(1)?;
+        r.string()?;
+        r.skip(1)?;
+        r.string()?;
+        r.skip(9)
+    })?;
+    let teams = table(&mut r, &mut s, "teams", |r, t, _| {
+        check_type(t, &[10, 11], r.pos - 1)?;
+        if t == 11 {
+            r.skip(14)?;
+        }
+        r.skip(42)?;
+        r.array(4, 1)?;
+        r.array(4, 2)?;
+        r.array(4, 1)?;
+        r.array(4, 1)?;
+        r.skip(1)?;
+        r.array(12, 2)?;
+        r.skip(12)?;
+        let squad = r.u8()?;
+        check_type(squad, &(0..=18).collect::<Vec<_>>(), r.pos - 1)?;
+        let container_type = r.kind(&[0, 1])?;
+        r.skip(1)?;
+        let container_index = r.i32()?;
+        r.identity()?;
+        Ok(Team {
+            container_type,
+            container_index,
+        })
+    })?;
+    table(&mut r, &mut s, "weather", |r, _, _| {
+        r.string()?;
+        r.skip(87)
+    })?;
+    fixed(&mut r, &mut s, "playerTypes", 10)?;
+    let people = table(&mut r, &mut s, "people", read_person)?;
+    let personalities = table(&mut r, &mut s, "personData", |r, t, _| {
+        check_type(t, &[0], r.pos - 1)?;
+        let mut attrs = BTreeMap::new();
+        for key in [
+            "adaptability",
+            "ambition",
+            "loyalty",
+            "pressure",
+            "professionalism",
+            "sportsmanship",
+            "temperament",
+            "controversy",
+        ] {
+            attrs.insert(key.into(), r.u8()? as i8);
+        }
+        r.identity()?;
+        Ok(attrs)
+    })?;
+    let playing = table(&mut r, &mut s, "playingData", |r, t, _| {
+        check_type(t, &[0], r.pos - 1)?;
+        let offset = r.pos;
+        let mut raw = [0i8; 65];
+        for (i, b) in r.take(65)?.iter().enumerate() {
+            raw[i] = *b as i8;
+        }
+        r.skip(1)?;
+        r.identity()?;
+        Ok(Playing { offset, raw })
+    })?;
+    Ok(Database {
+        version,
+        game_date,
+        sections: s,
+        clubs,
+        nations,
+        teams,
+        names,
+        people,
+        personalities,
+        playing,
+        parsed_until: r.pos,
+    })
+}
+
+fn read_player_info(r: &mut Reader) -> Result<PlayingInfo> {
+    let offset = r.pos;
+    r.skip(6)?;
+    let ca = r.i16()?;
+    let pa = r.i16()?;
+    let playing_index = r.i32()?;
+    r.skip(32)?;
+    if r.boolean()? {
+        r.skip(16)?;
+    }
+    r.skip(4)?;
+    if r.boolean()? {
+        for _ in 0..r.u8()? {
+            r.skip(10)?;
+            let n = match r.u8()? {
+                0 => 1,
+                1 => 3,
+                3 | 5 => 5,
+                7 => 7,
+                t => return Err(format!("Unknown injury fixture {t}")),
+            };
+            r.skip(n + 26)?;
+        }
+        for _ in 0..r.u8()? {
+            r.skip(18)?;
+            if r.boolean()? {
+                r.skip(39)?;
+            }
+        }
+        if r.boolean()? {
+            r.skip(26)?;
+        }
+    }
+    for _ in 0..r.u8()? {
+        let t = r.u8()?;
+        let n = *[3, 5, 5, 8, 4]
+            .get(t as usize)
+            .ok_or_else(|| format!("Unknown booking {t}"))?;
+        r.skip(n)?;
+    }
+    r.skip(38)?;
+    if r.boolean()? {
+        for _ in 0..r.u8()? {
+            r.skip(5)?;
+            for _ in 0..r.u8()? {
+                r.skip(10)?;
+                if r.boolean()? {
+                    r.skip(29)?;
+                }
+            }
+        }
+    }
+    Ok(PlayingInfo {
+        offset,
+        ca,
+        pa,
+        playing_index,
+    })
+}
+fn contract(r: &mut Reader, t: u8) -> Result<()> {
+    check_type(t, &[0, 1, 2, 5], r.pos - 1)?;
+    if t == 0 {
+        r.skip(20)?;
+        let n = r.u8()? as usize;
+        r.skip(6 + n * 5)?;
+    }
+    if t == 1 {
+        r.skip(6)?;
+    }
+    if t == 5 {
+        r.skip(7)?;
+    }
+    if t != 2 {
+        r.skip(1)?;
+    }
+    r.kind(&[0, 1])?;
+    r.skip(33)
+}
+fn read_person(r: &mut Reader, t: u8, index: usize) -> Result<Person> {
+    let offset = r.pos - 1;
+    check_type(t, &[1, 2, 3, 4, 5, 6, 7, 8, 9], offset)?;
+    let mut person = Person {
+        index,
+        offset,
+        kind: t,
+        id: 0,
+        uid: 0,
+        first: -1,
+        surname: -1,
+        common: -1,
+        birth: None,
+        nation: -1,
+        team: -1,
+        personality: -1,
+        playing: None,
+    };
+    if t == 6 || t == 7 {
+        r.skip(if t == 6 { 1 } else { 6 })?;
+        let (id, uid) = r.identity()?;
+        person.id = id;
+        person.uid = uid;
+        return Ok(person);
+    }
+    if t == 5 {
+        r.string()?;
+        r.string()?;
+        r.skip(2)?;
+        let (id, uid) = r.identity()?;
+        person.id = id;
+        person.uid = uid;
+        return Ok(person);
+    }
+    if t == 9 {
+        human(r)?;
+    }
+    if t == 2 || t == 3 {
+        person.playing = Some(read_player_info(r)?);
+    }
+    if [1, 3, 9].contains(&t) {
+        r.skip(15)?;
+    }
+    if t == 4 {
+        r.skip(24)?;
+    }
+    person.first = r.i32()?;
+    person.surname = r.i32()?;
+    person.common = r.i32()?;
+    person.birth = Some(date(r)?);
+    person.nation = r.i32()?;
+    r.skip(13)?;
+    person.team = r.i32()?;
+    r.skip(6)?;
+    person.personality = r.i32()?;
+    r.skip(4)?;
+    r.array(4, 1)?;
+    r.skip(8)?;
+    for _ in 0..r.u8()? {
+        let ct = r.u8()?;
+        contract(r, ct)?;
+    }
+    for _ in 0..r.u8()? {
+        let ct = r.u8()?;
+        r.skip(6)?;
+        if ct != 255 {
+            contract(r, ct)?;
+        }
+    }
+    if r.boolean()? {
+        r.array(8, 1)?;
+    }
+    r.array(4, 2)?;
+    if r.boolean()? {
+        r.string()?;
+        r.skip(4)?;
+    }
+    r.skip(1)?;
+    let (id, uid) = r.identity()?;
+    person.id = id;
+    person.uid = uid;
+    if t == 3 {
+        r.skip(2)?;
+    }
+    Ok(person)
+}
+fn ascii(r: &mut Reader, n: usize) -> Result<String> {
+    Ok(std::str::from_utf8(r.take(n)?)
+        .map_err(|e| e.to_string())?
+        .to_owned())
+}
+fn human(r: &mut Reader) -> Result<()> {
+    r.skip(16)?;
+    r.string()?;
+    r.skip(68)?;
+    r.array(8, 1)?;
+    r.skip(96)?;
+    for _ in 0..r.count()? {
+        let kind = ascii(r, 8)?;
+        let expected = match kind.as_str() {
+            "slfttslf" | "tslttslf" => "daqstlif",
+            "tslntslf" => "swentlif",
+            "ltontslf" => "etontlif",
+            "tslhtslf" => "ntantlif",
+            _ => return Err(format!("Unsupported filter {kind}")),
+        };
+        for _ in 0..r.count()? {
+            if ascii(r, 8)? != expected {
+                return Err("Unsupported human filter type".into());
+            }
+            r.string()?;
+            r.skip(5)?;
+            for _ in 0..r.count()? {
+                let info = ascii(r, 4)?;
+                if kind == "tslhtslf" && info == "rftn" {
+                    r.skip(2)?;
+                    r.array(8, 4)?;
+                    r.skip(8)?;
+                } else {
+                    r.skip(match info.as_str() {
+                        "rfqs" => 10,
+                        "rfsp" | "rfcn" => 2,
+                        "rfpv" => 3,
+                        "rfsn" => 1,
+                        "rftn" => 9,
+                        _ => return Err(format!("Unsupported info {info}")),
+                    })?;
+                }
+            }
+        }
+        if kind == "slfttslf" {
+            r.skip(10)?;
+        }
+        if kind == "tslntslf" {
+            r.skip(4)?;
+        }
+    }
+    r.skip(16)?;
+    r.array(32, 1)?;
+    r.skip(1)
+}
+fn reference<'a, T>(table: &'a [T], index: i32, label: &str) -> Result<&'a T> {
+    usize::try_from(index)
+        .ok()
+        .and_then(|i| table.get(i))
+        .ok_or_else(|| format!("Invalid {label} reference {index}"))
+}
+fn optional_name(table: &[String], index: i32) -> Result<String> {
+    if index == -1 {
+        Ok(String::new())
+    } else {
+        Ok(reference(table, index, "name")?.clone())
+    }
+}
+impl Database {
+    pub fn players(&self, base: usize) -> Result<Vec<Player>> {
+        self.people
+            .iter()
+            .filter_map(|p| p.playing.as_ref().map(|d| (p, d)))
+            .map(|(p, d)| {
+                let first_name = optional_name(&self.names[0], p.first)?;
+                let surname = optional_name(&self.names[1], p.surname)?;
+                let common_name = optional_name(&self.names[2], p.common)?;
+                let name = if common_name.is_empty() {
+                    format!("{first_name} {surname}").trim().into()
+                } else {
+                    common_name.clone()
+                };
+                let nation = if p.nation == -1 {
+                    None
+                } else {
+                    Some(reference(&self.nations, p.nation, "nation")?.name.clone())
+                };
+                let club = if p.team == -1 {
+                    None
+                } else {
+                    let team = reference(&self.teams, p.team, "team")?;
+                    if team.container_type == 0 {
+                        Some(
+                            reference(&self.clubs, team.container_index, "club")?
+                                .name
+                                .clone(),
+                        )
+                    } else {
+                        reference(&self.nations, team.container_index, "national team")?;
+                        None
+                    }
+                };
+                let playing = reference(&self.playing, d.playing_index, "playing data")?;
+                let personality = if p.personality == -1 {
+                    None
+                } else {
+                    Some(reference(&self.personalities, p.personality, "personality")?.clone())
+                };
+                let birth = p.birth.as_ref().ok_or("Missing birth date")?;
+                Ok(Player {
+                    uid: p.uid,
+                    id: p.id,
+                    kind: p.kind,
+                    first_name,
+                    surname,
+                    common_name,
+                    name,
+                    club,
+                    nation,
+                    date_of_birth: Date {
+                        day: birth.day,
+                        year: birth.year,
+                    },
+                    current_ability: d.ca,
+                    potential_ability: d.pa,
+                    raw_attributes: FIELDS
+                        .iter()
+                        .zip(playing.raw)
+                        .map(|(k, v)| (k.to_string(), v))
+                        .collect(),
+                    attributes: attributes::decoded(&playing.raw, d.ca)?,
+                    personality,
+                    offsets: Offsets {
+                        person: base + p.offset,
+                        current_ability: base + d.offset + 6,
+                        potential_ability: base + d.offset + 8,
+                        attributes: base + playing.offset,
+                    },
+                })
+            })
+            .collect()
+    }
+}
+pub fn load(bytes: &[u8]) -> Result<(Database, usize)> {
+    let container = read_container(bytes)?;
+    let blocks = container
+        .blocks
+        .iter()
+        .filter(|b| b.name == "game_db" && b.extension == ".dat")
+        .collect::<Vec<_>>();
+    if blocks.len() != 1 {
+        return Err("Expected exactly one game_db.dat".into());
+    }
+    let b = blocks[0];
+    Ok((
+        read_database(&bytes[b.payload_offset..b.payload_offset + b.size])?,
+        b.payload_offset,
+    ))
+}

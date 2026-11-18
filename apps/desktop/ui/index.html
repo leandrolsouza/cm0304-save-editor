@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CM0304 Save Editor</title><link rel="stylesheet" href="style.css"></head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">CM<span>03·04</span></div><strong>Save Editor<small>O seu jogo, nos detalhes.</small></strong></div>
+    <div class="nav-label">ÁREA DE TRABALHO</div>
+    <button class="nav active" id="nav-players">◉ <span>Jogadores</span><span id="player-count" class="nav-count">—</span></button>
+    <button class="nav" id="nav-changes">⇄ <span>Alterações</span><span id="pending-count" class="nav-count">0</span></button>
+    <button class="nav" id="nav-diagnostics">≡ <span>Diagnóstico</span></button>
+    <div class="sidebar-bottom"><span class="dot"></span> Edição local em cópia<small>CM0304 4.1.5 · Rust + Tauri<br>Prévia de desenvolvimento 0.3</small></div>
+  </aside>
+  <main>
+    <header><div><div class="eyebrow">CHAMPIONSHIP MANAGER 03/04</div><h1>Editor de save</h1></div><button id="open-save" class="primary">＋ Abrir save</button></header>
+    <section class="filebar"><div><span class="file-symbol">▤</span><strong id="file-name">Nenhum save aberto</strong><span id="file-info">Selecione um arquivo .cm4 para começar</span></div><span class="pill">4.1.5</span></section>
+    <div id="status" role="status" aria-live="polite">Pronto para abrir uma carreira.</div>
+    <section id="empty" class="empty"><div class="pitch"><div></div><span></span></div><div class="eyebrow">UMA NOVA PERSPECTIVA SOBRE O SEU ELENCO</div><h2>Conheça cada detalhe.<br>Faça cada ajuste contar.</h2><p>Abra uma carreira para consultar os jogadores e editar seus atributos.<br>As alterações são revisadas e gravadas em uma nova cópia.</p><button id="empty-open" class="primary">Abrir meu save</button></section>
+    <section id="workspace" hidden>
+      <div id="players-view" class="workspace-grid">
+        <section class="roster panel"><div class="panel-heading"><h2>Jogadores</h2><span id="result-count">0 resultados</span></div><label class="search-box"><span>⌕</span><input id="search" type="search" placeholder="Nome, clube ou UID" aria-label="Buscar jogadores"></label><div class="table-label"><span>JOGADOR / CLUBE</span><span>CA · PA</span></div><div id="results" class="results"></div><div class="pagination"><button id="previous" aria-label="Página anterior">←</button><span id="page-label">1</span><button id="next" aria-label="Próxima página">→</button></div></section>
+        <section id="profile" class="profile panel"><div class="profile-placeholder"><h2>Escolha um jogador</h2><p>Selecione um nome da lista para consultar o perfil e preparar as alterações.</p></div></section>
+      </div>
+      <section id="changes-view" class="panel review" hidden><div class="panel-heading"><div><div class="eyebrow">ANTES DE GRAVAR</div><h2>Revise suas alterações</h2></div><div class="actions"><button id="undo">Desfazer</button><button id="redo">Refazer</button><button id="clear">Limpar</button></div></div><p>A origem permanece intacta. A cópia será relida e validada antes da conclusão.</p><div id="changes-list"></div><button id="save-copy" class="primary">Salvar cópia validada</button><p id="saved-path"></p></section>
+      <section id="diagnostics-view" class="panel review" hidden><div class="eyebrow">INFORMAÇÕES DO ARQUIVO</div><h2>Diagnóstico</h2><p>Formato validado: banco interno 147. Os valores convertidos seguem o modelo CM Scout 3.10; a interface do jogo pode ocultar ou estimar atributos de jogadores desconhecidos pelo treinador.</p><pre id="diagnostics"></pre></section>
+    </section>
+    <footer><span id="footer-state">Seu save original permanece intacto.</span><button id="review" disabled>Revisar alterações <span id="review-count">0</span> →</button></footer>
+  </main><script type="module" src="main.js"></script>
+</body></html>

@@ -1,0 +1,57 @@
+[
+  {
+    "name": "rust_v02.cm4",
+    "sha256": "7311684e16ae075683daab76a9da7ef6f3cc6a68f903825d32ed28e9e704fcca",
+    "size": 35054444,
+    "differences": [
+      19709464,
+      20622032,
+      20622052
+    ],
+    "players": [
+      {
+        "uid": 9888,
+        "name": "Thierry Henry",
+        "passing": 13,
+        "flair": 19,
+        "pace": 19,
+        "ca": 181
+      },
+      {
+        "uid": 2001642,
+        "name": "Clodoaldo",
+        "passing": 20,
+        "flair": 20,
+        "pace": 15,
+        "ca": 142
+      }
+    ]
+  },
+  {
+    "name": "tauri_v03.cm4",
+    "sha256": "e6f70291d1715778b7e0ee9ea8bf34b4acc98ff62c41b9b17e2e6492f318bf62",
+    "size": 35054444,
+    "differences": [
+      20622032,
+      20622052
+    ],
+    "players": [
+      {
+        "uid": 9888,
+        "name": "Thierry Henry",
+        "passing": 13,
+        "flair": 19,
+        "pace": 20,
+        "ca": 181
+      },
+      {
+        "uid": 2001642,
+        "name": "Clodoaldo",
+        "passing": 20,
+        "flair": 20,
+        "pace": 15,
+        "ca": 142
+      }
+    ]
+  }
+]

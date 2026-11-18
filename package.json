@@ -1,0 +1,21 @@
+{
+  "name": "cm0304-save-editor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "compare": "node tools/save-cli.js compare",
+    "analyze": "node tools/game-db-cli.js analyze",
+    "build:ui": "node tools/build-ui.js",
+    "build:desktop": "node tools/build-ui.js && cargo build --offline -p cm0304-desktop",
+    "test:rust": "cargo test --offline",
+    "verify:parity": "cargo build --offline -p cm0304-cli && node tools/verify-rust-parity.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

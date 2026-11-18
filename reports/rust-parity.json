@@ -1,0 +1,22 @@
+{
+  "results": [
+    {
+      "save": "save_inicial.cm4",
+      "sha256": "1e2280f838e8516d4da69c3b15faf01df9ec7cd085a03f56a58e0f516894d3b4",
+      "players": 22062,
+      "blocks": 87,
+      "parsedTables": 23,
+      "allPlayerFieldsMatch": true,
+      "allBlockFieldsMatch": true
+    },
+    {
+      "save": "save_modificado.cm4",
+      "sha256": "489ecfb97a416fd50f605eb37f8c6002ca10c0104a995552b0391b729bb2e584",
+      "players": 22062,
+      "blocks": 267,
+      "parsedTables": 23,
+      "allPlayerFieldsMatch": true,
+      "allBlockFieldsMatch": true
+    }
+  ]
+}

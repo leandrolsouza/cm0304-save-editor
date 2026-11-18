@@ -1,0 +1,8 @@
+[package]
+name = "cm0304-cli"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+cm0304-core = { path = "../cm0304-core" }
+serde_json.workspace = true

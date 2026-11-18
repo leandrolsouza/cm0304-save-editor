@@ -1,0 +1,11 @@
+/game/
+/node_modules/
+/target/
+/reports/rust-players-*.json
+/apps/desktop/dist/
+/apps/desktop/src-tauri/gen/
+/reports/players-*.csv
+/reports/game-db-analysis.json
+/reports/comparison.json
+/reports/fortaleza-attributes.json
+/reports/attribute-validation.json
