@@ -1,0 +1,102 @@
+[
+  {
+    "uid": 2001642,
+    "attribute": "state.condition",
+    "value": 7000
+  },
+  {
+    "uid": 2001642,
+    "attribute": "state.fitness",
+    "value": 8000
+  },
+  {
+    "uid": 2001642,
+    "attribute": "state.jadedness",
+    "value": -1000
+  },
+  {
+    "uid": 2001642,
+    "attribute": "state.morale",
+    "value": 20
+  },
+  {
+    "uid": 2001642,
+    "attribute": "state.estimatedValue",
+    "value": 2000000
+  },
+  {
+    "uid": 2001642,
+    "attribute": "state.saleValue",
+    "value": 3000000
+  },
+  {
+    "uid": 2001642,
+    "attribute": "contract.0.weeklyWage",
+    "value": 2500
+  },
+  {
+    "uid": 2001642,
+    "attribute": "contract.0.expires.year",
+    "value": 2003
+  },
+  {
+    "uid": 2001642,
+    "attribute": "contract.0.expires.day",
+    "value": 203
+  },
+  {
+    "uid": 2001642,
+    "attribute": "contract.0.squadStatus",
+    "value": 1
+  },
+  {
+    "uid": 2001642,
+    "attribute": "contract.0.squadNumber",
+    "value": 99
+  },
+  {
+    "uid": 1855,
+    "attribute": "state.condition",
+    "value": 10000
+  },
+  {
+    "uid": 1855,
+    "attribute": "state.fitness",
+    "value": 10000
+  },
+  {
+    "uid": 1855,
+    "attribute": "state.jadedness",
+    "value": -1000
+  },
+  {
+    "uid": 1855,
+    "attribute": "state.morale",
+    "value": 20
+  },
+  {
+    "uid": 1855,
+    "attribute": "contract.0.weeklyWage",
+    "value": 5000
+  },
+  {
+    "uid": 1855,
+    "attribute": "contract.0.squadNumber",
+    "value": 99
+  },
+  {
+    "uid": 1855,
+    "attribute": "contract.0.squadStatus",
+    "value": 1
+  },
+  {
+    "uid": 5101855,
+    "attribute": "contract.0.weeklyWage",
+    "value": 800
+  },
+  {
+    "uid": 5101855,
+    "attribute": "contract.1.weeklyWage",
+    "value": 600
+  }
+]

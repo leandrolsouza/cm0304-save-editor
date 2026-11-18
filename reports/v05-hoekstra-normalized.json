@@ -1,0 +1,117 @@
+{
+  "club": "Stoke City",
+  "databaseBase": 2126411,
+  "injuryCandidates": [
+    {
+      "dateCandidate": {
+        "day": 193,
+        "year": 2003
+      },
+      "durationWordsUnconfirmed": [
+        0,
+        0
+      ],
+      "flagsUnconfirmed": [
+        0,
+        0
+      ],
+      "injuryIndexCandidate": 11,
+      "offset": 10300665,
+      "typeCandidate": {
+        "category": 1,
+        "chance": 7,
+        "extraDaysOut": 30,
+        "id": 11,
+        "inactiveRatio": 60,
+        "minimumDaysOut": 15,
+        "name": "entorse dos ligamentos do tornozelo",
+        "recurring": true,
+        "sentenceName": "entorse dos ligamentos do tornozelo",
+        "severity": 1,
+        "uid": 12
+      }
+    }
+  ],
+  "name": "Peter Hoekstra",
+  "records": {
+    "bans": [],
+    "bookings": [],
+    "injuries": [
+      {
+        "bytes": [
+          11,
+          0,
+          0,
+          0,
+          0,
+          0,
+          108,
+          7,
+          255,
+          255,
+          0,
+          184,
+          0,
+          255,
+          255,
+          255,
+          255,
+          0,
+          255,
+          255,
+          255,
+          255,
+          216,
+          131,
+          220,
+          181,
+          119,
+          12,
+          193,
+          0,
+          211,
+          7,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "offset": 10300665
+      }
+    ],
+    "injuryStatus": {
+      "bytes": [
+        206,
+        0,
+        211,
+        7,
+        159,
+        0,
+        211,
+        7,
+        255,
+        255,
+        255,
+        255,
+        0,
+        255,
+        255,
+        255,
+        255,
+        0,
+        255,
+        255,
+        255,
+        255,
+        0,
+        206,
+        0,
+        90
+      ],
+      "offset": 10300705
+    }
+  },
+  "uid": 356
+}

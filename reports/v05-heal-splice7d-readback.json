@@ -1,0 +1,46 @@
+{
+  "club": "Stoke City",
+  "databaseBase": 2767267,
+  "injuryCandidates": [],
+  "name": "Peter Hoekstra",
+  "records": {
+    "banCountOffset": 10347115,
+    "bans": [],
+    "bookings": [],
+    "injuries": [],
+    "injuryCountOffset": 10347114,
+    "injuryStatus": {
+      "bytes": [
+        212,
+        0,
+        211,
+        7,
+        159,
+        0,
+        211,
+        7,
+        255,
+        255,
+        255,
+        255,
+        0,
+        255,
+        255,
+        255,
+        255,
+        0,
+        255,
+        255,
+        255,
+        255,
+        0,
+        0,
+        0,
+        5
+      ],
+      "offset": 10347117
+    },
+    "injuryStatusFlagOffset": 10347116
+  },
+  "uid": 356
+}

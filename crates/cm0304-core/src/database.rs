@@ -66,6 +66,21 @@ pub struct Club {
     pub name: String,
     pub short_name: String,
 }
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InjuryType {
+    pub name: String,
+    pub category: u8,
+    pub sentence_name: String,
+    pub chance: u8,
+    pub minimum_days_out: i16,
+    pub extra_days_out: i16,
+    pub inactive_ratio: u8,
+    pub recurring: bool,
+    pub severity: u8,
+    pub id: i32,
+    pub uid: i32,
+}
 #[derive(Debug)]
 pub struct Team {
     pub container_type: u8,
@@ -86,6 +101,31 @@ pub struct PlayingInfo {
     pub weight: i16,
     pub height: i16,
     pub state: PlayerState,
+    pub health_records: HealthRecords,
+}
+/// Structural diagnostics only: records are not classified as active or historical.
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HealthRecords {
+    pub injury_count_offset: Option<usize>,
+    pub ban_count_offset: Option<usize>,
+    pub injury_status_flag_offset: Option<usize>,
+    pub injuries: Vec<RecordSpan>,
+    pub bans: Vec<RecordSpan>,
+    pub injury_status: Option<RecordSpan>,
+    pub bookings: Vec<RecordSpan>,
+}
+#[derive(Debug, Serialize)]
+pub struct RecordSpan {
+    /// Offset relative to game_db.dat, not the save container.
+    pub offset: usize,
+    pub bytes: Vec<u8>,
+}
+fn record_span(r: &Reader, start: usize) -> RecordSpan {
+    RecordSpan {
+        offset: start,
+        bytes: r.data[start..r.pos].to_vec(),
+    }
 }
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -137,6 +177,7 @@ pub struct Database {
     pub sections: Vec<Section>,
     pub clubs: Vec<Club>,
     pub nations: Vec<Club>,
+    pub injury_types: Vec<InjuryType>,
     pub teams: Vec<Team>,
     pub names: [Vec<String>; 3],
     pub people: Vec<Person>,
@@ -317,11 +358,32 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
         r.skip(29)
     })?;
     fixed(&mut r, &mut s, "continents", 17)?;
-    table(&mut r, &mut s, "injuries", |r, _, _| {
-        r.string()?;
-        r.skip(2)?;
-        r.string()?;
-        r.skip(17)
+    let injury_types = table(&mut r, &mut s, "injuries", |r, _, _| {
+        let name = r.string()?;
+        r.skip(1)?; // grammatical gender
+        let category = r.u8()?;
+        let sentence_name = r.string()?;
+        r.skip(1)?; // grammatical gender
+        let chance = r.u8()?;
+        let minimum_days_out = r.i16()?;
+        let extra_days_out = r.i16()?;
+        let inactive_ratio = r.u8()?;
+        let recurring = r.boolean()?;
+        let severity = r.u8()?;
+        let (id, uid) = r.identity()?;
+        Ok(InjuryType {
+            name,
+            category,
+            sentence_name,
+            chance,
+            minimum_days_out,
+            extra_days_out,
+            inactive_ratio,
+            recurring,
+            severity,
+            id,
+            uid,
+        })
     })?;
     table(&mut r, &mut s, "media", |r, _, _| {
         r.string()?;
@@ -455,6 +517,7 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
         sections: s,
         clubs,
         nations,
+        injury_types,
         teams,
         names,
         people,
@@ -467,6 +530,7 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
 
 fn read_player_info(r: &mut Reader) -> Result<PlayingInfo> {
     let offset = r.pos;
+    let mut health_records = HealthRecords::default();
     let reputation = [r.u16()?, r.u16()?, r.u16()?];
     let ca = r.i16()?;
     let pa = r.i16()?;
@@ -488,7 +552,9 @@ fn read_player_info(r: &mut Reader) -> Result<PlayingInfo> {
     }
     r.skip(4)?;
     if r.boolean()? {
+        health_records.injury_count_offset = Some(r.pos);
         for _ in 0..r.u8()? {
+            let start = r.pos;
             r.skip(10)?;
             let n = match r.u8()? {
                 0 => 1,
@@ -498,23 +564,32 @@ fn read_player_info(r: &mut Reader) -> Result<PlayingInfo> {
                 t => return Err(format!("Unknown injury fixture {t}")),
             };
             r.skip(n + 26)?;
+            health_records.injuries.push(record_span(r, start));
         }
+        health_records.ban_count_offset = Some(r.pos);
         for _ in 0..r.u8()? {
+            let start = r.pos;
             r.skip(18)?;
             if r.boolean()? {
                 r.skip(39)?;
             }
+            health_records.bans.push(record_span(r, start));
         }
+        health_records.injury_status_flag_offset = Some(r.pos);
         if r.boolean()? {
+            let start = r.pos;
             r.skip(26)?;
+            health_records.injury_status = Some(record_span(r, start));
         }
     }
     for _ in 0..r.u8()? {
+        let start = r.pos;
         let t = r.u8()?;
         let n = *[3, 5, 5, 8, 4]
             .get(t as usize)
             .ok_or_else(|| format!("Unknown booking {t}"))?;
         r.skip(n)?;
+        health_records.bookings.push(record_span(r, start));
     }
     r.skip(38)?;
     if r.boolean()? {
@@ -536,6 +611,7 @@ fn read_player_info(r: &mut Reader) -> Result<PlayingInfo> {
         reputation,
         weight,
         height,
+        health_records,
         state: PlayerState {
             estimated_value,
             sale_value,
@@ -899,6 +975,7 @@ impl Database {
                         );
                     }
                 }
+                crate::career::add_fields(p, base, &mut fields);
                 Ok(Player {
                     uid: p.uid,
                     id: p.id,

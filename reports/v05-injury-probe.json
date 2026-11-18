@@ -1,0 +1,22 @@
+{
+  "purpose": "Research only: test two unconfirmed injury duration words set to zero; not a supported healing operation",
+  "uid": 356,
+  "source": "game/user data/games/tauri_v057d.cm4",
+  "copy": "game/user data/games/v05_injury_probe.cm4",
+  "absoluteOffset": 12427108,
+  "before": [
+    44,
+    0,
+    74,
+    0
+  ],
+  "after": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "sourceSha256": "479e6e96ed0e5a117fc629c2291f2c7ae9c31b5954d043cc663998fca7751364",
+  "copySha256": "196f5a7b8ca46773796eeee4a23ab057be232234abf813951e03586fff49a634",
+  "gameValidation": "Loaded on 26/7/2003: injury still displayed, approximately two weeks; physical state changed to back in training after injury. Re-saved as v05_injury_prober.cm4; words stayed zero. This does not fully heal the player."
+}

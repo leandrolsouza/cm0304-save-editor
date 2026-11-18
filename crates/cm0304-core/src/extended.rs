@@ -82,6 +82,7 @@ pub fn apply(input: &[u8], edits: &[Edit]) -> Result<(Vec<u8>, Report)> {
             .iter()
             .find(|v| v.uid == *uid && v.playing.is_some())
             .ok_or("Missing person")?;
+        crate::career::validate(&db, p, person, group, edits)?;
         let value = |key: &str| {
             group
                 .get(key)
@@ -201,6 +202,12 @@ pub fn apply(input: &[u8], edits: &[Edit]) -> Result<(Vec<u8>, Report)> {
     for uid in groups.keys() {
         let before = by_uid[uid];
         let after = new_index[uid];
+        let person = db
+            .people
+            .iter()
+            .find(|p| p.uid == *uid)
+            .ok_or("Missing person")?;
+        let contracts = crate::career::contracts(&db, person);
         for (key, old) in &before.fields {
             let new = &after.fields[key];
             let raw_before = raw(input, old);
@@ -217,6 +224,20 @@ pub fn apply(input: &[u8], edits: &[Edit]) -> Result<(Vec<u8>, Report)> {
                     offset: old.offset,
                     width: old.width,
                     derived: !groups[uid].contains_key(key.as_str()),
+                    context: key
+                        .strip_prefix("contract.")
+                        .and_then(|v| v.split('.').next())
+                        .and_then(|v| v.parse::<usize>().ok())
+                        .and_then(|i| contracts.get(i))
+                        .map(|c| {
+                            format!(
+                                "{} · {}",
+                                c.kind_label,
+                                c.entity.as_deref().unwrap_or("Sem entidade")
+                            )
+                        }),
+                    display_before: crate::career::display_field(before, key),
+                    display_after: crate::career::display_field(after, key),
                 });
             }
         }

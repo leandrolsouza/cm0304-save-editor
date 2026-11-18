@@ -76,6 +76,9 @@ pub struct Change {
     pub offset: usize,
     pub width: u8,
     pub derived: bool,
+    pub context: Option<String>,
+    pub display_before: Option<String>,
+    pub display_after: Option<String>,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

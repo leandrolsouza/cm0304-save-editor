@@ -1,0 +1,13 @@
+{
+  "purpose": "Research: remove one injury record following natural cleanup observed on other players; preserve status/history bytes",
+  "uid": 356,
+  "source": "game/user data/games/tauri_v057d.cm4",
+  "copy": "game/user data/games/v05_heal_splice.cm4",
+  "countOffset": 12427075,
+  "removedOffset": 12427076,
+  "removedLength": 38,
+  "sizeOffset": 2126407,
+  "sourceSha256": "479e6e96ed0e5a117fc629c2291f2c7ae9c31b5954d043cc663998fca7751364",
+  "copySha256": "a505f1958de081d4d04d970fe453094a759d7cc82930a5e87a7350fa8856ecc5",
+  "gameValidation": "Passed first-case cycle: loaded26/7/2003, Hoekstra injuriesNada/Totalmenteapto/condition100%; advanced7days, saved v05_heal_splice7d.cm4 on2/8/2003, restarted game and reloaded; profile still injuriesNada/Totalmenteapto/condition100%. Other variants and desktop integration pending."
+}

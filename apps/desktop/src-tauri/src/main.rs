@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use cm0304_core::{
+    career::{self, ContractView},
     container::hash,
     database::{self, Date, Player},
     editor::{self, Edit},
@@ -23,6 +24,7 @@ struct Loaded {
     nations: Vec<String>,
     game_date: Date,
     search_keys: Vec<String>,
+    contracts: BTreeMap<i32, Vec<ContractView>>,
 }
 #[derive(Default)]
 struct Session {
@@ -60,6 +62,7 @@ struct Detail {
     player: Player,
     effective: Player,
     age: Option<u16>,
+    contracts: Vec<ContractView>,
     editable: Vec<String>,
     pending: Vec<Edit>,
     nations: Vec<String>,
@@ -107,6 +110,12 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
             let bytes = std::fs::read(&source).map_err(|e| e.to_string())?;
             let (db, base) = database::load(&bytes)?;
             let players = db.players(base)?;
+            let contracts = db
+                .people
+                .iter()
+                .filter(|p| p.playing.is_some())
+                .map(|p| (p.uid, career::contracts(&db, p)))
+                .collect();
             let nations = db.nations.iter().map(|n| n.name.clone()).collect();
             let search_keys = players
                 .iter()
@@ -139,6 +148,7 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
                     nations,
                     game_date: db.game_date,
                     search_keys,
+                    contracts,
                 }),
                 summary,
             )))
@@ -193,11 +203,15 @@ async fn player_detail(uid: i32, state: State<'_, Shared>) -> Result<Detail> {
         .find(|p| p.uid == uid)
         .ok_or("Jogador não encontrado")?;
     let editable = p.fields.keys().cloned().collect();
-    let pending = state
+    let plan = state
         .lock()
         .map_err(|e| e.to_string())?
         .edits
         .values()
+        .cloned()
+        .collect::<Vec<_>>();
+    let pending = plan
+        .iter()
         .filter(|e| e.uid == uid)
         .cloned()
         .collect::<Vec<_>>();
@@ -205,7 +219,9 @@ async fn player_detail(uid: i32, state: State<'_, Shared>) -> Result<Detail> {
         p.clone()
     } else {
         let bytes = data.bytes.clone();
-        let edits = pending.clone();
+        // Related entities can be necessary for validity (e.g. swapping shirts).
+        // Always project the complete transaction, then select this player.
+        let edits = plan;
         tauri::async_runtime::spawn_blocking(move || -> Result<Player> {
             let (output, _) = editor::apply(&bytes, &edits)?;
             let (db, base) = database::load(&output)?;
@@ -222,6 +238,7 @@ async fn player_detail(uid: i32, state: State<'_, Shared>) -> Result<Detail> {
         age: effective.date_of_birth.age_on(&data.game_date),
         effective,
         editable,
+        contracts: data.contracts.get(&uid).cloned().unwrap_or_default(),
         pending,
         nations: data.nations.clone(),
     })

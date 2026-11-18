@@ -1,0 +1,38 @@
+{
+  "club": "Sporting Clube de Braga",
+  "contracts": [
+    {
+      "contract": {
+        "commonOffset": 10342524,
+        "entityIndex": 734,
+        "entityType": 0,
+        "expires": {
+          "day": 212,
+          "year": 2004
+        },
+        "kind": 0,
+        "offset": 10342495,
+        "squadNumber": 99,
+        "squadStatus": 2,
+        "started": {
+          "day": 0,
+          "year": 2000
+        },
+        "transferStatus": 4,
+        "weeklyWage": 5000
+      },
+      "entity": "Sporting Clube de Braga"
+    }
+  ],
+  "databaseBase": 1805943,
+  "name": "Quim",
+  "state": {
+    "condition": 9550,
+    "estimatedValue": 1258113,
+    "fitness": 10000,
+    "jadedness": -1000,
+    "morale": 20,
+    "saleValue": -1
+  },
+  "uid": 1855
+}

@@ -37,12 +37,18 @@ Essa é a base histórica em JavaScript. A migração e a primeira interface já
 - [x] **v0.2:** núcleo Rust com leitura equivalente, transações de múltiplos campos/jogadores e gravação exclusiva validada. Cópia carregada no jogo.
 - [x] **v0.3:** aplicativo Tauri com abertura, busca paginada, perfil, revisão, desfazer/refazer e salvar cópia. Fluxo completo executado na interface e cópia carregada no jogo.
 - [x] **v0.4:** editor ampliado de jogadores, políticas de CA, abas, idade e busca sem acentos. Fluxo Tauri, posições/pés, goleiro e jogador/staff conferidos; cópias avançaram sete dias, foram regravadas e recarregadas no jogo.
-- [ ] **v0.5:** iniciada a leitura de diagnóstico de estado e contratos; edição e validações ainda pendentes.
+- [ ] **v0.5:** edição de estado e contratos existentes em prévia; remoção de lesões no núcleo Rust com primeiro caso conferido no jogo e avanço de sete dias. Faltam integração da cura à interface, variantes, suspensões e conclusão da matriz de contratos/valores.
 - [ ] **v0.6–v1.0:** ainda não concluídas.
 
 Evidências: `reports/v0.2-v0.3-validation.md` e `reports/v0.4-validation.md`. As prévias são marcos de desenvolvimento, não uma declaração de estabilidade da v1.0.
 
 ## Funcionalidades da v1.0
+
+### Direção do produto
+
+A v1.0 será um editor de carreira com navegação entre jogador, contrato, comissão e clube. A edição de atributos é apenas a primeira área. O escopo inclui operações individuais e em lote, ferramentas de comparação e revisão das alterações antes de gravar uma cópia.
+
+Prioridade de implementação: completar jogadores e contratos, acrescentar staff e clubes e então integrar as operações em lote. A interface desktop será desenvolvida em Tauri, com toda leitura, conversão, validação e escrita no núcleo Rust.
 
 | Área | Escopo planejado |
 |---|---|
@@ -56,6 +62,19 @@ Evidências: `reports/v0.2-v0.3-validation.md` e `reports/v0.4-validation.md`. A
 | **Edição em lote** | Seleção por elenco ou filtro; definir, aumentar/reduzir ou limitar atributos; presets e prévia antes de aplicar. |
 | **Análise** | Comparar jogadores lado a lado; filtros de posição, idade, CA/PA e atributos; comparar saves e exportar listas. |
 | **Fluxo** | Múltiplas alterações, desfazer/refazer antes de salvar, revisão por entidade, cópia validada e histórico local de relatórios. |
+
+### Operações que devem estar disponíveis na interface
+
+| Tela | Ações previstas até a v1.0 |
+|---|---|
+| Perfil do jogador | Editar vários atributos juntos; alterar CA/PA, posições e pés; ajustar dados pessoais, reputação e personalidade; revisar efeitos indiretos. |
+| Estado e contrato | Recuperar condição, descansar, ajustar moral, tratar lesão/suspensão validada, alterar salário, vencimento, camisa, situação no elenco e valores financeiros. |
+| Elenco do clube | Selecionar parte ou todo o elenco, recuperar jogadores, aplicar ajustes de atributos e localizar contratos próximos do fim. |
+| Comissão técnica | Editar atributos de trabalho e capacidade, reputação e personalidade; acessar o perfil de jogador quando houver dupla função. |
+| Gestão do clube | Ajustar saldo, orçamentos e infraestrutura confirmados; consultar elenco, comissão e compromissos salariais. |
+| Ferramentas | Copiar conjuntos de atributos, aplicar presets, comparar jogadores e saves, exportar resultados e desfazer uma operação inteira. |
+
+Cada operação deve informar os alvos e os valores finais antes da aplicação. Recursos dependentes de engenharia reversa continuam como pendências do marco correspondente até a validação; sua ausência impede declarar aquele marco concluído.
 
 São metas de implementação, não recursos já demonstrados. Cada domínio depende de identificar os campos, validar referências e conferir os efeitos no jogo. Se uma meta não puder ser validada, o roadmap deverá ser revisto explicitamente antes da v1.0.
 

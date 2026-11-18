@@ -2,11 +2,87 @@ use cm0304_core::database;
 use std::{fs, path::PathBuf};
 
 #[test]
+fn health_record_spans_match_source_bytes_in_both_samples() {
+    for sample in ["save_inicial.cm4", "save_modificado.cm4"] {
+        let bytes = fs::read(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../game/user data/games")
+                .join(sample),
+        )
+        .unwrap();
+        let (db, base) = database::load(&bytes).unwrap();
+        let mut counts = [0usize; 4];
+        for person in &db.people {
+            let Some(info) = &person.playing else {
+                continue;
+            };
+            let health = &info.health_records;
+            if let Some(offset) = health.injury_count_offset {
+                assert_eq!(bytes[base + offset] as usize, health.injuries.len());
+                let ban_offset = health.ban_count_offset.unwrap();
+                assert_eq!(bytes[base + ban_offset] as usize, health.bans.len());
+                assert_eq!(
+                    bytes[base + health.injury_status_flag_offset.unwrap()] != 0,
+                    health.injury_status.is_some()
+                );
+                let injury_end = health
+                    .injuries
+                    .last()
+                    .map(|record| record.offset + record.bytes.len())
+                    .unwrap_or(offset + 1);
+                assert_eq!(injury_end, ban_offset);
+            }
+            for (kind, records) in [
+                health.injuries.as_slice(),
+                health.bans.as_slice(),
+                health.injury_status.as_slice(),
+                health.bookings.as_slice(),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                counts[kind] += records.len();
+                for record in records {
+                    assert!(record.offset > info.offset);
+                    let start = base + record.offset;
+                    assert_eq!(record.bytes, bytes[start..start + record.bytes.len()]);
+                    match kind {
+                        0 => {
+                            assert!(matches!(record.bytes.len(), 38 | 40 | 42 | 44));
+                            let injury_index =
+                                i32::from_le_bytes(record.bytes[..4].try_into().unwrap());
+                            assert!(injury_index >= 0);
+                            assert!(db.injury_types.get(injury_index as usize).is_some());
+                        }
+                        1 => assert!(matches!(record.bytes.len(), 19 | 58)),
+                        2 => assert_eq!(record.bytes.len(), 26),
+                        3 => assert_eq!(
+                            record.bytes.len(),
+                            1 + [3, 5, 5, 8, 4][record.bytes[0] as usize]
+                        ),
+                        _ => unreachable!(),
+                    }
+                }
+            }
+        }
+        assert!(
+            counts.iter().all(|count| *count > 0),
+            "{sample}: {counts:?}"
+        );
+    }
+}
+
+#[test]
 fn reads_existing_contracts_state_and_loan_entities_without_changing_layout() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../game/user data/games/save_inicial.cm4");
     let bytes = fs::read(path).unwrap();
     let (db, base) = database::load(&bytes).unwrap();
+    assert_eq!(db.injury_types.len(), 83);
+    let ankle = &db.injury_types[11];
+    assert_eq!(ankle.name, "entorse dos ligamentos do tornozelo");
+    assert_eq!((ankle.id, ankle.uid), (11, 12));
+    assert_eq!((ankle.minimum_days_out, ankle.extra_days_out), (15, 30));
     assert_eq!(db.players(base).unwrap().len(), 22062);
     let player = |uid| db.people.iter().find(|p| p.uid == uid).unwrap();
     let clodoaldo = player(2001642);

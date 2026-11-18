@@ -1,0 +1,24 @@
+{
+  "uid": 1855,
+  "from": "tauri_v05.cm4",
+  "to": "tauri_v057d.cm4",
+  "days": 7,
+  "contractStable": true,
+  "stateBefore": {
+    "condition": 9550,
+    "estimatedValue": 1258113,
+    "fitness": 10000,
+    "jadedness": -1000,
+    "morale": 20,
+    "saleValue": -1
+  },
+  "stateAfter": {
+    "condition": 9800,
+    "estimatedValue": 1244928,
+    "fitness": 10000,
+    "jadedness": -1401,
+    "morale": 20,
+    "saleValue": -1
+  },
+  "sha256": "479e6e96ed0e5a117fc629c2291f2c7ae9c31b5954d043cc663998fca7751364"
+}
