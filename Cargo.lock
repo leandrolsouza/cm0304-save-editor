@@ -339,7 +339,7 @@ dependencies = [
 
 [[package]]
 name = "cm0304-cli"
-version = "0.4.0-alpha.1"
+version = "0.4.0"
 dependencies = [
  "cm0304-core",
  "serde_json",
@@ -347,7 +347,7 @@ dependencies = [
 
 [[package]]
 name = "cm0304-core"
-version = "0.4.0-alpha.1"
+version = "0.4.0"
 dependencies = [
  "serde",
  "sha2",
@@ -356,7 +356,7 @@ dependencies = [
 
 [[package]]
 name = "cm0304-desktop"
-version = "0.4.0-alpha.1"
+version = "0.4.0"
 dependencies = [
  "cm0304-core",
  "serde",

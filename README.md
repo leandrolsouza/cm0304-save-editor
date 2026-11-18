@@ -2,9 +2,9 @@
 
 Editor local para CM0304 4.1.5, com núcleo **Rust** e interface **Tauri + TypeScript**. Os marcos v0.2 e v0.3 já permitem abrir um save, buscar jogadores, preparar várias alterações, revisar, desfazer/refazer e salvar uma cópia validada. Os arquivos do jogo e os saves ficam em `game/`.
 
-O [roadmap até a v1.0](ROADMAP.md) amplia o produto para jogadores, staff, contratos, clubes e edição em lote. A prévia **0.4.0-alpha.1**, ainda em validação, acrescenta CA/PA, posições, personalidade, dados pessoais, abas, idade e busca sem acentos. O trabalho rumo à v1.0 continua ativo.
+O [roadmap até a v1.0](ROADMAP.md) amplia o produto para jogadores, staff, contratos, clubes e edição em lote. O marco **0.4.0** acrescenta CA/PA, posições, personalidade, dados pessoais, abas, idade e busca sem acentos. O trabalho rumo à v1.0 continua ativo.
 
-A [validação parcial da v0.4](reports/v0.4-validation.md) registra o fluxo Tauri e uma cópia CLI que avançou sete dias, foi regravada e carregada novamente no jogo. Os 12 alvos editados persistiram; outros atributos sofreram recálculos durante a evolução.
+A [validação da v0.4](reports/v0.4-validation.md) registra o fluxo Tauri e uma cópia CLI que avançou sete dias, foi regravada e carregada novamente no jogo. Os 12 alvos editados persistiram; outros atributos sofreram recálculos durante a evolução.
 
 ## Aplicativo desktop
 

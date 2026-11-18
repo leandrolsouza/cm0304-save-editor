@@ -32,7 +32,7 @@ fn run() -> Result<()> {
         return Ok(());
     }
     if a.len() < 2 {
-        return Err("Usage: cm0304-cli inspect <save> | players <save> [query] | export <save> <json> | edit <save> <new-copy> <plan.json>".into());
+        return Err("Usage: cm0304-cli inspect <save> | players <save> [query] | career <save> [query] | export <save> <json> | edit <save> <new-copy> <plan.json>".into());
     }
     let bytes = fs::read(&a[1]).map_err(|e| e.to_string())?;
     if command == "inspect" {
@@ -45,7 +45,7 @@ fn run() -> Result<()> {
     let (db, base) = database::load(&bytes)?;
     let mut players = db.players(base)?;
     match command {
-        "players" => {
+        "players" | "career" => {
             if let Some(q) = a.get(2) {
                 let q = search::key(q);
                 players.retain(|p| {
@@ -60,10 +60,26 @@ fn run() -> Result<()> {
                     .contains(&q)
                 });
             }
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&players).map_err(|e| e.to_string())?
-            );
+            if command == "career" {
+                let rows = players.iter().map(|p| {
+                    let person = db.people.iter().find(|v| v.uid == p.uid).unwrap();
+                    let state = &person.playing.as_ref().unwrap().state;
+                    let contracts = person.contracts.iter().map(|c| {
+                        let entity = if c.entity_type == 0 { db.clubs.get(c.entity_index as usize) } else { db.nations.get(c.entity_index as usize) };
+                        serde_json::json!({"contract":c, "entity":entity.map(|e| &e.name)})
+                    }).collect::<Vec<_>>();
+                    serde_json::json!({"uid":p.uid,"name":p.name,"club":p.club,"databaseBase":base,"state":state,"contracts":contracts})
+                }).collect::<Vec<_>>();
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&rows).map_err(|e| e.to_string())?
+                );
+            } else {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&players).map_err(|e| e.to_string())?
+                );
+            }
         }
         "export" if a.len() == 3 => {
             fs::write(

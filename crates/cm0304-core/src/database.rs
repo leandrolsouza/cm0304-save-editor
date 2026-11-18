@@ -85,6 +85,32 @@ pub struct PlayingInfo {
     pub reputation: [u16; 3],
     pub weight: i16,
     pub height: i16,
+    pub state: PlayerState,
+}
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlayerState {
+    pub estimated_value: i32,
+    pub sale_value: i32,
+    pub morale: u8,
+    pub fitness: i16,
+    pub jadedness: i16,
+    pub condition: i16,
+}
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Contract {
+    pub kind: u8,
+    pub offset: usize,
+    pub common_offset: usize,
+    pub entity_type: u8,
+    pub entity_index: i32,
+    pub weekly_wage: i32,
+    pub expires: Date,
+    pub started: Date,
+    pub squad_status: i8,
+    pub transfer_status: u8,
+    pub squad_number: i8,
 }
 #[derive(Debug)]
 pub struct Person {
@@ -102,6 +128,7 @@ pub struct Person {
     pub team: i32,
     pub personality: i32,
     pub playing: Option<PlayingInfo>,
+    pub contracts: Vec<Contract>,
 }
 #[derive(Debug)]
 pub struct Database {
@@ -444,10 +471,18 @@ fn read_player_info(r: &mut Reader) -> Result<PlayingInfo> {
     let ca = r.i16()?;
     let pa = r.i16()?;
     let playing_index = r.i32()?;
-    r.skip(23)?;
+    r.skip(4)?; // playing history
+    let estimated_value = r.i32()?;
+    let morale = r.u8()?;
+    r.skip(1)?; // nation choice factor
+    let fitness = r.i16()?;
+    let jadedness = r.i16()?;
+    let condition = r.i16()?;
+    r.skip(7)?;
     let weight = r.i16()?;
     let height = r.i16()?;
-    r.skip(5)?;
+    r.skip(1)?; // ability offset
+    let sale_value = r.i32()?;
     if r.boolean()? {
         r.skip(16)?;
     }
@@ -501,9 +536,18 @@ fn read_player_info(r: &mut Reader) -> Result<PlayingInfo> {
         reputation,
         weight,
         height,
+        state: PlayerState {
+            estimated_value,
+            sale_value,
+            morale,
+            fitness,
+            jadedness,
+            condition,
+        },
     })
 }
-fn contract(r: &mut Reader, t: u8) -> Result<()> {
+fn contract(r: &mut Reader, t: u8) -> Result<Contract> {
+    let offset = r.pos - 1;
     check_type(t, &[0, 1, 2, 5], r.pos - 1)?;
     if t == 0 {
         r.skip(20)?;
@@ -519,8 +563,31 @@ fn contract(r: &mut Reader, t: u8) -> Result<()> {
     if t != 2 {
         r.skip(1)?;
     }
-    r.kind(&[0, 1])?;
-    r.skip(33)
+    let common_offset = r.pos;
+    let entity_type = r.kind(&[0, 1])?;
+    let entity_index = r.i32()?;
+    let weekly_wage = r.i32()?;
+    let expires = date(r)?;
+    let squad_status = r.u8()? as i8;
+    let transfer_status = r.u8()?;
+    r.skip(8)?; // happiness flags
+    let started = date(r)?;
+    r.skip(3)?; // happiness level, perceived squad status, club choice
+    let squad_number = r.u8()? as i8;
+    r.skip(3)?; // offer options, unknown word
+    Ok(Contract {
+        kind: t,
+        offset,
+        common_offset,
+        entity_type,
+        entity_index,
+        weekly_wage,
+        expires,
+        started,
+        squad_status,
+        transfer_status,
+        squad_number,
+    })
 }
 fn read_person(r: &mut Reader, t: u8, index: usize) -> Result<Person> {
     let offset = r.pos - 1;
@@ -540,6 +607,7 @@ fn read_person(r: &mut Reader, t: u8, index: usize) -> Result<Person> {
         team: -1,
         personality: -1,
         playing: None,
+        contracts: Vec::new(),
     };
     if t == 6 || t == 7 {
         r.skip(if t == 6 { 1 } else { 6 })?;
@@ -584,7 +652,7 @@ fn read_person(r: &mut Reader, t: u8, index: usize) -> Result<Person> {
     r.skip(8)?;
     for _ in 0..r.u8()? {
         let ct = r.u8()?;
-        contract(r, ct)?;
+        person.contracts.push(contract(r, ct)?);
     }
     for _ in 0..r.u8()? {
         let ct = r.u8()?;

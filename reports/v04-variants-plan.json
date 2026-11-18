@@ -1,0 +1,68 @@
+[
+  {
+    "uid": 2001642,
+    "attribute": "position.sweeper",
+    "value": 0
+  },
+  {
+    "uid": 2001642,
+    "attribute": "position.defender",
+    "value": 0
+  },
+  {
+    "uid": 2001642,
+    "attribute": "position.defensiveMidfielder",
+    "value": 0
+  },
+  {
+    "uid": 2001642,
+    "attribute": "position.midfielder",
+    "value": 0
+  },
+  {
+    "uid": 2001642,
+    "attribute": "position.attackingMidfielder",
+    "value": 0
+  },
+  {
+    "uid": 2001642,
+    "attribute": "position.attacker",
+    "value": 0
+  },
+  {
+    "uid": 2001642,
+    "attribute": "position.wingBack",
+    "value": 0
+  },
+  {
+    "uid": 2001642,
+    "attribute": "position.freeRole",
+    "value": 0
+  },
+  {
+    "uid": 2001642,
+    "attribute": "position.goalkeeper",
+    "value": 20,
+    "policy": "preserveRelative"
+  },
+  {
+    "uid": 2001642,
+    "attribute": "leftFoot",
+    "value": 1
+  },
+  {
+    "uid": 2001642,
+    "attribute": "rightFoot",
+    "value": 20
+  },
+  {
+    "uid": 1855,
+    "attribute": "handling",
+    "value": 20
+  },
+  {
+    "uid": 600,
+    "attribute": "pace",
+    "value": 20
+  }
+]

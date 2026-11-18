@@ -1,0 +1,279 @@
+{
+  "observedGameDates": {
+    "before": "2003-07-19",
+    "after": "2003-07-26"
+  },
+  "hashes": {
+    "save_inicial.cm4": "1e2280f838e8516d4da69c3b15faf01df9ec7cd085a03f56a58e0f516894d3b4",
+    "v04_variants.cm4": "bf1940c4ada966bee1b823c06d3203a77338c86d2651b016776a789fd20379f8",
+    "v04_variants7d.cm4": "22ed8d51fb67a091e38a2683c15895fb15be24ca42e1dfe6920d1d032dea2448"
+  },
+  "reloadedInGame": true,
+  "results": [
+    {
+      "uid": 2001642,
+      "name": "Clodoaldo",
+      "type": 2,
+      "targets": [
+        {
+          "field": "position.sweeper",
+          "target": 0,
+          "after": 0,
+          "retained": true
+        },
+        {
+          "field": "position.defender",
+          "target": 0,
+          "after": 0,
+          "retained": true
+        },
+        {
+          "field": "position.defensiveMidfielder",
+          "target": 0,
+          "after": 0,
+          "retained": true
+        },
+        {
+          "field": "position.midfielder",
+          "target": 0,
+          "after": 0,
+          "retained": true
+        },
+        {
+          "field": "position.attackingMidfielder",
+          "target": 0,
+          "after": 0,
+          "retained": true
+        },
+        {
+          "field": "position.attacker",
+          "target": 0,
+          "after": 0,
+          "retained": true
+        },
+        {
+          "field": "position.wingBack",
+          "target": 0,
+          "after": 0,
+          "retained": true
+        },
+        {
+          "field": "position.freeRole",
+          "target": 0,
+          "after": 0,
+          "retained": true
+        },
+        {
+          "field": "position.goalkeeper",
+          "target": 20,
+          "after": 20,
+          "retained": true
+        },
+        {
+          "field": "leftFoot",
+          "target": 1,
+          "after": 1,
+          "retained": true
+        },
+        {
+          "field": "rightFoot",
+          "target": 20,
+          "after": 20,
+          "retained": true
+        }
+      ],
+      "otherChanges": [
+        {
+          "field": "agility",
+          "before": 19,
+          "after": 20
+        },
+        {
+          "field": "anticipation",
+          "before": 14,
+          "after": 15
+        },
+        {
+          "field": "balance",
+          "before": 12,
+          "after": 14
+        },
+        {
+          "field": "corners",
+          "before": 13,
+          "after": 16
+        },
+        {
+          "field": "crossing",
+          "before": 4,
+          "after": 5
+        },
+        {
+          "field": "currentAbility",
+          "before": 142,
+          "after": 143
+        },
+        {
+          "field": "decisions",
+          "before": 13,
+          "after": 15
+        },
+        {
+          "field": "heading",
+          "before": 4,
+          "after": 6
+        },
+        {
+          "field": "influence",
+          "before": 12,
+          "after": 14
+        },
+        {
+          "field": "longShots",
+          "before": 4,
+          "after": 5
+        },
+        {
+          "field": "offTheBall",
+          "before": 6,
+          "after": 7
+        },
+        {
+          "field": "penalties",
+          "before": 4,
+          "after": 6
+        },
+        {
+          "field": "positioning",
+          "before": 13,
+          "after": 15
+        },
+        {
+          "field": "setPieces",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "field": "technique",
+          "before": 14,
+          "after": 16
+        },
+        {
+          "field": "throwIns",
+          "before": 11,
+          "after": 12
+        }
+      ]
+    },
+    {
+      "uid": 1855,
+      "name": "Quim",
+      "type": 2,
+      "targets": [
+        {
+          "field": "handling",
+          "target": 20,
+          "after": 20,
+          "retained": true
+        }
+      ],
+      "otherChanges": [
+        {
+          "field": "reputation.world",
+          "before": 3250,
+          "after": 3252
+        }
+      ]
+    },
+    {
+      "uid": 600,
+      "name": "Pär Zetterberg",
+      "type": 3,
+      "targets": [
+        {
+          "field": "pace",
+          "target": 20,
+          "after": 20,
+          "retained": true
+        }
+      ],
+      "otherChanges": [
+        {
+          "field": "acceleration",
+          "before": 10,
+          "after": 11
+        },
+        {
+          "field": "agility",
+          "before": 12,
+          "after": 14
+        },
+        {
+          "field": "anticipation",
+          "before": 13,
+          "after": 14
+        },
+        {
+          "field": "balance",
+          "before": 16,
+          "after": 18
+        },
+        {
+          "field": "currentAbility",
+          "before": 147,
+          "after": 145
+        },
+        {
+          "field": "dribbling",
+          "before": 14,
+          "after": 15
+        },
+        {
+          "field": "finishing",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "field": "jumping",
+          "before": 8,
+          "after": 9
+        },
+        {
+          "field": "longShots",
+          "before": 13,
+          "after": 15
+        },
+        {
+          "field": "marking",
+          "before": 11,
+          "after": 10
+        },
+        {
+          "field": "passing",
+          "before": 14,
+          "after": 15
+        },
+        {
+          "field": "stamina",
+          "before": 15,
+          "after": 16
+        },
+        {
+          "field": "strength",
+          "before": 11,
+          "after": 12
+        },
+        {
+          "field": "tackling",
+          "before": 11,
+          "after": 10
+        },
+        {
+          "field": "technique",
+          "before": 15,
+          "after": 17
+        }
+      ]
+    }
+  ]
+}

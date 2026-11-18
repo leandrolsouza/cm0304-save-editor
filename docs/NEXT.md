@@ -2,31 +2,33 @@
 
 Objetivo ativo: desenvolver os marcos do ROADMAP até a v1.0, sem reduzir o escopo aprovado.
 
-## Estado
+## Checkpoint
 
-- v0.2 e v0.3 validadas; v0.4 em validação, sem marcar concluída.
-- Núcleo/CLI/desktop/package versão **0.4.0-alpha.1**. Build final deste checkpoint deve ser conferido antes de encerrar.
-- Checkpoint anterior: `fdc751a`; novas alterações desta rodada ainda pendentes de commit.
-- `reports/v0.4-validation.md` registra implementação, testes, UI e evolução. `reports/v04-evolution.json` registra os 12 alvos preservados e 20 recálculos após sete dias.
-- Editor foi fechado para compilar a versão final com `merge_plan`; na execução anterior o fluxo completo salvou `tauri_v04.cm4` com quatro bytes alterados. Depois a política foi trocada para preserveValues e conferida no perfil, sem segunda gravação.
-- Jogo aberto com `rust_v047d.cm4` na data 26/7/2003, tela do elenco Braga, após encerramento e recarga. Essa cópia vem da CLI, não da Tauri.
-- Origem intacta. A cópia CLI reteve os 12 alvos de Clodoaldo após evolução/regravação/recarga no jogo.
+- **v0.4 funcional concluída**, versão 0.4.0 em core/CLI/desktop/package. Matriz beta e estabilidade v1.0 não concluídas.
+- Build desktop 0.4.0 aprovado. Executável: `target/debug/cm0304-desktop.exe`, atualmente fechado.
+- Suite Rust com leitura nova: 14 testes aprovados. Clippy all-targets core/CLI/desktop aprovado. Paridade integral histórica em duas amostras aprovada após leitor de contratos.
+- O teste de goleiro/jogador-staff foi reexecutado no fechamento 0.4.0 após acrescentar comparação explícita dos 15 bytes de staff: aprovado.
+- Testes nativos adicionais: tauri_v04 carregou; Quim Jogo de mãos 20; Clodoaldo Guarda-Redes/Só Direito; Pär Zetterberg Velocidade 20 e aba staff acessível; busca molby encontrou Johnny Mølby.
+- UI final com merge_plan: CA150 + finalização13 = dois alvos; restaurar CA142 removeu ambos, zero pendências e revisão desabilitada. Layout final examinado.
+- Cópia v04_variants avançou sete dias, regravou em v04_variants7d e carregou novamente com data26/7/2003. Os13 alvos persistiram. Jogo está aberto com essa cópia, elencoBraga.
+- Origem intacta. Evidências consolidadas em `reports/v0.4-validation.md`, `reports/v04-variants-write.json` e `reports/v04-variants-evolution.json`.
 
-## Próximos passos
+## Próxima etapa — v0.5
 
-- Conferir posições/pés e variantes goleiro/jogador-staff no jogo; concluir as pendências do relatório v0.4 antes de marcar o marco.
-- Buscar nomes sem acentos pela interface, além do teste unitário de normalização.
-- Executar fluxo da UI após `merge_plan`, especialmente remover a mudança de CA e limpar alvos relativos sem efeito; teste Rust já cobre isso.
-- Carregar `tauri_v04.cm4` no jogo; não confundir com a cópia CLI já carregada.
-- Validar visualmente a distribuição final após mudanças de layout; UI anterior com abas foi examinada.
-- Depois, avançar para v0.5: estado, contratos, lesões/suspensões e valores, conforme ROADMAP.
+Leitura de diagnóstico de estado e contratos já adicionada, sem expor edição destes campos. Ver `reports/v0.5-research.md` e teste `crates/cm0304-core/tests/career.rs`.
 
-## Notas de formato
+- `PlayingInfo.state`: estimatedValue, saleValue, morale, fitness, jadedness, condition.
+- `Person.contracts`: tipo, offsets relativos ao banco, clube/seleção, índice, salário semanal, término/início, situação, flags de transferência e camisa.
+- CLI `career <save> [consulta]` exporta diagnóstico com databaseBase. O modelo público Player histórico continua igual; a leitura nova não removeu nem afrouxou a paridade.
+- Clodoaldo contrato completo Fortaleza: wage1490, início1/7/1999, término1/1/2005; Quim condition9351/camisa1; Liam Chilvers UID5101855 contrato completoArsenal e empréstimoNorthampton.
 
-Altura: polegadas inteiras no arquivo, centímetros arredondados no modelo público, com inversa exata. Peso: kg; zero não especificado. Referência local pregame `framePeopleUnit.dfm`. Nascimento ordinal base zero; 1980/dia59 exibiu 29/2/1980 no jogo.
+Próximo trabalho: regras e metadados de edição de estado/contratos existentes; unidades e datas especiais; contrato selecionado explicitamente; preservar relação clube proprietário/equipe atual/empréstimo. Expor abasEstado/Contrato, com prévia e validação. Mapear lesões/suspensões sem zerar contadores de arrays variáveis. Depois executar ciclo no jogo incluindo datas/eventos relevantes.
 
-Para v0.5, `read_person` ainda descarta contratos. `CM4SaveGameData.pas:1967` lê o segmento comum após os dados do tipo: byte extra (exceto trial), tipo de entidade 0/1, índice i32, salário semanal i32, data de término, situação/transferstatus, felicidade8, data inicial, felicidade/percepção/clubchoice/camisa/opções/unknown2. Capturar offsets dos contratos existentes e distinguir clube/seleção e empréstimos antes de editar. O pregame contém os nomes de campos, mas seu suporte de tipos não substitui o loader do save.
+A moeda/arredondamento salarial ainda requer validação específica: o campo é salário semanal interno; a tela mostra £6.000/mês para o valor1490. Não prometer equivalência exata de interface antes de conferir a regra.
 
-Ainda faltam v0.4 a v1.0, quatro saves de duas carreiras, teste com outra pessoa e máquina limpa. Meta ativa.
+## Cuidados de continuidade
 
-Build final 0.4.0-alpha.1 aprovado. `cargo test --offline`: 13 testes aprovados; clippy all-targets core/CLI/desktop aprovado. Executável atualizado está fechado e disponível em `target/debug/cm0304-desktop.exe`. A execução nativa documentada precede apenas a correção de fusão de planos e os ajustes finais de rótulo/validação de campo vazio; repetir os casos indicados acima na próxima rodada.
+- Não sobrescrever saves. Arquivos existentes de teste permanecem em `game/user data/games`.
+- Antes de recompilar o desktop no Windows, fechar a instância pela UI para liberar o executável.
+- CM0304 não trata Ctrl+A/Ctrl+V como controles Windows convencionais nos campos personalizados: eles inseriram letras. Para nomes curtos, usar teclas individuais e BackSpace, com uma ação e screenshot por chamada conforme skill.
+- Ainda faltam v0.5–v1.0, nacionalidades adicionais em consulta, matriz de quatro saves de duas carreiras, outra pessoa e máquina limpa. Meta ativa.

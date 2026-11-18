@@ -104,8 +104,8 @@ fn goalkeeper_and_player_staff_keep_their_separate_records() {
     assert_eq!(new_staff.fields["reputation.world"].value, 8000);
     for person in [keeper, staff] {
         let start = person.offsets.person;
-        // Everything from the common person record onwards (including contracts,
-        // plus staff-specific data before it) stays untouched by these targets.
+        // The common person record and contracts stay untouched. Player/staff
+        // also has a separate 15-byte staff record immediately before common.
         let common = db
             .people
             .iter()
@@ -120,6 +120,9 @@ fn goalkeeper_and_player_staff_keep_their_separate_records() {
             .map(|p| p.offset + base)
             .unwrap_or(common + 1);
         assert_eq!(&input[common..next_person], &output[common..next_person]);
+        if person.kind == 3 {
+            assert_eq!(&input[common - 15..common], &output[common - 15..common]);
+        }
     }
 }
 
