@@ -37,7 +37,7 @@ Essa é a base histórica em JavaScript. A migração e a primeira interface já
 - [x] **v0.2:** núcleo Rust com leitura equivalente, transações de múltiplos campos/jogadores e gravação exclusiva validada. Cópia carregada no jogo.
 - [x] **v0.3:** aplicativo Tauri com abertura, busca paginada, perfil, revisão, desfazer/refazer e salvar cópia. Fluxo completo executado na interface e cópia carregada no jogo.
 - [x] **v0.4:** editor ampliado de jogadores, políticas de CA, abas, idade e busca sem acentos. Fluxo Tauri, posições/pés, goleiro e jogador/staff conferidos; cópias avançaram sete dias, foram regravadas e recarregadas no jogo.
-- [ ] **v0.5:** edição de estado e contratos existentes em prévia; remoção de lesões no núcleo Rust com primeiro caso conferido no jogo e avanço de sete dias. Faltam integração da cura à interface, variantes, suspensões e conclusão da matriz de contratos/valores.
+- [ ] **v0.5:** edição de estado e contratos existentes em prévia; remoção de lesões integrada ao Tauri com revisão, desfazer/refazer e cópia relida. Primeiro caso de cura passou ciclo de sete dias e recarga no jogo. Faltam conferir a transação mista Tauri no jogo, variantes, suspensões e concluir a matriz de contratos/valores.
 - [ ] **v0.6–v1.0:** ainda não concluídas.
 
 Evidências: `reports/v0.2-v0.3-validation.md` e `reports/v0.4-validation.md`. As prévias são marcos de desenvolvimento, não uma declaração de estabilidade da v1.0.

@@ -3,6 +3,33 @@ use crate::{Result, container, database};
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 
+#[derive(Debug, Clone, Serialize)]
+pub struct InjuryView {
+    pub name: String,
+}
+pub fn injuries(db: &database::Database, person: &database::Person) -> Vec<InjuryView> {
+    person
+        .playing
+        .as_ref()
+        .map(|p| {
+            p.health_records
+                .injuries
+                .iter()
+                .map(|record| {
+                    let index = i32::from_le_bytes(record.bytes[..4].try_into().unwrap());
+                    InjuryView {
+                        name: db
+                            .injury_types
+                            .get(index as usize)
+                            .map(|v| v.name.clone())
+                            .unwrap_or_else(|| "Lesão não identificada".into()),
+                    }
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Removal {

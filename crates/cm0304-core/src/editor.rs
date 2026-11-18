@@ -118,6 +118,18 @@ pub fn save_snapshot(
     input: &[u8],
     cancel: &AtomicBool,
 ) -> Result<Report> {
+    save_transformed_snapshot(source, destination, input, cancel, |bytes| {
+        apply(bytes, edits)
+    })
+}
+
+pub(crate) fn save_transformed_snapshot<T>(
+    source: &Path,
+    destination: &Path,
+    input: &[u8],
+    cancel: &AtomicBool,
+    transform: impl FnOnce(&[u8]) -> Result<(Vec<u8>, T)>,
+) -> Result<T> {
     cancelled(cancel)?;
     if destination
         .extension()
@@ -141,7 +153,7 @@ pub fn save_snapshot(
     if fs::read(source).map_err(|e| e.to_string())? != input {
         return Err("Source changed since it was opened".into());
     }
-    let (output, report) = apply(input, edits)?;
+    let (output, report) = transform(input)?;
     cancelled(cancel)?;
     let parent = destination
         .parent()

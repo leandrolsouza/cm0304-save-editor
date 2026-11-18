@@ -4,8 +4,10 @@ use cm0304_core::{
     career::{self, ContractView},
     container::hash,
     database::{self, Date, Player},
-    editor::{self, Edit},
+    editor::Edit,
+    health::{self, InjuryView},
     search,
+    transaction::{self, Transaction},
 };
 use serde::Serialize;
 use std::{
@@ -25,13 +27,14 @@ struct Loaded {
     game_date: Date,
     search_keys: Vec<String>,
     contracts: BTreeMap<i32, Vec<ContractView>>,
+    injuries: BTreeMap<i32, Vec<InjuryView>>,
 }
 #[derive(Default)]
 struct Session {
     loaded: Option<Arc<Loaded>>,
-    edits: BTreeMap<(i32, String), Edit>,
-    undo: Vec<Vec<Edit>>,
-    redo: Vec<Vec<Edit>>,
+    plan: Transaction,
+    undo: Vec<Transaction>,
+    redo: Vec<Transaction>,
 }
 type Shared = Mutex<Session>;
 #[derive(Serialize)]
@@ -58,6 +61,7 @@ struct Page {
     rows: Vec<Row>,
 }
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct Detail {
     player: Player,
     effective: Player,
@@ -66,23 +70,27 @@ struct Detail {
     editable: Vec<String>,
     pending: Vec<Edit>,
     nations: Vec<String>,
+    injuries: Vec<InjuryView>,
+    heal_pending: bool,
 }
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct Pending {
     edits: Vec<Edit>,
+    heal_injuries: Vec<i32>,
     undo: bool,
     redo: bool,
 }
 fn pending(s: &Session) -> Pending {
     Pending {
-        edits: s.edits.values().cloned().collect(),
+        edits: s.plan.edits.clone(),
+        heal_injuries: s.plan.heal_injuries.iter().copied().collect(),
         undo: !s.undo.is_empty(),
         redo: !s.redo.is_empty(),
     }
 }
 fn record(s: &mut Session) {
-    let edits = s.edits.values().cloned().collect();
-    s.undo.push(edits);
+    s.undo.push(s.plan.clone());
     s.redo.clear();
 }
 fn loaded(state: &State<Shared>) -> Result<Arc<Loaded>> {
@@ -117,6 +125,12 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
                 .map(|p| (p.uid, career::contracts(&db, p)))
                 .collect();
             let nations = db.nations.iter().map(|n| n.name.clone()).collect();
+            let injuries = db
+                .people
+                .iter()
+                .filter(|p| p.playing.is_some())
+                .map(|p| (p.uid, health::injuries(&db, p)))
+                .collect();
             let search_keys = players
                 .iter()
                 .map(|p| {
@@ -149,6 +163,7 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
                     game_date: db.game_date,
                     search_keys,
                     contracts,
+                    injuries,
                 }),
                 summary,
             )))
@@ -203,19 +218,15 @@ async fn player_detail(uid: i32, state: State<'_, Shared>) -> Result<Detail> {
         .find(|p| p.uid == uid)
         .ok_or("Jogador não encontrado")?;
     let editable = p.fields.keys().cloned().collect();
-    let plan = state
-        .lock()
-        .map_err(|e| e.to_string())?
-        .edits
-        .values()
-        .cloned()
-        .collect::<Vec<_>>();
+    let plan = state.lock().map_err(|e| e.to_string())?.plan.clone();
     let pending = plan
+        .edits
         .iter()
         .filter(|e| e.uid == uid)
         .cloned()
         .collect::<Vec<_>>();
-    let effective = if pending.is_empty() {
+    let heal_pending = plan.heal_injuries.contains(&uid);
+    let effective = if pending.is_empty() && !heal_pending {
         p.clone()
     } else {
         let bytes = data.bytes.clone();
@@ -223,7 +234,7 @@ async fn player_detail(uid: i32, state: State<'_, Shared>) -> Result<Detail> {
         // Always project the complete transaction, then select this player.
         let edits = plan;
         tauri::async_runtime::spawn_blocking(move || -> Result<Player> {
-            let (output, _) = editor::apply(&bytes, &edits)?;
+            let (output, _) = transaction::apply(&bytes, &edits)?;
             let (db, base) = database::load(&output)?;
             db.players(base)?
                 .into_iter()
@@ -241,30 +252,55 @@ async fn player_detail(uid: i32, state: State<'_, Shared>) -> Result<Detail> {
         contracts: data.contracts.get(&uid).cloned().unwrap_or_default(),
         pending,
         nations: data.nations.clone(),
+        injuries: data.injuries.get(&uid).cloned().unwrap_or_default(),
+        heal_pending,
     })
 }
 #[tauri::command]
-async fn stage_edits(edits: Vec<Edit>, state: State<'_, Shared>) -> Result<Pending> {
+async fn stage_edits(
+    edits: Vec<Edit>,
+    healing: Option<HealingUpdate>,
+    state: State<'_, Shared>,
+) -> Result<Pending> {
     let data = loaded(&state)?;
-    let previous = state.lock().map_err(|e| e.to_string())?.edits.clone();
-    let next = editor::merge_plan(&data.players, &previous, edits)?;
+    let previous = state.lock().map_err(|e| e.to_string())?.plan.clone();
+    let mut next = previous.clone();
+    next.merge_fields(&data.players, edits)?;
+    if let Some(update) = healing {
+        if !data.players.iter().any(|p| p.uid == update.uid) {
+            return Err("Jogador não encontrado".into());
+        }
+        if update.enabled {
+            if data.injuries.get(&update.uid).is_none_or(|v| v.is_empty()) {
+                return Err("Jogador sem registros de lesão".into());
+            }
+            next.heal_injuries.insert(update.uid);
+        } else {
+            next.heal_injuries.remove(&update.uid);
+        }
+    }
     if !next.is_empty() {
         let bytes = data.bytes.clone();
-        let plan = next.values().cloned().collect::<Vec<_>>();
-        tauri::async_runtime::spawn_blocking(move || editor::apply(&bytes, &plan).map(|_| ()))
+        let plan = next.clone();
+        tauri::async_runtime::spawn_blocking(move || transaction::apply(&bytes, &plan).map(|_| ()))
             .await
             .map_err(|e| e.to_string())??;
     }
     let mut s = state.lock().map_err(|e| e.to_string())?;
-    if s.edits != previous || !s.loaded.as_ref().is_some_and(|p| Arc::ptr_eq(p, &data)) {
+    if s.plan != previous || !s.loaded.as_ref().is_some_and(|p| Arc::ptr_eq(p, &data)) {
         return Err("A sessão mudou durante a validação; tente novamente".into());
     }
-    if s.edits == next {
+    if s.plan == next {
         return Ok(pending(&s));
     }
     record(&mut s);
-    s.edits = next;
+    s.plan = next;
     Ok(pending(&s))
+}
+#[derive(serde::Deserialize)]
+struct HealingUpdate {
+    uid: i32,
+    enabled: bool,
 }
 #[tauri::command]
 fn pending_edits(state: State<Shared>) -> Result<Pending> {
@@ -274,7 +310,7 @@ fn pending_edits(state: State<Shared>) -> Result<Pending> {
 #[tauri::command]
 fn history_action(action: String, state: State<Shared>) -> Result<Pending> {
     let mut s = state.lock().map_err(|e| e.to_string())?;
-    let current = s.edits.values().cloned().collect();
+    let current = s.plan.clone();
     let previous = match action.as_str() {
         "undo" => {
             let p = s.undo.pop();
@@ -292,47 +328,34 @@ fn history_action(action: String, state: State<Shared>) -> Result<Pending> {
         }
         "clear" => {
             record(&mut s);
-            Some(Vec::new())
+            Some(Transaction::default())
         }
         _ => return Err("Ação inválida".into()),
     };
-    if let Some(edits) = previous {
-        s.edits = edits
-            .into_iter()
-            .map(|e| ((e.uid, e.attribute.clone()), e))
-            .collect();
+    if let Some(plan) = previous {
+        s.plan = plan;
     }
     Ok(pending(&s))
 }
 #[tauri::command]
-async fn preview_edits(state: State<'_, Shared>) -> Result<editor::Report> {
+async fn preview_edits(state: State<'_, Shared>) -> Result<transaction::Report> {
     let data = loaded(&state)?;
-    let edits = state
-        .lock()
-        .map_err(|e| e.to_string())?
-        .edits
-        .values()
-        .cloned()
-        .collect::<Vec<_>>();
-    tauri::async_runtime::spawn_blocking(move || editor::apply(&data.bytes, &edits).map(|(_, r)| r))
-        .await
-        .map_err(|e| e.to_string())?
+    let edits = state.lock().map_err(|e| e.to_string())?.plan.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        transaction::apply(&data.bytes, &edits).map(|(_, r)| r)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 #[derive(Serialize)]
 struct Saved {
     path: String,
-    report: editor::Report,
+    report: transaction::Report,
 }
 #[tauri::command]
 async fn save_copy(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Option<Saved>> {
     let data = loaded(&state)?;
-    let edits = state
-        .lock()
-        .map_err(|e| e.to_string())?
-        .edits
-        .values()
-        .cloned()
-        .collect::<Vec<_>>();
+    let edits = state.lock().map_err(|e| e.to_string())?.plan.clone();
     tauri::async_runtime::spawn_blocking(move || -> Result<Option<Saved>> {
         let Some(file) = app
             .dialog()
@@ -344,7 +367,7 @@ async fn save_copy(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
             return Ok(None);
         };
         let path = file.into_path().map_err(|e| e.to_string())?;
-        let report = editor::save_snapshot(
+        let report = transaction::save_snapshot(
             &data.source,
             &path,
             &edits,

@@ -1,0 +1,38 @@
+{
+  "club": "Stoke City",
+  "contracts": [
+    {
+      "contract": {
+        "commonOffset": 10271396,
+        "entityIndex": 316,
+        "entityType": 0,
+        "expires": {
+          "day": 181,
+          "year": 2004
+        },
+        "kind": 0,
+        "offset": 10271367,
+        "squadNumber": 11,
+        "squadStatus": 4,
+        "started": {
+          "day": 165,
+          "year": 2003
+        },
+        "transferStatus": 4,
+        "weeklyWage": 1300
+      },
+      "entity": "Stoke City"
+    }
+  ],
+  "databaseBase": 1805943,
+  "name": "Peter Hoekstra",
+  "state": {
+    "condition": 3000,
+    "estimatedValue": 656324,
+    "fitness": 6200,
+    "jadedness": 0,
+    "morale": 20,
+    "saleValue": 738840
+  },
+  "uid": 356
+}
