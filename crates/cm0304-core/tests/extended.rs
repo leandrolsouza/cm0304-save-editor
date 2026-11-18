@@ -20,6 +20,110 @@ fn edit(key: &str, value: i32, policy: Option<AbilityPolicy>) -> Edit {
 }
 
 #[test]
+fn merging_forms_retains_overrides_and_cleans_up_removed_dependencies() {
+    let input = sample();
+    let (db, base) = database::load(&input).unwrap();
+    let players = db.players(base).unwrap();
+    let plan = editor::merge_plan(
+        &players,
+        &Default::default(),
+        vec![edit(
+            "currentAbility",
+            150,
+            Some(AbilityPolicy::PreserveRelative),
+        )],
+    )
+    .unwrap();
+    let plan = editor::merge_plan(&players, &plan, vec![edit("finishing", 13, None)]).unwrap();
+    assert_eq!(plan.len(), 2); // explicit source-value override is significant
+    let reverted =
+        editor::merge_plan(&players, &plan, vec![edit("currentAbility", 142, None)]).unwrap();
+    assert!(reverted.is_empty()); // no stale no-op target blocks reverting CA
+    assert!(
+        editor::merge_plan(
+            &players,
+            &plan,
+            vec![edit("height", 170, None), edit("height", 180, None)]
+        )
+        .is_err()
+    );
+    let mixed = editor::merge_plan(
+        &players,
+        &plan,
+        vec![edit("height", 170, None), edit("currentAbility", 142, None)],
+    )
+    .unwrap();
+    assert_eq!(mixed.len(), 1);
+    assert_eq!(mixed.values().next().unwrap().attribute, "height");
+}
+
+#[test]
+fn goalkeeper_and_player_staff_keep_their_separate_records() {
+    let input = sample();
+    let (db, base) = database::load(&input).unwrap();
+    let players = db.players(base).unwrap();
+    let keeper = players
+        .iter()
+        .find(|p| p.raw_attributes["goalkeeper"] >= 15 && p.current_ability < 190)
+        .unwrap();
+    let staff = players
+        .iter()
+        .find(|p| p.kind == 3 && p.current_ability < 190 && p.uid != keeper.uid)
+        .unwrap();
+    let make = |p: &cm0304_core::database::Player, key: &str, value, policy| Edit {
+        uid: p.uid,
+        attribute: key.into(),
+        value,
+        policy,
+    };
+    let plan = vec![
+        make(keeper, "potentialAbility", 200, None),
+        make(
+            keeper,
+            "currentAbility",
+            keeper.current_ability as i32 + 1,
+            Some(AbilityPolicy::PreserveValues),
+        ),
+        make(staff, "potentialAbility", 200, None),
+        make(
+            staff,
+            "currentAbility",
+            staff.current_ability as i32 + 1,
+            Some(AbilityPolicy::PreserveRelative),
+        ),
+        make(staff, "reputation.world", 8000, None),
+    ];
+    let (output, _) = editor::apply(&input, &plan).unwrap();
+    let (new_db, new_base) = database::load(&output).unwrap();
+    let after = new_db.players(new_base).unwrap();
+    let new_keeper = after.iter().find(|p| p.uid == keeper.uid).unwrap();
+    let new_staff = after.iter().find(|p| p.uid == staff.uid).unwrap();
+    assert_eq!(new_keeper.attributes, keeper.attributes);
+    assert_eq!(new_staff.kind, 3);
+    assert_eq!(new_staff.raw_attributes, staff.raw_attributes);
+    assert_eq!(new_staff.fields["reputation.world"].value, 8000);
+    for person in [keeper, staff] {
+        let start = person.offsets.person;
+        // Everything from the common person record onwards (including contracts,
+        // plus staff-specific data before it) stays untouched by these targets.
+        let common = db
+            .people
+            .iter()
+            .find(|p| p.uid == person.uid)
+            .unwrap()
+            .common_offset
+            + base;
+        let next_person = db
+            .people
+            .iter()
+            .find(|p| p.offset + base > start)
+            .map(|p| p.offset + base)
+            .unwrap_or(common + 1);
+        assert_eq!(&input[common..next_person], &output[common..next_person]);
+    }
+}
+
+#[test]
 fn player_fields_preserve_values_when_ca_changes_and_roundtrip_multibyte_data() {
     let input = sample();
     let (db, base) = database::load(&input).unwrap();

@@ -12,6 +12,42 @@ pub struct Date {
     pub day: u16,
     pub year: u16,
 }
+impl Date {
+    pub fn month_day(&self) -> Option<(u16, u16)> {
+        let leap = self.year.is_multiple_of(4)
+            && (!self.year.is_multiple_of(100) || self.year.is_multiple_of(400));
+        let mut day = self.day;
+        for (month, days) in [
+            31,
+            if leap { 29 } else { 28 },
+            31,
+            30,
+            31,
+            30,
+            31,
+            31,
+            30,
+            31,
+            30,
+            31,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            if day < days {
+                return Some((month as u16 + 1, day + 1));
+            }
+            day -= days;
+        }
+        None
+    }
+    pub fn age_on(&self, today: &Date) -> Option<u16> {
+        let birthday = self.month_day()?;
+        let now = today.month_day()?;
+        let age = i32::from(today.year) - i32::from(self.year) - i32::from(now < birthday);
+        (0..=150).contains(&age).then_some(age as u16)
+    }
+}
 fn date(r: &mut Reader) -> Result<Date> {
     Ok(Date {
         day: r.u16()?,

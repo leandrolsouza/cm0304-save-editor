@@ -1,6 +1,7 @@
 use crate::Result;
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::{BTreeMap, BTreeSet},
     fs::{self, File},
     io::{Read, Write},
     path::Path,
@@ -20,6 +21,47 @@ pub struct Edit {
 pub enum AbilityPolicy {
     PreserveValues,
     PreserveRelative,
+}
+pub type Plan = BTreeMap<(i32, String), Edit>;
+
+/// Merge a form submission against source values. An explicit relative target
+/// equal to the source may still override a pending CA/goalkeeper recalculation.
+/// Once that dependency is removed, redundant source-value targets disappear.
+pub fn merge_plan(
+    players: &[crate::database::Player],
+    previous: &Plan,
+    edits: Vec<Edit>,
+) -> Result<Plan> {
+    let index = players
+        .iter()
+        .map(|p| (p.uid, p))
+        .collect::<BTreeMap<_, _>>();
+    let mut next = previous.clone();
+    let mut seen = BTreeSet::new();
+    let relative = |key: &str| crate::attributes::FIELDS[12..37].contains(&key);
+    for e in edits {
+        let p = index.get(&e.uid).ok_or("Jogador não encontrado")?;
+        crate::extended::validate_value(p, &e)?;
+        let key = (e.uid, e.attribute.clone());
+        if !seen.insert(key.clone()) {
+            return Err("Campo repetido na mesma operação".into());
+        }
+        if e.value == p.fields[&e.attribute].value && !relative(&e.attribute) {
+            next.remove(&key);
+        } else {
+            next.insert(key, e);
+        }
+    }
+    let dependencies = next
+        .values()
+        .filter(|e| e.attribute == "currentAbility" || e.attribute == "position.goalkeeper")
+        .map(|e| e.uid)
+        .collect::<BTreeSet<_>>();
+    next.retain(|_, e| {
+        e.value != index[&e.uid].fields[&e.attribute].value
+            || (relative(&e.attribute) && dependencies.contains(&e.uid))
+    });
+    Ok(next)
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

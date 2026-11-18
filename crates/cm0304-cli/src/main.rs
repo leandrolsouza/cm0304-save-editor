@@ -3,6 +3,7 @@ use cm0304_core::{
     container::read_container,
     database,
     editor::{Edit, save_copy},
+    search,
 };
 use std::{env, fs, path::Path, sync::atomic::AtomicBool};
 
@@ -46,17 +47,16 @@ fn run() -> Result<()> {
     match command {
         "players" => {
             if let Some(q) = a.get(2) {
-                let q = q.to_lowercase();
+                let q = search::key(q);
                 players.retain(|p| {
-                    format!(
+                    search::key(&format!(
                         "{} {} {} {} {}",
                         p.uid,
                         p.name,
                         p.first_name,
                         p.surname,
                         p.club.as_deref().unwrap_or("")
-                    )
-                    .to_lowercase()
+                    ))
                     .contains(&q)
                 });
             }

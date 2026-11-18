@@ -36,10 +36,10 @@ Essa é a base histórica em JavaScript. A migração e a primeira interface já
 
 - [x] **v0.2:** núcleo Rust com leitura equivalente, transações de múltiplos campos/jogadores e gravação exclusiva validada. Cópia carregada no jogo.
 - [x] **v0.3:** aplicativo Tauri com abertura, busca paginada, perfil, revisão, desfazer/refazer e salvar cópia. Fluxo completo executado na interface e cópia carregada no jogo.
-- [ ] **v0.4:** próximo marco — editor ampliado de jogadores.
+- [ ] **v0.4:** implementada como prévia 0.4.0-alpha.1, em validação — campos ampliados, políticas de CA, abas, idade e busca sem acentos. Fluxo Tauri e evolução de sete dias exercitados; conferência de posições e variantes ainda pendente.
 - [ ] **v0.5–v1.0:** ainda não concluídas.
 
-Evidências: `reports/v0.2-v0.3-validation.md`. A v0.3 é um marco de desenvolvimento, não uma declaração de estabilidade da v1.0.
+Evidências: `reports/v0.2-v0.3-validation.md` e `reports/v0.4-validation.md`. As prévias são marcos de desenvolvimento, não uma declaração de estabilidade da v1.0.
 
 ## Funcionalidades da v1.0
 

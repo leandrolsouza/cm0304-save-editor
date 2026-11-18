@@ -1,0 +1,191 @@
+{
+  "uid": 2001642,
+  "name": "Clodoaldo",
+  "nation": "Portugal",
+  "observedGameDates": {
+    "before": "2003-07-19",
+    "after": "2003-07-26"
+  },
+  "hashes": {
+    "save_inicial.cm4": "1e2280f838e8516d4da69c3b15faf01df9ec7cd085a03f56a58e0f516894d3b4",
+    "rust_v04.cm4": "2f979e1380fa358cf294fa25a4300a52621adcefb2632d7df3cf568fe7671fcd",
+    "rust_v047d.cm4": "b456d195b7d67777d914f5890c9bf0abb07715d57ba0d4926ca48972c91152fc"
+  },
+  "targets": [
+    {
+      "field": "currentAbility",
+      "target": 150,
+      "after": 150,
+      "retained": true
+    },
+    {
+      "field": "potentialAbility",
+      "target": 180,
+      "after": 180,
+      "retained": true
+    },
+    {
+      "field": "height",
+      "target": 170,
+      "after": 170,
+      "retained": true
+    },
+    {
+      "field": "weight",
+      "target": 65,
+      "after": 65,
+      "retained": true
+    },
+    {
+      "field": "birth.year",
+      "target": 1980,
+      "after": 1980,
+      "retained": true
+    },
+    {
+      "field": "birth.day",
+      "target": 59,
+      "after": 59,
+      "retained": true
+    },
+    {
+      "field": "nationality",
+      "target": 162,
+      "after": 162,
+      "retained": true
+    },
+    {
+      "field": "personality.professionalism",
+      "target": 20,
+      "after": 20,
+      "retained": true
+    },
+    {
+      "field": "reputation.current",
+      "target": 7000,
+      "after": 7000,
+      "retained": true
+    },
+    {
+      "field": "leftFoot",
+      "target": 19,
+      "after": 19,
+      "retained": true
+    },
+    {
+      "field": "consistency",
+      "target": 20,
+      "after": 20,
+      "retained": true
+    },
+    {
+      "field": "passing",
+      "target": 20,
+      "after": 20,
+      "retained": true
+    }
+  ],
+  "changes": [
+    {
+      "field": "acceleration",
+      "before": 14,
+      "after": 16
+    },
+    {
+      "field": "agility",
+      "before": 19,
+      "after": 20
+    },
+    {
+      "field": "balance",
+      "before": 12,
+      "after": 15
+    },
+    {
+      "field": "corners",
+      "before": 13,
+      "after": 15
+    },
+    {
+      "field": "crossing",
+      "before": 11,
+      "after": 13
+    },
+    {
+      "field": "decisions",
+      "before": 13,
+      "after": 14
+    },
+    {
+      "field": "dribbling",
+      "before": 16,
+      "after": 19
+    },
+    {
+      "field": "finishing",
+      "before": 13,
+      "after": 16
+    },
+    {
+      "field": "heading",
+      "before": 11,
+      "after": 13
+    },
+    {
+      "field": "influence",
+      "before": 12,
+      "after": 13
+    },
+    {
+      "field": "jumping",
+      "before": 8,
+      "after": 10
+    },
+    {
+      "field": "longShots",
+      "before": 11,
+      "after": 14
+    },
+    {
+      "field": "offTheBall",
+      "before": 14,
+      "after": 15
+    },
+    {
+      "field": "penalties",
+      "before": 11,
+      "after": 13
+    },
+    {
+      "field": "positioning",
+      "before": 13,
+      "after": 14
+    },
+    {
+      "field": "setPieces",
+      "before": 11,
+      "after": 13
+    },
+    {
+      "field": "stamina",
+      "before": 15,
+      "after": 17
+    },
+    {
+      "field": "strength",
+      "before": 12,
+      "after": 14
+    },
+    {
+      "field": "technique",
+      "before": 14,
+      "after": 17
+    },
+    {
+      "field": "throwIns",
+      "before": 11,
+      "after": 13
+    }
+  ],
+  "reloadedInGame": true
+}

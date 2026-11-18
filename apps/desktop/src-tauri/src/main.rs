@@ -2,8 +2,9 @@
 
 use cm0304_core::{
     container::hash,
-    database::{self, Player},
+    database::{self, Date, Player},
     editor::{self, Edit},
+    search,
 };
 use serde::Serialize;
 use std::{
@@ -20,6 +21,8 @@ struct Loaded {
     bytes: Arc<Vec<u8>>,
     players: Vec<Player>,
     nations: Vec<String>,
+    game_date: Date,
+    search_keys: Vec<String>,
 }
 #[derive(Default)]
 struct Session {
@@ -43,6 +46,7 @@ struct Row {
     uid: i32,
     name: String,
     club: Option<String>,
+    age: Option<u16>,
     ca: i16,
     pa: i16,
 }
@@ -55,6 +59,7 @@ struct Page {
 struct Detail {
     player: Player,
     effective: Player,
+    age: Option<u16>,
     editable: Vec<String>,
     pending: Vec<Edit>,
     nations: Vec<String>,
@@ -103,6 +108,19 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
             let (db, base) = database::load(&bytes)?;
             let players = db.players(base)?;
             let nations = db.nations.iter().map(|n| n.name.clone()).collect();
+            let search_keys = players
+                .iter()
+                .map(|p| {
+                    search::key(&format!(
+                        "{} {} {} {} {}",
+                        p.uid,
+                        p.name,
+                        p.first_name,
+                        p.surname,
+                        p.club.as_deref().unwrap_or("")
+                    ))
+                })
+                .collect();
             let summary = Summary {
                 name: source
                     .file_name()
@@ -119,6 +137,8 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
                     bytes: Arc::new(bytes),
                     players,
                     nations,
+                    game_date: db.game_date,
+                    search_keys,
                 }),
                 summary,
             )))
@@ -139,22 +159,13 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
 #[tauri::command]
 fn search_players(query: String, page: usize, state: State<Shared>) -> Result<Page> {
     let data = loaded(&state)?;
-    let q = query.to_lowercase();
+    let q = search::key(query.trim());
     let matches = data
         .players
         .iter()
-        .filter(|p| {
-            format!(
-                "{} {} {} {} {}",
-                p.uid,
-                p.name,
-                p.first_name,
-                p.surname,
-                p.club.as_deref().unwrap_or("")
-            )
-            .to_lowercase()
-            .contains(&q)
-        })
+        .zip(&data.search_keys)
+        .filter(|(_, key)| key.contains(&q))
+        .map(|(p, _)| p)
         .collect::<Vec<_>>();
     Ok(Page {
         total: matches.len(),
@@ -166,6 +177,7 @@ fn search_players(query: String, page: usize, state: State<Shared>) -> Result<Pa
                 uid: p.uid,
                 name: p.name.clone(),
                 club: p.club.clone(),
+                age: p.date_of_birth.age_on(&data.game_date),
                 ca: p.current_ability,
                 pa: p.potential_ability,
             })
@@ -207,6 +219,7 @@ async fn player_detail(uid: i32, state: State<'_, Shared>) -> Result<Detail> {
     };
     Ok(Detail {
         player: p.clone(),
+        age: effective.date_of_birth.age_on(&data.game_date),
         effective,
         editable,
         pending,
@@ -216,40 +229,8 @@ async fn player_detail(uid: i32, state: State<'_, Shared>) -> Result<Detail> {
 #[tauri::command]
 async fn stage_edits(edits: Vec<Edit>, state: State<'_, Shared>) -> Result<Pending> {
     let data = loaded(&state)?;
-    // Validate values and representation before accepting the plan. Full binary
-    // transaction validation is performed again at review and save.
-    for e in &edits {
-        let p = data
-            .players
-            .iter()
-            .find(|p| p.uid == e.uid)
-            .ok_or("Jogador não encontrado")?;
-        cm0304_core::extended::validate_value(p, e)?;
-    }
-    let (previous, mut next) = {
-        let s = state.lock().map_err(|e| e.to_string())?;
-        (s.edits.clone(), s.edits.clone())
-    };
-    // A relative attribute explicitly restored to its source value can still
-    // override a CA-induced change. Keep that target while dependencies change.
-    let dependency_uids = next
-        .values()
-        .chain(edits.iter())
-        .filter(|e| e.attribute == "currentAbility" || e.attribute == "position.goalkeeper")
-        .map(|e| e.uid)
-        .collect::<std::collections::BTreeSet<_>>();
-    for e in edits {
-        let p = data.players.iter().find(|p| p.uid == e.uid).unwrap();
-        let key = (e.uid, e.attribute.clone());
-        let relative = cm0304_core::attributes::FIELDS[12..37].contains(&e.attribute.as_str());
-        if p.fields[&e.attribute].value == e.value
-            && !(relative && dependency_uids.contains(&e.uid))
-        {
-            next.remove(&key);
-        } else {
-            next.insert(key, e);
-        }
-    }
+    let previous = state.lock().map_err(|e| e.to_string())?.edits.clone();
+    let next = editor::merge_plan(&data.players, &previous, edits)?;
     if !next.is_empty() {
         let bytes = data.bytes.clone();
         let plan = next.values().cloned().collect::<Vec<_>>();
@@ -260,6 +241,9 @@ async fn stage_edits(edits: Vec<Edit>, state: State<'_, Shared>) -> Result<Pendi
     let mut s = state.lock().map_err(|e| e.to_string())?;
     if s.edits != previous || !s.loaded.as_ref().is_some_and(|p| Arc::ptr_eq(p, &data)) {
         return Err("A sessão mudou durante a validação; tente novamente".into());
+    }
+    if s.edits == next {
+        return Ok(pending(&s));
     }
     record(&mut s);
     s.edits = next;

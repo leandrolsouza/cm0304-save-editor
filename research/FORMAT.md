@@ -30,10 +30,20 @@ O leitor percorre as tabelas de forma sequencial, inclusive contratos, ofertas, 
 
 O save inicial contém 32.788 entidades em `people`; o final contém 81.528. O aumento de 48.740 corresponde a registros virtuais do tipo 7, que passam de 1.280 para 50.020. O número de jogadores completos permanece igual.
 
-A leitura para após `playingData`: restam 520.030 bytes no primeiro arquivo e 521.686 no segundo, incluindo dados ainda não interpretados. Não há suporte prometido a outras versões, compressão ou outros conjuntos de variantes. A conferência visual de 61 campos de Wender e Quim no Braga coincidiu com a conversão; no Fortaleza, os perfis parcialmente ocultos de Clodoaldo e Erandir apresentam divergências, e Richarlyson está totalmente oculto. O conhecimento limitado do treinador é uma explicação provável, ainda não isolada experimentalmente. Consulte `reports/attribute-validation.md`. Não há escrita nem teste de carregamento de um save modificado.
+A leitura para após `playingData`: restam 520.030 bytes no primeiro arquivo e 521.686 no segundo, incluindo dados ainda não interpretados. Não há suporte prometido a outras versões, compressão ou outros conjuntos de variantes. A conferência visual de 61 campos de Wender e Quim no Braga coincidiu com a conversão; no Fortaleza, os perfis parcialmente ocultos de Clodoaldo e Erandir apresentam divergências, e Richarlyson está totalmente oculto. O conhecimento limitado do treinador é uma explicação provável, ainda não isolada experimentalmente. Consulte `reports/attribute-validation.md`. O estado histórico da leitura foi ampliado posteriormente com escrita e testes de carregamento descritos abaixo.
 
 Os nomes dos clubes e nações são os strings presentes no save, sem sobrepor traduções do banco de idiomas. Datas são exportadas como dia ordinal e ano brutos. Não é necessário usar `people_db.dat` do banco pré-jogo para obter os jogadores dos saves.
 
 Uma escrita de tamanho constante foi testada em cópia: Clodoaldo, `flair` 18 → 20, um byte alterado. A cópia carregou no CM0304 4.1.5 e o perfil exibiu Instinto 20. Detalhes em `reports/save-edit-validation.md`.
 
 O escritor também suporta os atributos relativos. A inversa enumera os bytes de -128 a 127, usa a CA e o grupo atual do jogador e seleciona a codificação exata mais próxima do byte original. Solicitações não representáveis são recusadas sem alterar a CA. O conjunto de valores alcançáveis depende da CA; não se presume que todo alvo de 1–20 seja sempre possível. O passe de Clodoaldo com CA 142 é convertido de byte -17 (13) para byte 26 (20), preservando os demais bytes.
+
+## Núcleo Rust — campos ampliados da prévia 0.4
+
+Reputações em +0/+2/+4, CA +6 e PA +8 usam dois bytes. Peso +37 usa kg, altura +39 usa polegadas inteiras. Esses nomes/unidades vêm do loader e formulário do código público CM4 Pregame 0.10, consultado localmente em `game/research/reference/pregame/CM4PregameEditor`. O modelo Rust expõe altura em centímetros arredondados e só grava alvos que correspondem exatamente à conversão de uma polegada inteira; não redimensiona registros.
+
+Nos dados comuns da pessoa, nascimento fica em +12 (dia ordinal de base zero) e +14 (ano); nacionalidade principal em +16 (índice i32). A data 1980/dia59 exibiu 29/2/1980 no CM0304. Os offsets comuns são capturados separadamente para respeitar os registros de jogador/staff.
+
+As transações permitem campos de 1/2/4 bytes, com política explícita para CA ou troca da classificação de goleiro. `preserveValues` recodifica atributos relativos para manter os valores da origem, salvo alvos explícitos; `preserveRelative` mantém os bytes não editados e apresenta os efeitos convertidos. A representação inversa precisa ser exata.
+
+Uma cópia CLI com 12 alvos foi carregada, avançou sete dias, foi regravada e carregada novamente no jogo. Os 12 alvos persistiram; 20 outros atributos mudaram durante a evolução. Isso não equivale a validar todas as operações/variantes da v1.0. Consulte `reports/v0.4-validation.md` e `reports/v04-evolution.json`.

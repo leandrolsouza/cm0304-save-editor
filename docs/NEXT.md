@@ -4,20 +4,29 @@ Objetivo ativo: desenvolver os marcos do ROADMAP até a v1.0, sem reduzir o esco
 
 ## Estado
 
-- v0.2 e v0.3 validadas: `reports/v0.2-v0.3-validation.md`.
-- v0.4 em implementação. Evidências e pendências: `reports/v0.4-validation.md`.
-- Código novo ainda não commitado: modelo `Field`, transações em `extended.rs`, testes `extended.rs`, interface ampliada e backend Tauri.
-- Núcleo/CLI ainda versão 0.2.0, aplicativo ainda 0.3.0-alpha.1; não anunciar v0.4 concluída.
-- Build desktop atualizado e aprovado; executável fechado no momento deste checkpoint.
-- Jogo aberto com `rust_v04.cm4` no perfil/informações de Clodoaldo. Copia carregou, país Portugal, 23 anos e passe 20 conferidos. Não houve avanço nem gravação no jogo.
-- Hash original intacto; hashes da cópia e plano em `reports/v0.4-validation.md`.
+- v0.2 e v0.3 validadas; v0.4 em validação, sem marcar concluída.
+- Núcleo/CLI/desktop/package versão **0.4.0-alpha.1**. Build final deste checkpoint deve ser conferido antes de encerrar.
+- Checkpoint anterior: `fdc751a`; novas alterações desta rodada ainda pendentes de commit.
+- `reports/v0.4-validation.md` registra implementação, testes, UI e evolução. `reports/v04-evolution.json` registra os 12 alvos preservados e 20 recálculos após sete dias.
+- Editor foi fechado para compilar a versão final com `merge_plan`; na execução anterior o fluxo completo salvou `tauri_v04.cm4` com quatro bytes alterados. Depois a política foi trocada para preserveValues e conferida no perfil, sem segunda gravação.
+- Jogo aberto com `rust_v047d.cm4` na data 26/7/2003, tela do elenco Braga, após encerramento e recarga. Essa cópia vem da CLI, não da Tauri.
+- Origem intacta. A cópia CLI reteve os 12 alvos de Clodoaldo após evolução/regravação/recarga no jogo.
 
 ## Próximos passos
 
-Concluir pendências v0.4 do relatório antes de marcar o marco. Não confundir testes de releitura com conferência dos efeitos no jogo. Priorizar fluxo completo da interface com CA/posição e campos novos; conferir os efeitos indiretos projetados e alvos explícitos iguais ao valor original após mudança de CA.
+- Conferir posições/pés e variantes goleiro/jogador-staff no jogo; concluir as pendências do relatório v0.4 antes de marcar o marco.
+- Buscar nomes sem acentos pela interface, além do teste unitário de normalização.
+- Executar fluxo da UI após `merge_plan`, especialmente remover a mudança de CA e limpar alvos relativos sem efeito; teste Rust já cobre isso.
+- Carregar `tauri_v04.cm4` no jogo; não confundir com a cópia CLI já carregada.
+- Validar visualmente a distribuição final após mudanças de layout; UI anterior com abas foi examinada.
+- Depois, avançar para v0.5: estado, contratos, lesões/suspensões e valores, conforme ROADMAP.
 
-A altura é armazenada em polegadas inteiras; modelo público usa centímetros arredondados, com inversa exata. Peso é kg; zero é não especificado. Referência: `game/research/reference/pregame/CM4PregameEditor/framePeopleUnit.dfm`.
+## Notas de formato
 
-Os testes Rust passaram (6 históricos + 3 novos; os 3 novos reexecutados após correção de altura). Clippy de todos os alvos core/CLI/desktop e build desktop passaram. Paridade deve ser reexecutada após finalização.
+Altura: polegadas inteiras no arquivo, centímetros arredondados no modelo público, com inversa exata. Peso: kg; zero não especificado. Referência local pregame `framePeopleUnit.dfm`. Nascimento ordinal base zero; 1980/dia59 exibiu 29/2/1980 no jogo.
 
-Ainda faltam v0.4 a v1.0, quatro saves de duas carreiras, testes com outra pessoa e máquina limpa. A meta permanece ativa.
+Para v0.5, `read_person` ainda descarta contratos. `CM4SaveGameData.pas:1967` lê o segmento comum após os dados do tipo: byte extra (exceto trial), tipo de entidade 0/1, índice i32, salário semanal i32, data de término, situação/transferstatus, felicidade8, data inicial, felicidade/percepção/clubchoice/camisa/opções/unknown2. Capturar offsets dos contratos existentes e distinguir clube/seleção e empréstimos antes de editar. O pregame contém os nomes de campos, mas seu suporte de tipos não substitui o loader do save.
+
+Ainda faltam v0.4 a v1.0, quatro saves de duas carreiras, teste com outra pessoa e máquina limpa. Meta ativa.
+
+Build final 0.4.0-alpha.1 aprovado. `cargo test --offline`: 13 testes aprovados; clippy all-targets core/CLI/desktop aprovado. Executável atualizado está fechado e disponível em `target/debug/cm0304-desktop.exe`. A execução nativa documentada precede apenas a correção de fusão de planos e os ajustes finais de rótulo/validação de campo vazio; repetir os casos indicados acima na próxima rodada.
