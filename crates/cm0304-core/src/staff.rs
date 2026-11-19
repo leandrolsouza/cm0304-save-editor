@@ -1,6 +1,6 @@
-//! Read-only staff diagnostics. No conversion or editing is implied by raw values.
+//! Staff reading and attribute conversion. Writing requires a separate transaction.
 use crate::{
-    Result,
+    Result, attributes,
     binary::Reader,
     container,
     database::{Database, Date},
@@ -61,8 +61,55 @@ pub struct Staff {
     pub preferred_formation_raw: i8,
     pub attribute_index: i32,
     pub raw_attributes: Option<BTreeMap<String, i8>>,
+    pub attributes: Option<BTreeMap<String, i8>>,
+    pub personality: Option<attributes::Attributes>,
     pub info_offset: usize,
     pub attributes_offset: Option<usize>,
+}
+
+pub const RELATIVE: [&str; 8] = [
+    "coachingOutfieldPlayers",
+    "coachingGoalkeepers",
+    "judgingPlayerAbility",
+    "judgingPlayerPotential",
+    "manManagement",
+    "motivating",
+    "physiotherapy",
+    "tacticalKnowledge",
+];
+
+pub fn decoded(raw: &BTreeMap<String, i8>, ca: i16) -> Result<BTreeMap<String, i8>> {
+    FIELDS
+        .iter()
+        .map(|key| {
+            let value = *raw
+                .get(*key)
+                .ok_or_else(|| format!("Atributo de staff ausente: {key}"))?;
+            let value = if RELATIVE.contains(key) {
+                attributes::convert(value, ca, false)?
+            } else {
+                if !(0..=20).contains(&value) {
+                    return Err(format!("Atributo direto de staff inválido: {key}={value}"));
+                }
+                value
+            };
+            Ok((key.to_string(), value))
+        })
+        .collect()
+}
+
+pub fn encode_attribute(key: &str, target: i8, ca: i16, original: i8) -> Result<i8> {
+    if !FIELDS.contains(&key) {
+        return Err(format!("Atributo de staff desconhecido: {key}"));
+    }
+    if !(1..=20).contains(&target) {
+        return Err("Atributo de staff deve estar entre 1 e 20".into());
+    }
+    if RELATIVE.contains(&key) {
+        attributes::encode(target, ca, false, original)
+    } else {
+        Ok(target)
+    }
 }
 
 pub fn job_label(job: u8) -> &'static str {
@@ -199,6 +246,17 @@ pub fn profiles(db: &Database, input: &[u8], base: usize) -> Result<Vec<Staff>> 
                         .clone(),
                 )
             };
+            let personality = if person.personality == -1 {
+                None
+            } else {
+                Some(
+                    usize::try_from(person.personality)
+                        .ok()
+                        .and_then(|i| db.personalities.get(i))
+                        .ok_or("Personalidade de staff inválida")?
+                        .clone(),
+                )
+            };
             Ok(Staff {
                 uid: person.uid,
                 name: full_name,
@@ -219,6 +277,10 @@ pub fn profiles(db: &Database, input: &[u8], base: usize) -> Result<Vec<Staff>> 
                 preferred_formation_raw,
                 attribute_index,
                 raw_attributes: record.map(|(_, a)| a.clone()),
+                attributes: record
+                    .map(|(_, raw)| decoded(raw, current_ability))
+                    .transpose()?,
+                personality,
                 info_offset: base + info_offset,
                 attributes_offset: record.map(|(o, _)| base + o),
             })

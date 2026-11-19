@@ -1,6 +1,6 @@
 # Roadmap até a v1.0
 
-Atualizado em 18/11/2026. Stack definida: **Rust + Tauri**. Este documento planeja a evolução; os recursos previstos ainda não estão implementados, salvo os indicados no estado atual.
+Atualizado em 19/11/2026. Stack definida: **Rust + Tauri + TypeScript**. Este documento planeja a evolução; os recursos previstos ainda não estão implementados, salvo os indicados no estado atual.
 
 ## Objetivo
 
@@ -38,7 +38,8 @@ Essa é a base histórica em JavaScript. A migração e a primeira interface já
 - [x] **v0.3:** aplicativo Tauri com abertura, busca paginada, perfil, revisão, desfazer/refazer e salvar cópia. Fluxo completo executado na interface e cópia carregada no jogo.
 - [x] **v0.4:** editor ampliado de jogadores, políticas de CA, abas, idade e busca sem acentos. Fluxo Tauri, posições/pés, goleiro e jogador/staff conferidos; cópias avançaram sete dias, foram regravadas e recarregadas no jogo.
 - [ ] **v0.5:** estado e contratos existentes em prévia; remoção de lesões e suspensões integrada às transações. Transação mista Tauri de lesão/moral conferida no jogo; primeiros casos de cura e suspensão europeia passaram sete dias, regravação e recarga. Fluxo Tauri de suspensões testado até gravação/releitura, incluindo desfazer/refazer. Faltam conferir essa cópia no jogo, outras variantes e a matriz de contratos/valores.
-- [ ] **v0.6–v1.0:** ainda não concluídas.
+- [ ] **v0.6:** consulta de staff e conversão implementadas; escrita experimental de 11 atributos no núcleo e na transação, com testes nas duas amostras. Faltam edição pela interface, ciclo no jogo, demais campos de staff e gestão de clubes. Evidências em `reports/v0.6-staff-editing.md`.
+- [ ] **v0.7–v1.0:** ainda não concluídas.
 
 Evidências: `reports/v0.2-v0.3-validation.md` e `reports/v0.4-validation.md`. As prévias são marcos de desenvolvimento, não uma declaração de estabilidade da v1.0.
 
@@ -59,6 +60,22 @@ A v1.0 deve atender aos fluxos abaixo pela interface. Esta lista é compromisso 
 - **Controlar as mudanças:** revisar valores anteriores e finais por entidade, retirar alterações do plano, desfazer/refazer operações inteiras e salvar cópia com relatório local.
 
 Os primeiros atalhos de lote serão **recuperar elenco**, **ajustar moral**, **aplicar piso/teto de atributos**, **aumentar/reduzir atributos selecionados** e **copiar um grupo de atributos**. Cada atalho usa as mesmas regras da edição individual; nenhum altera CA ou vínculos silenciosamente.
+
+### Ampliação do escopo de edição
+
+O alvo da v1.0 inclui os recursos abaixo, além da edição campo a campo. As caixas representam entregas pendentes; identificar um campo ou implementar sua leitura não conclui a edição.
+
+| Versão | Funcionalidades adicionais | Demonstração de aceite |
+|---|---|---|
+| **0.5** | Central de contratos com filtros de vencimento, vínculo e situação; resumo de salário semanal/mensal; ações de condição, descanso e moral. | Localizar vencimentos, editar contratos existentes e conferir os efeitos após a data relevante no jogo. |
+| **0.6** | Perfil completo de staff; navegação clube → elenco/comissão; painel financeiro e de infraestrutura. | Editar um treinador, um olheiro e um fisioterapeuta; validar também uma dupla função e os campos de clube. |
+| **0.7** | Editor de lotes com valores absolutos, incrementos e percentuais nos campos numéricos compatíveis; arredondamento explícito, limites e prévia por jogador. | Aplicar um aumento ao elenco, mostrar quem atingiu o limite e desfazer a operação inteira. |
+| **0.7** | Presets por posição e por grupo de atributos; copiar somente os campos escolhidos; editor local de presets com importação/exportação. | Copiar fundamentos de um jogador sem copiar identidade ou contrato e conferir cada destino. |
+| **0.7** | Listas de observação locais; colunas configuráveis; filtros salvos; comparação lado a lado e entre saves. | Salvar uma lista, reabrir o aplicativo e comparar os mesmos UIDs entre duas datas da carreira. |
+| **0.7** | Revisão agrupada por clube, entidade e operação; remover uma entidade ou operação do plano; relatório de antes/depois exportável. | Excluir um jogador de um lote antes de gravar e confirmar que ele permaneceu intacto. |
+| **0.8** | Sessão de trabalho local: guardar o plano pendente e retomá-lo com verificação do hash da origem. | Retomar uma edição após fechar o aplicativo; recusar reaplicação automática se o save de origem mudou. |
+
+Listas, presets e planos de trabalho são arquivos locais do editor. A edição percentual não se aplica a identificadores, datas, posições ou categorias contratuais; cada campo informa suas operações permitidas. Nenhuma dessas funções autoriza alterar estruturas ainda não mapeadas.
 
 ### Direção do produto
 

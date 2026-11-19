@@ -19,13 +19,18 @@ pub struct Transaction {
     #[serde(default)]
     pub edits: Vec<Edit>,
     #[serde(default)]
+    pub staff_edits: Vec<crate::staff_editor::Edit>,
+    #[serde(default)]
     pub heal_injuries: BTreeSet<i32>,
     #[serde(default)]
     pub clear_suspensions: BTreeSet<i32>,
 }
 impl Transaction {
     pub fn is_empty(&self) -> bool {
-        self.edits.is_empty() && self.heal_injuries.is_empty() && self.clear_suspensions.is_empty()
+        self.edits.is_empty()
+            && self.staff_edits.is_empty()
+            && self.heal_injuries.is_empty()
+            && self.clear_suspensions.is_empty()
     }
     pub fn merge_fields(&mut self, players: &[Player], edits: Vec<Edit>) -> Result<()> {
         let previous = self
@@ -50,6 +55,7 @@ pub struct Report {
     pub field_changed_bytes: usize,
     pub removed_bytes: usize,
     pub changes: Vec<editor::Change>,
+    pub staff_changes: Vec<crate::staff_editor::Change>,
     pub removals: Vec<health::Removal>,
 }
 pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
@@ -63,6 +69,12 @@ pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
         let (bytes, report) = editor::apply(input, &plan.edits)?;
         (bytes, report.changed_bytes, report.changes)
     };
+    let (fields_output, staff_changes) = if plan.staff_edits.is_empty() {
+        (fields_output, Vec::new())
+    } else {
+        crate::staff_editor::apply(&fields_output, &plan.staff_edits)?
+    };
+    let field_changed_bytes = field_changed_bytes + staff_changes.len();
     let selections = plan
         .heal_injuries
         .iter()
@@ -87,6 +99,7 @@ pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
         field_changed_bytes,
         removed_bytes: removals.iter().map(|r| r.removed_bytes).sum(),
         changes,
+        staff_changes,
         removals,
     };
     Ok((output, report))

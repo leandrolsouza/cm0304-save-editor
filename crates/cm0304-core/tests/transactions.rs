@@ -29,6 +29,11 @@ fn plan() -> Transaction {
         ],
         heal_injuries: BTreeSet::from([356]),
         clear_suspensions: BTreeSet::from([5640794]),
+        staff_edits: vec![cm0304_core::staff_editor::Edit {
+            uid: 4950,
+            attribute: "coachingOutfieldPlayers".into(),
+            value: 20,
+        }],
     }
 }
 #[test]
@@ -36,12 +41,24 @@ fn mixed_transaction_relocates_fields_and_keeps_both_operations() {
     let bytes = sample();
     let (output, report) = transaction::apply(&bytes, &plan()).unwrap();
     assert_eq!(report.changes.len(), 2);
+    assert_eq!(report.staff_changes.len(), 1);
     assert_eq!(report.removals.len(), 2);
     assert_eq!(report.removed_bytes, 96);
     assert_eq!(report.size_before - report.size_after, 96);
     assert_eq!(report.source_sha256, cm0304_core::container::hash(&bytes));
     assert_eq!(report.copy_sha256, cm0304_core::container::hash(&output));
     let (db, base) = database::load(&output).unwrap();
+    let staff = cm0304_core::staff::profiles(&db, &output, base).unwrap();
+    assert_eq!(
+        staff
+            .iter()
+            .find(|p| p.uid == 4950)
+            .unwrap()
+            .attributes
+            .as_ref()
+            .unwrap()["coachingOutfieldPlayers"],
+        20
+    );
     let players = db.players(base).unwrap();
     assert_eq!(
         players

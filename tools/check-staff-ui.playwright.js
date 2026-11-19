@@ -9,6 +9,7 @@ async page => {
       team: 'Clube de teste', clubJob: 'Preparador', nationalTeam: null, nationalJob: 'Não informado',
       nation: 'Portugal', dateOfBirth: { year: 1960, day: 118 }, currentAbility: 70,
       potentialAbility: 140, reputation: [2500, 2500, 1000], rawAttributes: { physiotherapy: -32 },
+      attributes: { coachingGoalkeepers:6, coachingOutfieldPlayers:12, physiotherapy:7, tacticalKnowledge:8, workingWithYoungsters:17, manManagement:17, judgingPlayerAbility:12, judgingPlayerPotential:12, motivating:14, discipline:7, determination:12 }, personality: { adaptability:11 },
     }));
     Object.assign(profiles[0], { uid: 4950, name: 'Rui Águas', team: 'Sporting Clube de Braga', clubJob: 'Treinador adjunto' });
     Object.assign(profiles[1], { uid: 600, name: 'Pär Zetterberg', team: 'RSC Anderlecht', isPlayer: true, nationalTeam: 'Suécia', nationalJob: 'Jogador', nation: 'Suécia', dateOfBirth: { year: 1970, day: 286 }, currentAbility: 150, potentialAbility: 150 });
@@ -48,6 +49,7 @@ async page => {
   await page.locator('#staff-results button').click();
   await page.locator('#staff-profile h2').filter({ hasText: 'Rui Águas' }).waitFor();
   assert((await page.locator('#staff-profile').innerText()).includes('Treinador adjunto'), 'Staff role must be visible');
+  assert(await page.locator('#staff-profile dt').filter({ hasText: 'Fisioterapia' }).locator('..').locator('dd').innerText() === '7', 'Staff ratings must show the converted value, not the raw byte');
   assert(await page.locator('#staff-profile input').count() === 0, 'Unvalidated staff fields must not have editable inputs');
   await page.locator('#staff-search').fill('fisioterapeuta');
   await page.locator('#staff-results button').filter({ hasText: 'Francisco Miranda' }).waitFor();

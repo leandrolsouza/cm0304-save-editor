@@ -11,6 +11,92 @@ fn sample(name: &str) -> Vec<u8> {
 }
 
 #[test]
+fn staff_attribute_transaction_preserves_players_and_only_changes_planned_bytes() {
+    use cm0304_core::staff_editor::{self, Edit};
+    for name in ["save_inicial.cm4", "save_modificado.cm4"] {
+        let input = sample(name);
+        let (db, base) = database::load(&input).unwrap();
+        let before = staff::profiles(&db, &input, base).unwrap();
+        let edits = vec![
+            Edit {
+                uid: 4950,
+                attribute: "coachingOutfieldPlayers".into(),
+                value: 20,
+            },
+            Edit {
+                uid: 4950,
+                attribute: "discipline".into(),
+                value: 20,
+            },
+            Edit {
+                uid: 600,
+                attribute: "judgingPlayerAbility".into(),
+                value: 20,
+            },
+        ];
+        let (output, changes) = staff_editor::apply(&input, &edits).unwrap();
+        assert_eq!(changes.len(), 3);
+        assert_eq!(input.len(), output.len());
+        let changed = input
+            .iter()
+            .zip(&output)
+            .enumerate()
+            .filter_map(|(i, (a, b))| (a != b).then_some(i))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(changed, changes.iter().map(|c| c.offset).collect());
+        let (after_db, after_base) = database::load(&output).unwrap();
+        assert_eq!(
+            serde_json::to_value(db.players(base).unwrap()).unwrap(),
+            serde_json::to_value(after_db.players(after_base).unwrap()).unwrap()
+        );
+        let after = staff::profiles(&after_db, &output, after_base).unwrap();
+        for (a, b) in before.iter().zip(&after) {
+            assert_eq!(a.uid, b.uid);
+            assert_eq!(a.current_ability, b.current_ability);
+            assert_eq!(a.potential_ability, b.potential_ability);
+            assert_eq!(a.reputation, b.reputation);
+            assert_eq!(a.personality, b.personality);
+            assert_eq!(a.team, b.team);
+            for key in staff::FIELDS {
+                let expected = edits
+                    .iter()
+                    .find(|e| e.uid == a.uid && e.attribute == key)
+                    .map_or(a.attributes.as_ref().unwrap()[key], |e| e.value);
+                assert_eq!(b.attributes.as_ref().unwrap()[key], expected);
+            }
+        }
+        assert!(staff_editor::apply(&input, &[]).is_err());
+        assert!(staff_editor::apply(&input, &[edits[0].clone(), edits[0].clone()]).is_err());
+        for (uid, attribute, value) in [
+            (i32::MAX, "discipline", 20),
+            (4950, "unknown", 20),
+            (4950, "discipline", 0),
+            (4950, "discipline", 21),
+        ] {
+            assert!(
+                staff_editor::apply(
+                    &input,
+                    &[Edit {
+                        uid,
+                        attribute: attribute.into(),
+                        value
+                    }]
+                )
+                .is_err()
+            );
+        }
+        // Force two staff members to reference the same professional record.
+        let rui = before.iter().find(|p| p.uid == 4950).unwrap();
+        let dual = before.iter().find(|p| p.uid == 600).unwrap();
+        let mut shared = input.clone();
+        shared[dual.info_offset + 11..dual.info_offset + 15]
+            .copy_from_slice(&rui.attribute_index.to_le_bytes());
+        let error = staff_editor::apply(&shared, &edits[..1]).unwrap_err();
+        assert!(error.contains("compartilhado"));
+    }
+}
+
+#[test]
 fn staff_records_resolve_in_both_samples_without_changing_historical_players() {
     for name in ["save_inicial.cm4", "save_modificado.cm4"] {
         let input = sample(name);
@@ -124,4 +210,52 @@ fn dual_role_staff_reflects_shared_birth_edits_without_changing_staff_ability() 
     assert_eq!(projected.raw_attributes, original.raw_attributes);
     assert_eq!(projected.team, original.team);
     assert_eq!(projected.national_team, original.national_team);
+}
+
+#[test]
+fn staff_conversion_matches_twenty_four_native_observations_and_exact_inverse() {
+    let observations: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../reports/v06-staff-conversion-observed.json"
+    ))
+    .unwrap();
+    assert_eq!(observations.as_array().unwrap().len(), 24);
+    for observation in observations.as_array().unwrap() {
+        let key = observation["attribute"].as_str().unwrap();
+        let raw = observation["raw"].as_i64().unwrap() as i8;
+        let ca = observation["ca"].as_i64().unwrap() as i16;
+        let expected = observation["observed"].as_i64().unwrap() as i8;
+        let mut attributes: cm0304_core::attributes::Attributes = staff::FIELDS
+            .iter()
+            .map(|key| (key.to_string(), 0))
+            .collect();
+        attributes.insert(key.to_string(), raw);
+        assert_eq!(
+            staff::decoded(&attributes, ca).unwrap()[key],
+            expected,
+            "{observation}"
+        );
+        assert_eq!(
+            staff::encode_attribute(key, expected, ca, raw).unwrap(),
+            raw
+        );
+    }
+    for ca in 0..=200 {
+        for target in 1..=20 {
+            match staff::encode_attribute("manManagement", target, ca, -24) {
+                Ok(raw) => assert_eq!(
+                    cm0304_core::attributes::convert(raw, ca, false).unwrap(),
+                    target
+                ),
+                Err(_) => assert!(!(-128i16..=127).any(|raw| {
+                    cm0304_core::attributes::convert(raw as i8, ca, false).unwrap() == target
+                })),
+            }
+        }
+    }
+    assert!(staff::encode_attribute("unknown", 10, 70, 0).is_err());
+    assert!(staff::encode_attribute("attacking", 0, 70, 0).is_err());
+    assert_eq!(
+        staff::encode_attribute("attacking", 20, 70, 12).unwrap(),
+        20
+    );
 }

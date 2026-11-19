@@ -12,6 +12,8 @@ A prévia **0.5.0-alpha.1** acrescenta estado, valores e contratos existentes. L
 
 A consulta de staff foi integrada ao código do Tauri, com busca, paginação, funções e navegação jogador/staff. O frontend passou testes com respostas controladas; execução nativa com save real e edição de staff continuam pendentes. Veja [validação da consulta de staff](reports/v0.6-staff-ui.md).
 
+O núcleo também oferece conversão de atributos profissionais e escrita experimental de 11 atributos de staff pelo plano CLI. Os testes preservam os dados de jogador em pessoas com dupla função. A edição pela interface e o ciclo da cópia no jogo ainda estão pendentes; detalhes em [escrita de staff](reports/v0.6-staff-editing.md).
+
 ```powershell
 npm install
 npm run build:desktop

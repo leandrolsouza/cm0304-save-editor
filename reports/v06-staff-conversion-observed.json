@@ -1,0 +1,242 @@
+[
+  {
+    "uid": 1073599196,
+    "name": "Fábio Madureira",
+    "attribute": "coachingGoalkeepers",
+    "raw": -34,
+    "ca": 110,
+    "observed": 9,
+    "candidate": 9,
+    "matches": true
+  },
+  {
+    "uid": 1073599196,
+    "name": "Fábio Madureira",
+    "attribute": "coachingOutfieldPlayers",
+    "raw": -24,
+    "ca": 110,
+    "observed": 10,
+    "candidate": 10,
+    "matches": true
+  },
+  {
+    "uid": 1073599196,
+    "name": "Fábio Madureira",
+    "attribute": "judgingPlayerAbility",
+    "raw": 11,
+    "ca": 110,
+    "observed": 15,
+    "candidate": 15,
+    "matches": true
+  },
+  {
+    "uid": 1073599196,
+    "name": "Fábio Madureira",
+    "attribute": "judgingPlayerPotential",
+    "raw": 16,
+    "ca": 110,
+    "observed": 15,
+    "candidate": 15,
+    "matches": true
+  },
+  {
+    "uid": 1073599196,
+    "name": "Fábio Madureira",
+    "attribute": "manManagement",
+    "raw": 1,
+    "ca": 110,
+    "observed": 13,
+    "candidate": 13,
+    "matches": true
+  },
+  {
+    "uid": 1073599196,
+    "name": "Fábio Madureira",
+    "attribute": "motivating",
+    "raw": -4,
+    "ca": 110,
+    "observed": 13,
+    "candidate": 13,
+    "matches": true
+  },
+  {
+    "uid": 1073599196,
+    "name": "Fábio Madureira",
+    "attribute": "physiotherapy",
+    "raw": -50,
+    "ca": 110,
+    "observed": 7,
+    "candidate": 7,
+    "matches": true
+  },
+  {
+    "uid": 1073599196,
+    "name": "Fábio Madureira",
+    "attribute": "tacticalKnowledge",
+    "raw": -4,
+    "ca": 110,
+    "observed": 13,
+    "candidate": 13,
+    "matches": true
+  },
+  {
+    "uid": 7004959,
+    "name": "Francisco Miranda",
+    "attribute": "coachingGoalkeepers",
+    "raw": -80,
+    "ca": 110,
+    "observed": 4,
+    "candidate": 4,
+    "matches": true
+  },
+  {
+    "uid": 7004959,
+    "name": "Francisco Miranda",
+    "attribute": "coachingOutfieldPlayers",
+    "raw": -80,
+    "ca": 110,
+    "observed": 4,
+    "candidate": 4,
+    "matches": true
+  },
+  {
+    "uid": 7004959,
+    "name": "Francisco Miranda",
+    "attribute": "judgingPlayerAbility",
+    "raw": -80,
+    "ca": 110,
+    "observed": 4,
+    "candidate": 4,
+    "matches": true
+  },
+  {
+    "uid": 7004959,
+    "name": "Francisco Miranda",
+    "attribute": "judgingPlayerPotential",
+    "raw": -80,
+    "ca": 110,
+    "observed": 4,
+    "candidate": 4,
+    "matches": true
+  },
+  {
+    "uid": 7004959,
+    "name": "Francisco Miranda",
+    "attribute": "manManagement",
+    "raw": -80,
+    "ca": 110,
+    "observed": 4,
+    "candidate": 4,
+    "matches": true
+  },
+  {
+    "uid": 7004959,
+    "name": "Francisco Miranda",
+    "attribute": "motivating",
+    "raw": -80,
+    "ca": 110,
+    "observed": 4,
+    "candidate": 4,
+    "matches": true
+  },
+  {
+    "uid": 7004959,
+    "name": "Francisco Miranda",
+    "attribute": "physiotherapy",
+    "raw": 113,
+    "ca": 110,
+    "observed": 20,
+    "candidate": 20,
+    "matches": true
+  },
+  {
+    "uid": 7004959,
+    "name": "Francisco Miranda",
+    "attribute": "tacticalKnowledge",
+    "raw": -80,
+    "ca": 110,
+    "observed": 4,
+    "candidate": 4,
+    "matches": true
+  },
+  {
+    "uid": 4950,
+    "name": "Rui Águas",
+    "attribute": "coachingGoalkeepers",
+    "raw": -37,
+    "ca": 70,
+    "observed": 6,
+    "candidate": 6,
+    "matches": true
+  },
+  {
+    "uid": 4950,
+    "name": "Rui Águas",
+    "attribute": "coachingOutfieldPlayers",
+    "raw": 8,
+    "ca": 70,
+    "observed": 12,
+    "candidate": 12,
+    "matches": true
+  },
+  {
+    "uid": 4950,
+    "name": "Rui Águas",
+    "attribute": "judgingPlayerAbility",
+    "raw": 13,
+    "ca": 70,
+    "observed": 12,
+    "candidate": 12,
+    "matches": true
+  },
+  {
+    "uid": 4950,
+    "name": "Rui Águas",
+    "attribute": "judgingPlayerPotential",
+    "raw": 8,
+    "ca": 70,
+    "observed": 12,
+    "candidate": 12,
+    "matches": true
+  },
+  {
+    "uid": 4950,
+    "name": "Rui Águas",
+    "attribute": "manManagement",
+    "raw": 45,
+    "ca": 70,
+    "observed": 17,
+    "candidate": 17,
+    "matches": true
+  },
+  {
+    "uid": 4950,
+    "name": "Rui Águas",
+    "attribute": "motivating",
+    "raw": 23,
+    "ca": 70,
+    "observed": 14,
+    "candidate": 14,
+    "matches": true
+  },
+  {
+    "uid": 4950,
+    "name": "Rui Águas",
+    "attribute": "physiotherapy",
+    "raw": -32,
+    "ca": 70,
+    "observed": 7,
+    "candidate": 7,
+    "matches": true
+  },
+  {
+    "uid": 4950,
+    "name": "Rui Águas",
+    "attribute": "tacticalKnowledge",
+    "raw": -22,
+    "ca": 70,
+    "observed": 8,
+    "candidate": 8,
+    "matches": true
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "staffEdits": [
+    { "uid": 4950, "attribute": "coachingOutfieldPlayers", "value": 20 },
+    { "uid": 4950, "attribute": "discipline", "value": 20 },
+    { "uid": 7004959, "attribute": "physiotherapy", "value": 20 },
+    { "uid": 1073599196, "attribute": "judgingPlayerAbility", "value": 20 },
+    { "uid": 600, "attribute": "judgingPlayerAbility", "value": 20 }
+  ]
+}
