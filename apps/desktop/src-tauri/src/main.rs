@@ -89,6 +89,7 @@ struct StaffDetail {
     profile: Staff,
     age: Option<u16>,
     pending_player_fields: usize,
+    editable: Vec<String>,
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -109,6 +110,7 @@ struct Detail {
 #[serde(rename_all = "camelCase")]
 struct Pending {
     edits: Vec<Edit>,
+    staff_edits: Vec<cm0304_core::staff_editor::Edit>,
     heal_injuries: Vec<i32>,
     clear_suspensions: Vec<i32>,
     undo: bool,
@@ -117,6 +119,7 @@ struct Pending {
 fn pending(s: &Session) -> Pending {
     Pending {
         edits: s.plan.edits.clone(),
+        staff_edits: s.plan.staff_edits.clone(),
         heal_injuries: s.plan.heal_injuries.iter().copied().collect(),
         clear_suspensions: s.plan.clear_suspensions.iter().copied().collect(),
         undo: !s.undo.is_empty(),
@@ -294,7 +297,7 @@ async fn staff_detail(uid: i32, state: State<'_, Shared>) -> Result<StaffDetail>
         .ok_or("Staff não encontrado")?;
     let plan = state.lock().map_err(|e| e.to_string())?.plan.clone();
     let pending_player_fields = plan.edits.iter().filter(|e| e.uid == uid).count();
-    if pending_player_fields > 0 {
+    if pending_player_fields > 0 || plan.staff_edits.iter().any(|e| e.uid == uid) {
         let bytes = data.bytes.clone();
         profile = tauri::async_runtime::spawn_blocking(move || -> Result<Staff> {
             let (output, _) = transaction::apply(&bytes, &plan)?;
@@ -312,10 +315,71 @@ async fn staff_detail(uid: i32, state: State<'_, Shared>) -> Result<StaffDetail>
         .as_ref()
         .and_then(|date| date.age_on(&data.game_date));
     Ok(StaffDetail {
+        editable: if profile.attributes.is_some() {
+            cm0304_core::staff_editor::EDITABLE
+                .iter()
+                .map(|k| k.to_string())
+                .collect()
+        } else {
+            Vec::new()
+        },
         profile,
         age,
         pending_player_fields,
     })
+}
+#[tauri::command]
+async fn stage_staff_edits(
+    edits: Vec<cm0304_core::staff_editor::Edit>,
+    state: State<'_, Shared>,
+) -> Result<Pending> {
+    let data = loaded(&state)?;
+    let previous = state.lock().map_err(|e| e.to_string())?.plan.clone();
+    let mut next = previous.clone();
+    let mut seen = std::collections::BTreeSet::new();
+    for edit in edits {
+        if !seen.insert((edit.uid, edit.attribute.clone())) {
+            return Err("Campo de staff repetido na mesma operação".into());
+        }
+        if !cm0304_core::staff_editor::EDITABLE.contains(&edit.attribute.as_str())
+            || !(1..=20).contains(&edit.value)
+        {
+            return Err("Campo ou valor de staff inválido".into());
+        }
+        let profile = data
+            .staff
+            .iter()
+            .find(|p| p.uid == edit.uid)
+            .ok_or("Staff não encontrado")?;
+        let original = profile
+            .attributes
+            .as_ref()
+            .and_then(|a| a.get(&edit.attribute))
+            .ok_or("Staff sem atributo disponível")?;
+        next.staff_edits
+            .retain(|e| e.uid != edit.uid || e.attribute != edit.attribute);
+        if edit.value != *original {
+            next.staff_edits.push(edit);
+        }
+    }
+    next.staff_edits
+        .sort_by(|a, b| (a.uid, &a.attribute).cmp(&(b.uid, &b.attribute)));
+    if !next.is_empty() {
+        let bytes = data.bytes.clone();
+        let plan = next.clone();
+        tauri::async_runtime::spawn_blocking(move || transaction::apply(&bytes, &plan).map(|_| ()))
+            .await
+            .map_err(|e| e.to_string())??;
+    }
+    let mut s = state.lock().map_err(|e| e.to_string())?;
+    if s.plan != previous || !s.loaded.as_ref().is_some_and(|p| Arc::ptr_eq(p, &data)) {
+        return Err("A sessão mudou durante a validação; tente novamente".into());
+    }
+    if s.plan != next {
+        record(&mut s);
+        s.plan = next;
+    }
+    Ok(pending(&s))
 }
 #[tauri::command]
 fn search_players(query: String, page: usize, state: State<Shared>) -> Result<Page> {
@@ -547,6 +611,7 @@ fn main() {
             staff_detail,
             player_detail,
             stage_edits,
+            stage_staff_edits,
             pending_edits,
             history_action,
             preview_edits,

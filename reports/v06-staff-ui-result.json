@@ -4,9 +4,12 @@
     "pagination",
     "accentless search",
     "role search",
-    "readonly staff",
+    "11 staff controls",
+    "staff staging and review",
+    "staff undo/redo/clear",
+    "staff draft cancel/discard",
     "dual-role navigation",
-    "draft cancel/discard",
+    "player draft cancel/discard",
     "save session reset"
   ],
   "frontendErrors": []

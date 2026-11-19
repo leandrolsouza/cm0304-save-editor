@@ -14,6 +14,7 @@ pub struct Edit {
 #[serde(rename_all = "camelCase")]
 pub struct Change {
     pub uid: i32,
+    pub name: String,
     pub attribute: String,
     pub before: i8,
     pub after: i8,
@@ -90,6 +91,7 @@ pub fn apply(input: &[u8], edits: &[Edit]) -> Result<(Vec<u8>, Vec<Change>)> {
         if raw_after != raw_before {
             changes.push(Change {
                 uid: edit.uid,
+                name: profile.name.clone(),
                 attribute: edit.attribute.clone(),
                 before,
                 after: edit.value,
