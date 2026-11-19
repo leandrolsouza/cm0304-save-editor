@@ -6,6 +6,7 @@
     <div class="brand"><div class="brand-mark">CM<span>03·04</span></div><strong>Save Editor<small>O seu jogo, nos detalhes.</small></strong></div>
     <div class="nav-label">ÁREA DE TRABALHO</div>
     <button class="nav active" id="nav-players">◉ <span>Jogadores</span><span id="player-count" class="nav-count">—</span></button>
+    <button class="nav" id="nav-staff">♙ <span>Staff</span><span id="staff-count" class="nav-count">—</span></button>
     <button class="nav" id="nav-changes">⇄ <span>Alterações</span><span id="pending-count" class="nav-count">0</span></button>
     <button class="nav" id="nav-diagnostics">≡ <span>Diagnóstico</span></button>
     <div class="sidebar-bottom"><span class="dot"></span> Edição local em cópia<small>CM0304 4.1.5 · Rust + Tauri<br>Prévia 0.5 alpha · em validação</small></div>
@@ -19,6 +20,10 @@
       <div id="players-view" class="workspace-grid">
         <section class="roster panel"><div class="panel-heading"><h2>Jogadores</h2><span id="result-count">0 resultados</span></div><label class="search-box"><span>⌕</span><input id="search" type="search" placeholder="Nome, clube ou UID" aria-label="Buscar jogadores"></label><div class="table-label"><span>JOGADOR / CLUBE</span><span>CA · PA</span></div><div id="results" class="results"></div><div class="pagination"><button id="previous" aria-label="Página anterior">←</button><span id="page-label">1</span><button id="next" aria-label="Próxima página">→</button></div></section>
         <section id="profile" class="profile panel"><div class="profile-placeholder"><h2>Escolha um jogador</h2><p>Selecione um nome da lista para consultar o perfil e preparar as alterações.</p></div></section>
+      </div>
+      <div id="staff-view" class="workspace-grid" hidden>
+        <section class="roster panel"><div class="panel-heading"><h2>Staff</h2><span id="staff-result-count">0 resultados</span></div><label class="search-box"><span>⌕</span><input id="staff-search" type="search" placeholder="Nome, clube, seleção ou função" aria-label="Buscar staff"></label><div class="table-label"><span>STAFF / FUNÇÃO</span><span>CA · PA</span></div><div id="staff-results" class="results"></div><div class="pagination"><button id="staff-previous" aria-label="Página anterior de staff">←</button><span id="staff-page-label">1</span><button id="staff-next" aria-label="Próxima página de staff">→</button></div></section>
+        <section id="staff-profile" class="profile panel"><div class="profile-placeholder"><h2>Escolha um membro do staff</h2><p>Consulte funções, vínculos e capacidade.</p></div></section>
       </div>
       <section id="changes-view" class="panel review" hidden><div class="panel-heading"><div><div class="eyebrow">ANTES DE GRAVAR</div><h2>Revise suas alterações</h2></div><div class="actions"><button id="undo">Desfazer</button><button id="redo">Refazer</button><button id="clear">Limpar</button></div></div><p>A origem permanece intacta. A cópia será relida e validada antes da conclusão.</p><div id="changes-list"></div><button id="save-copy" class="primary">Salvar cópia validada</button><p id="saved-path"></p></section>
       <section id="diagnostics-view" class="panel review" hidden><div class="eyebrow">INFORMAÇÕES DO ARQUIVO</div><h2>Diagnóstico</h2><p>Formato validado: banco interno 147. Os valores convertidos seguem o modelo CM Scout 3.10; a interface do jogo pode ocultar ou estimar atributos de jogadores desconhecidos pelo treinador.</p><pre id="diagnostics"></pre></section>

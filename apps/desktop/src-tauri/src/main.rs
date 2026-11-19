@@ -7,6 +7,7 @@ use cm0304_core::{
     editor::Edit,
     health::{self, InjuryView},
     search,
+    staff::{self, Staff},
     transaction::{self, Transaction},
 };
 use serde::Serialize;
@@ -26,6 +27,8 @@ struct Loaded {
     nations: Vec<String>,
     game_date: Date,
     search_keys: Vec<String>,
+    staff: Vec<Staff>,
+    staff_search_keys: Vec<String>,
     contracts: BTreeMap<i32, Vec<ContractView>>,
     injuries: BTreeMap<i32, Vec<InjuryView>>,
     suspensions: BTreeMap<i32, usize>,
@@ -44,6 +47,7 @@ struct Summary {
     name: String,
     path: String,
     players: usize,
+    staff: usize,
     sha256: String,
 }
 #[derive(Serialize)]
@@ -60,6 +64,31 @@ struct Row {
 struct Page {
     total: usize,
     rows: Vec<Row>,
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StaffRow {
+    uid: i32,
+    name: String,
+    team: Option<String>,
+    role: String,
+    national_team: Option<String>,
+    age: Option<u16>,
+    ca: i16,
+    pa: i16,
+    is_player: bool,
+}
+#[derive(Serialize)]
+struct StaffPage {
+    total: usize,
+    rows: Vec<StaffRow>,
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StaffDetail {
+    profile: Staff,
+    age: Option<u16>,
+    pending_player_fields: usize,
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -123,6 +152,22 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
             let bytes = std::fs::read(&source).map_err(|e| e.to_string())?;
             let (db, base) = database::load(&bytes)?;
             let players = db.players(base)?;
+            let staff = staff::profiles(&db, &bytes, base)
+                .map_err(|error| format!("Falha ao ler staff: {error}"))?;
+            let staff_search_keys = staff
+                .iter()
+                .map(|p| {
+                    search::key(&format!(
+                        "{} {} {} {} {} {}",
+                        p.uid,
+                        p.name,
+                        p.team.as_deref().unwrap_or(""),
+                        p.club_job,
+                        p.national_team.as_deref().unwrap_or(""),
+                        p.national_job
+                    ))
+                })
+                .collect();
             let contracts = db
                 .people
                 .iter()
@@ -166,6 +211,7 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
                     .into(),
                 path: source.display().to_string(),
                 players: players.len(),
+                staff: staff.len(),
                 sha256: hash(&bytes),
             };
             Ok(Some((
@@ -176,6 +222,8 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
                     nations,
                     game_date: db.game_date,
                     search_keys,
+                    staff,
+                    staff_search_keys,
                     contracts,
                     injuries,
                     suspensions,
@@ -195,6 +243,79 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
     } else {
         Ok(None)
     }
+}
+#[tauri::command]
+fn search_staff(query: String, page: usize, state: State<Shared>) -> Result<StaffPage> {
+    let data = loaded(&state)?;
+    let q = search::key(query.trim());
+    let matches = data
+        .staff
+        .iter()
+        .zip(&data.staff_search_keys)
+        .filter(|(_, key)| key.contains(&q))
+        .map(|(p, _)| p)
+        .collect::<Vec<_>>();
+    Ok(StaffPage {
+        total: matches.len(),
+        rows: matches
+            .into_iter()
+            .skip(page.saturating_mul(50))
+            .take(50)
+            .map(|p| StaffRow {
+                uid: p.uid,
+                name: p.name.clone(),
+                team: p.team.clone(),
+                role: if p.team.is_none() && p.national_team.is_some() {
+                    p.national_job
+                } else {
+                    p.club_job
+                }
+                .to_owned(),
+                national_team: p.national_team.clone(),
+                age: p
+                    .date_of_birth
+                    .as_ref()
+                    .and_then(|d| d.age_on(&data.game_date)),
+                ca: p.current_ability,
+                pa: p.potential_ability,
+                is_player: p.is_player,
+            })
+            .collect(),
+    })
+}
+#[tauri::command]
+async fn staff_detail(uid: i32, state: State<'_, Shared>) -> Result<StaffDetail> {
+    let data = loaded(&state)?;
+    let mut profile = data
+        .staff
+        .iter()
+        .find(|p| p.uid == uid)
+        .cloned()
+        .ok_or("Staff não encontrado")?;
+    let plan = state.lock().map_err(|e| e.to_string())?.plan.clone();
+    let pending_player_fields = plan.edits.iter().filter(|e| e.uid == uid).count();
+    if pending_player_fields > 0 {
+        let bytes = data.bytes.clone();
+        profile = tauri::async_runtime::spawn_blocking(move || -> Result<Staff> {
+            let (output, _) = transaction::apply(&bytes, &plan)?;
+            let (db, base) = database::load(&output)?;
+            staff::profiles(&db, &output, base)?
+                .into_iter()
+                .find(|p| p.uid == uid)
+                .ok_or("Staff ausente após projeção".into())
+        })
+        .await
+        .map_err(|e| e.to_string())??;
+    }
+    let age = profile
+        .date_of_birth
+        .as_ref()
+        .and_then(|date| date.age_on(&data.game_date));
+    Ok(StaffDetail {
+        profile,
+        age,
+        pending_player_fields,
+    })
 }
 #[tauri::command]
 fn search_players(query: String, page: usize, state: State<Shared>) -> Result<Page> {
@@ -422,6 +543,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             open_save,
             search_players,
+            search_staff,
+            staff_detail,
             player_detail,
             stage_edits,
             pending_edits,

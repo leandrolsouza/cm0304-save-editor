@@ -70,6 +70,8 @@ cargo run --offline -p cm0304-cli -- staff "origem.cm4" "uid:4950"
 
 Leitura separada do modelo de jogadores, com vínculos de clube/seleção e atributos brutos. Não oferece escrita nem conversão validada para 1–20. Evidências e pendências em `reports/v0.6-staff-research.md`.
 
+O frontend de consulta também pode ser verificado em navegador isolado com IPC controlado; comandos e limites da prova em `reports/v0.6-staff-ui.md`. Isso não substitui a conferência no aplicativo Tauri com save real.
+
 ## Referências de Tauri
 
 - [Comandos Rust](https://v2.tauri.app/develop/calling-rust/)

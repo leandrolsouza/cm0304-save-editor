@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "checks": [
+    "pagination",
+    "accentless search",
+    "role search",
+    "readonly staff",
+    "dual-role navigation",
+    "draft cancel/discard",
+    "save session reset"
+  ],
+  "frontendErrors": []
+}

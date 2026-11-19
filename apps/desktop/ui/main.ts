@@ -7,7 +7,10 @@ interface Detail {player:Player;effective:Player;age:number|null;contracts:Contr
 interface Change {uid:number;name:string;attribute:string;before:number;after:number;rawBefore:number;rawAfter:number;derived:boolean;context:string|null;displayBefore:string|null;displayAfter:string|null}
 interface Report {changes:Change[];fieldChangedBytes:number;removedBytes:number;removals:{uid:number;name:string;kind:'injuries'|'suspensions';count:number;removedBytes:number}[];sourceSha256:string;copySha256:string}
 interface Page {total:number;rows:{uid:number;name:string;club:string|null;age:number|null;ca:number;pa:number}[]}
-interface Summary {name:string;path:string;players:number;sha256:string}
+interface Summary {name:string;path:string;players:number;staff:number;sha256:string}
+interface StaffProfile {uid:number;name:string;isPlayer:boolean;isHuman:boolean;team:string|null;clubJob:string;nationalTeam:string|null;nationalJob:string;nation:string|null;dateOfBirth:{year:number;day:number}|null;currentAbility:number;potentialAbility:number;reputation:number[];rawAttributes:Record<string,number>|null}
+interface StaffDetail {profile:StaffProfile;age:number|null;pendingPlayerFields:number}
+interface StaffPage {total:number;rows:{uid:number;name:string;team:string|null;role:string;nationalTeam:string|null;age:number|null;ca:number;pa:number;isPlayer:boolean}[]}
 declare global {interface Window {__TAURI__:{core:{invoke:<T>(command:string,args?:Record<string,unknown>)=>Promise<T>}}}}
 const $=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 const invoke=<T>(command:string,args?:Record<string,unknown>)=>window.__TAURI__.core.invoke<T>(command,args);
@@ -17,9 +20,10 @@ const groups:[string,string[]][]=[['Técnicos',['crossing','dribbling','finishin
 const keeper=['handling','aerialAbility','commandOfArea','communication','kicking','throwing','reflexes','rushingOut','tendencyToPunch','oneOnOnes','eccentricity'];
 let summary:Summary|null=null,detail:Detail|null=null,plan:Pending={edits:[],healInjuries:[],clearSuspensions:[],undo:false,redo:false},page=0,total=0,busy=false,searchGeneration=0;
 let timer:ReturnType<typeof setTimeout>;
+let staffTimer:ReturnType<typeof setTimeout>,staffPage=0,staffTotal=0,staffGeneration=0,staffDetail:StaffDetail|null=null;
 let profileTab='attributes';
 function status(text:string,kind=''){$('status').textContent=text;$('status').className=kind;}
-async function task(action:()=>Promise<void>){if(busy)return;busy=true;document.body.setAttribute('aria-busy','true');for(const b of document.querySelectorAll<HTMLButtonElement>('button'))b.disabled=true;try{await action();}catch(e){status(String(e),'error');}finally{busy=false;document.body.removeAttribute('aria-busy');for(const b of document.querySelectorAll<HTMLButtonElement>('button'))b.disabled=false;syncPlan();syncPages();}}
+async function task(action:()=>Promise<void>){if(busy)return;busy=true;document.body.setAttribute('aria-busy','true');for(const b of document.querySelectorAll<HTMLButtonElement>('button'))b.disabled=true;try{await action();}catch(e){status(String(e),'error');}finally{busy=false;document.body.removeAttribute('aria-busy');for(const b of document.querySelectorAll<HTMLButtonElement>('button'))b.disabled=false;syncPlan();syncPages();syncStaffPages();}}
 function inputValue(el:HTMLInputElement|HTMLSelectElement):number{const scale=Number(el.dataset.scale??1);return scale===1?Number(el.value):Math.round(Number(el.value)*scale);}
 function drafts():Edit[]{
   if(!detail)return[];
@@ -45,7 +49,7 @@ function healingDraft():{uid:number;enabled:boolean}|null {const checkbox=$<HTML
 function suspensionDraft():{uid:number;enabled:boolean}|null {const checkbox=$<HTMLInputElement>('remove-suspensions');return detail&&checkbox&&checkbox.checked!==detail.suspensionPending?{uid:detail.player.uid,enabled:checkbox.checked}:null;}
 function planCount(){return plan.edits.length+plan.healInjuries.length+plan.clearSuspensions.length;}
 function canLeave(){return (drafts().length===0&&!healingDraft()&&!suspensionDraft())||window.confirm('Descartar os campos ainda não adicionados à revisão?');}
-function view(name:string){for(const v of ['players','changes','diagnostics']){$(`${v}-view`).hidden=v!==name;$(`nav-${v}`).classList.toggle('active',v===name);}}
+function view(name:string){for(const v of ['players','staff','changes','diagnostics']){$(`${v}-view`).hidden=v!==name;$(`nav-${v}`).classList.toggle('active',v===name);}}
 function syncPlan(){const count=planCount();$('pending-count').textContent=String(count);$('review-count').textContent=String(count);$<HTMLButtonElement>('review').disabled=busy||!count;$<HTMLButtonElement>('save-copy').disabled=busy||!count;$<HTMLButtonElement>('undo').disabled=busy||!plan.undo;$<HTMLButtonElement>('redo').disabled=busy||!plan.redo;$<HTMLButtonElement>('clear').disabled=busy||!count;$('footer-state').textContent=count?`${count} alteração(ões) preparada(s). A origem continua intacta.`:'Seu save original permanece intacto.';}
 function syncPages(){$<HTMLButtonElement>('previous').disabled=busy||page===0;$<HTMLButtonElement>('next').disabled=busy||(page+1)*50>=total;$('page-label').textContent=`${page+1} / ${Math.max(1,Math.ceil(total/50))}`;}
 async function search(){if(!summary)return;const generation=++searchGeneration;const data=await invoke<Page>('search_players',{query:$<HTMLInputElement>('search').value,page});if(generation!==searchGeneration)return;total=data.total;$('result-count').textContent=`${total.toLocaleString('pt-BR')} resultados`;$('results').innerHTML=data.rows.map(p=>`<button class="player-row ${detail?.player.uid===p.uid?'selected':''}" data-uid="${p.uid}"><span><strong>${escape(p.name)}</strong><small>${escape(p.club??'Sem clube')}${p.age===null?'':` · ${p.age} anos`}</small></span><span class="abilities">${p.ca} <span>·</span> ${p.pa}</span></button>`).join('')||'<p class="profile-meta">Nenhum jogador encontrado.</p>';syncPages();}
@@ -54,6 +58,39 @@ function fieldLabel(key:string):string {
   const career:Record<string,string>={'state.condition':'Condição física (%)','state.fitness':'Ritmo de jogo (%)','state.jadedness':'Cansaço acumulado','state.morale':'Moral (0–20)','state.estimatedValue':'Valor estimado (£)','state.saleValue':'Valor de venda (£; -1 automático)',weeklyWage:'Salário semanal (£)',squadStatus:'Situação no elenco',squadNumber:'Camisa (-1 sem número)','expires.year':'Término','expires.day':'Término'};
   if(key.startsWith('contract.')){const [,i,...parts]=key.split('.');return 'Contrato '+(Number(i)+1)+' · '+(career[parts.join('.')]??parts.join('.'));}
   const simple=key.replace(/^position\.|^personality\./,'');return career[key]??extra[key]??extra[simple]??labels[simple]??key;
+}
+function syncStaffPages(){
+  $<HTMLButtonElement>('staff-previous').disabled=busy||staffPage===0;
+  $<HTMLButtonElement>('staff-next').disabled=busy||(staffPage+1)*50>=staffTotal;
+  $('staff-page-label').textContent=`${staffPage+1} / ${Math.max(1,Math.ceil(staffTotal/50))}`;
+}
+function resetStaff(){
+  staffDetail=null;staffPage=0;staffTotal=0;staffGeneration++;clearTimeout(staffTimer);
+  $<HTMLInputElement>('staff-search').value='';$('staff-results').innerHTML='';$('staff-result-count').textContent='0 resultados';
+  $('staff-count').textContent=(summary?.staff??0).toLocaleString('pt-BR');
+  $('staff-profile').innerHTML='<div class="profile-placeholder"><h2>Escolha um membro do staff</h2><p>Consulte funções, vínculos e capacidade.</p></div>';
+  syncStaffPages();
+}
+async function searchStaff(){
+  if(!summary)return;
+  const generation=++staffGeneration;
+  const result=await invoke<StaffPage>('search_staff',{query:$<HTMLInputElement>('staff-search').value,page:staffPage});
+  if(generation!==staffGeneration)return;
+  staffTotal=result.total;$('staff-result-count').textContent=`${staffTotal.toLocaleString('pt-BR')} resultados`;
+  $('staff-results').innerHTML=result.rows.map(p=>'<button class="player-row '+(staffDetail?.profile.uid===p.uid?'selected':'')+'" data-staff-uid="'+p.uid+'"><span><strong>'+escape(p.name)+'</strong><small>'+escape(p.team??p.nationalTeam??'Sem equipe')+' · '+escape(p.role)+(p.isPlayer?' · Jogador/staff':'')+'</small></span><span class="abilities">'+p.ca+' <span>·</span> '+p.pa+'</span></button>').join('')||'<p class="profile-meta">Nenhum membro do staff encontrado.</p>';
+  syncStaffPages();
+}
+async function showStaff(uid:number){
+  status('Carregando perfil de staff…');
+  staffDetail=await invoke<StaffDetail>('staff_detail',{uid});
+  const d=staffDetail,p=d.profile;
+  const fact=(label:string,value:unknown)=>'<div><dt>'+escape(label)+'</dt><dd>'+escape(value??'—')+'</dd></div>';
+  const birth=p.dateOfBirth&&d.age!==null?new Date(Date.UTC(p.dateOfBirth.year,0,1)+p.dateOfBirth.day*86400000).toLocaleDateString('pt-BR',{timeZone:'UTC'}):'—';
+  $('staff-profile').innerHTML='<div class="profile-header"><div><div class="eyebrow">STAFF · UID '+p.uid+'</div><h2>'+escape(p.name)+'</h2><div class="profile-meta">'+escape(p.team??p.nationalTeam??'Sem equipe')+(d.age===null?'':' · '+d.age+' anos')+'</div></div><div class="profile-badges"><div class="ability-badge"><small>CA</small><strong>'+p.currentAbility+'</strong></div><div class="ability-badge"><small>PA</small><strong>'+p.potentialAbility+'</strong></div></div></div><dl class="staff-facts">'+fact('Função no clube',p.clubJob)+fact('Clube',p.team)+fact('Seleção',p.nationalTeam)+fact('Função na seleção',p.nationalJob)+fact('Nacionalidade',p.nation)+fact('Nascimento',birth)+fact('Reputação nacional',p.reputation[0])+fact('Reputação atual',p.reputation[1])+fact('Reputação mundial',p.reputation[2])+fact('Perfil',p.isHuman?'Treinador humano':p.isPlayer?'Jogador/staff':'Staff')+'</dl><p class="profile-meta">CA e PA pertencem à função de staff. A edição e a conversão dos atributos de staff ainda estão em validação.</p>'+(d.pendingPlayerFields?'<p class="profile-meta">Este jogador tem '+d.pendingPlayerFields+' campo(s) na revisão. Os dados compartilhados deste perfil refletem o plano.</p>':'')+(p.isPlayer?'<button type="button" id="staff-open-player">Abrir perfil de jogador →</button>':'')+'<details><summary>Atributos brutos de diagnóstico</summary><p>Estes valores ainda não foram convertidos para a escala de 1 a 20.</p><pre>'+escape(JSON.stringify(p.rawAttributes,null,2))+'</pre></details>';
+  $('staff-profile').scrollTop=0;
+  for(const row of document.querySelectorAll<HTMLElement>('[data-staff-uid]'))row.classList.toggle('selected',Number(row.dataset.staffUid)===uid);
+  if(p.isPlayer)$('staff-open-player').onclick=()=>void task(async()=>{view('players');page=0;$<HTMLInputElement>('search').value=p.name;await search();await showPlayer(uid);});
+  status('Perfil de staff carregado.','success');
 }
 function renderProfile(){
   if(!detail)return;
@@ -125,7 +162,7 @@ function renderProfile(){
   for(const el of document.querySelectorAll<HTMLInputElement|HTMLSelectElement>('#profile [data-field]'))el.oninput=()=>el.classList.toggle('changed',inputValue(el)!==p.fields[el.dataset.field!].value);
 }
 async function showPlayer(uid:number){if(!canLeave())return;detail=await invoke<Detail>('player_detail',{uid});renderProfile();for(const row of document.querySelectorAll<HTMLElement>('.player-row'))row.classList.toggle('selected',Number(row.dataset.uid)===uid);}
-async function open(){if(!canLeave())return;if(planCount()&&!window.confirm('Abrir outro save e descartar as alterações pendentes?'))return;await task(async()=>{status('Selecione o save. A leitura pode levar alguns segundos…');const data=await invoke<Summary|null>('open_save');if(!data){status('Abertura cancelada.');return;}summary=data;detail=null;plan={edits:[],healInjuries:[],clearSuspensions:[],undo:false,redo:false};page=0;$<HTMLInputElement>('search').value='';$('file-name').textContent=data.name;$('file-info').textContent=`${data.players.toLocaleString('pt-BR')} jogadores · banco 147`;$('file-name').title=data.path;$('player-count').textContent=data.players.toLocaleString('pt-BR');$('diagnostics').textContent=JSON.stringify(data,null,2);$('empty').hidden=true;$('workspace').hidden=false;$('profile').innerHTML='<div class="profile-placeholder"><h2>Escolha um jogador</h2><p>Use a busca para encontrar um nome ou elenco.</p></div>';view('players');await search();status('Save carregado. Selecione um jogador para começar.','success');});}
+async function open(){if(!canLeave())return;if(planCount()&&!window.confirm('Abrir outro save e descartar as alterações pendentes?'))return;await task(async()=>{status('Selecione o save. A leitura pode levar alguns segundos…');const data=await invoke<Summary|null>('open_save');if(!data){status('Abertura cancelada.');return;}summary=data;detail=null;resetStaff();plan={edits:[],healInjuries:[],clearSuspensions:[],undo:false,redo:false};page=0;$<HTMLInputElement>('search').value='';$('file-name').textContent=data.name;$('file-info').textContent=`${data.players.toLocaleString('pt-BR')} jogadores · banco 147`;$('file-name').title=data.path;$('player-count').textContent=data.players.toLocaleString('pt-BR');$('diagnostics').textContent=JSON.stringify(data,null,2);$('empty').hidden=true;$('workspace').hidden=false;$('profile').innerHTML='<div class="profile-placeholder"><h2>Escolha um jogador</h2><p>Use a busca para encontrar um nome ou elenco.</p></div>';view('players');await search();status('Save carregado. Selecione um jogador para começar.','success');});}
 function renderChanges(report:Report):string {
   const seen=new Set<string>();return report.changes.filter(c=>{
     if(c.attribute==='birth.day'||c.attribute==='birth.year'||/^contract\.\d+\.expires\.(day|year)$/.test(c.attribute)){
@@ -141,6 +178,15 @@ $<HTMLInputElement>('search').oninput=()=>{clearTimeout(timer);timer=setTimeout(
 $('previous').onclick=()=>{page--;void search().catch(e=>status(String(e),'error'));};$('next').onclick=()=>{page++;void search().catch(e=>status(String(e),'error'));};
 for(const action of ['undo','redo','clear'])$(action).onclick=()=>void task(async()=>{plan=await invoke<Pending>('history_action',{action});if(detail){detail=await invoke<Detail>('player_detail',{uid:detail.player.uid});renderProfile();}if(planCount()){const report=await invoke<Report>('preview_edits');$('changes-list').innerHTML=renderChanges(report);}else $('changes-list').textContent='Nenhuma alteração pendente.';status('Plano de alterações atualizado.');});
 $('save-copy').onclick=()=>void task(async()=>{status('Escolha um nome novo para a cópia. O original não será sobrescrito.');const result=await invoke<{path:string;report:Report}|null>('save_copy');if(!result){status('Gravação cancelada.');return;}$('saved-path').textContent=`Cópia validada e salva: ${result.path}`;status('Cópia salva e verificada: '+reportSummary(result.report),'success');});
+$('nav-staff').onclick=()=>{
+  if(!summary||!canLeave())return;
+  renderProfile();view('staff');
+  void task(async()=>{await searchStaff();if(staffDetail)await showStaff(staffDetail.profile.uid);else status('Selecione um membro do staff para consultar.');});
+};
+$('staff-results').onclick=e=>{const row=(e.target as HTMLElement).closest<HTMLElement>('[data-staff-uid]');if(row)void task(()=>showStaff(Number(row.dataset.staffUid)));};
+$<HTMLInputElement>('staff-search').oninput=()=>{clearTimeout(staffTimer);staffTimer=setTimeout(()=>{staffPage=0;void searchStaff().catch(e=>status(String(e),'error'));},180);};
+$('staff-previous').onclick=()=>{staffPage--;void searchStaff().catch(e=>status(String(e),'error'));};
+$('staff-next').onclick=()=>{staffPage++;void searchStaff().catch(e=>status(String(e),'error'));};
 window.onbeforeunload=e=>{if(planCount()||drafts().length||healingDraft()||suspensionDraft()){e.preventDefault();}};
 syncPlan();
 export {};

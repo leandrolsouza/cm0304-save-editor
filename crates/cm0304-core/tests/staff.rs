@@ -91,3 +91,37 @@ fn missing_staff_table_and_invalid_attribute_references_are_rejected() {
     assert!(error.contains("4950"));
     assert!(error.contains("referência inválida"));
 }
+
+#[test]
+fn dual_role_staff_reflects_shared_birth_edits_without_changing_staff_ability() {
+    let input = sample("save_inicial.cm4");
+    let (db, base) = database::load(&input).unwrap();
+    let original = staff::profiles(&db, &input, base)
+        .unwrap()
+        .into_iter()
+        .find(|p| p.uid == 600)
+        .unwrap();
+    let plan = cm0304_core::transaction::Transaction {
+        edits: vec![cm0304_core::editor::Edit {
+            uid: 600,
+            attribute: "birth.year".into(),
+            value: 1971,
+            policy: None,
+        }],
+        ..Default::default()
+    };
+    let (output, _) = cm0304_core::transaction::apply(&input, &plan).unwrap();
+    let (after, after_base) = database::load(&output).unwrap();
+    let projected = staff::profiles(&after, &output, after_base)
+        .unwrap()
+        .into_iter()
+        .find(|p| p.uid == 600)
+        .unwrap();
+    assert_eq!(projected.date_of_birth.as_ref().unwrap().year, 1971);
+    assert_eq!(projected.current_ability, original.current_ability);
+    assert_eq!(projected.potential_ability, original.potential_ability);
+    assert_eq!(projected.reputation, original.reputation);
+    assert_eq!(projected.raw_attributes, original.raw_attributes);
+    assert_eq!(projected.team, original.team);
+    assert_eq!(projected.national_team, original.national_team);
+}

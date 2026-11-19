@@ -1,6 +1,7 @@
 /game/
 /node_modules/
 /target/
+/.playwright-cli/
 /reports/rust-players-*.json
 /apps/desktop/dist/
 /apps/desktop/src-tauri/gen/
