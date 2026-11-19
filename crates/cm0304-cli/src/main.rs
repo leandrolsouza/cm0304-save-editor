@@ -3,7 +3,7 @@ use cm0304_core::{
     container::read_container,
     database,
     editor::{Edit, save_copy},
-    search,
+    search, transaction,
 };
 use std::{env, fs, path::Path, sync::atomic::AtomicBool};
 
@@ -16,6 +16,24 @@ fn main() {
 fn run() -> Result<()> {
     let a = env::args().skip(1).collect::<Vec<_>>();
     let command = a.first().map(String::as_str).unwrap_or("");
+    if command == "apply-plan" && a.len() == 4 {
+        let plan: transaction::Transaction =
+            serde_json::from_slice(&fs::read(&a[3]).map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())?;
+        let input = fs::read(&a[1]).map_err(|e| e.to_string())?;
+        let report = transaction::save_snapshot(
+            Path::new(&a[1]),
+            Path::new(&a[2]),
+            &plan,
+            &input,
+            &AtomicBool::new(false),
+        )?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&report).map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
     if command == "edit" && a.len() == 4 {
         let edits: Vec<Edit> = serde_json::from_slice(&fs::read(&a[3]).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
@@ -32,7 +50,7 @@ fn run() -> Result<()> {
         return Ok(());
     }
     if a.len() < 2 {
-        return Err("Usage: cm0304-cli inspect <save> | players <save> [query] | career <save> [query] | health <save> [query] | injury-types <save> | career-summary <save> | export <save> <json> | edit <save> <new-copy> <plan.json>".into());
+        return Err("Usage: cm0304-cli inspect <save> | players <save> [query] | career <save> [query] | health <save> [query] | injury-types <save> | career-summary <save> | export <save> <json> | edit <save> <new-copy> <fields.json> | apply-plan <save> <new-copy> <transaction.json>".into());
     }
     let bytes = fs::read(&a[1]).map_err(|e| e.to_string())?;
     if command == "inspect" {

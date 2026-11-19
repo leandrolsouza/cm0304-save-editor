@@ -37,12 +37,26 @@ Essa é a base histórica em JavaScript. A migração e a primeira interface já
 - [x] **v0.2:** núcleo Rust com leitura equivalente, transações de múltiplos campos/jogadores e gravação exclusiva validada. Cópia carregada no jogo.
 - [x] **v0.3:** aplicativo Tauri com abertura, busca paginada, perfil, revisão, desfazer/refazer e salvar cópia. Fluxo completo executado na interface e cópia carregada no jogo.
 - [x] **v0.4:** editor ampliado de jogadores, políticas de CA, abas, idade e busca sem acentos. Fluxo Tauri, posições/pés, goleiro e jogador/staff conferidos; cópias avançaram sete dias, foram regravadas e recarregadas no jogo.
-- [ ] **v0.5:** edição de estado e contratos existentes em prévia; remoção de lesões integrada ao Tauri com revisão, desfazer/refazer e cópia relida. Primeiro caso de cura passou ciclo de sete dias e recarga no jogo. Faltam conferir a transação mista Tauri no jogo, variantes, suspensões e concluir a matriz de contratos/valores.
+- [ ] **v0.5:** estado e contratos existentes em prévia; remoção de lesões e suspensões integrada às transações. Transação mista Tauri de lesão/moral conferida no jogo; primeiros casos de cura e suspensão europeia passaram sete dias, regravação e recarga. Fluxo Tauri de suspensões testado até gravação/releitura, incluindo desfazer/refazer. Faltam conferir essa cópia no jogo, outras variantes e a matriz de contratos/valores.
 - [ ] **v0.6–v1.0:** ainda não concluídas.
 
 Evidências: `reports/v0.2-v0.3-validation.md` e `reports/v0.4-validation.md`. As prévias são marcos de desenvolvimento, não uma declaração de estabilidade da v1.0.
 
 ## Funcionalidades da v1.0
+
+### Escopo mínimo do editor
+
+A v1.0 deve atender aos fluxos abaixo pela interface. Esta lista é compromisso de produto; não indica que os recursos já estejam prontos.
+
+- **Montar um jogador:** editar atributos visíveis e ocultos, CA/PA, posições e pés numa única revisão; copiar apenas grupos escolhidos de outro jogador e criar um preset reutilizável.
+- **Preparar um elenco:** selecionar titulares, reservas ou todo o clube; recuperar condição, reduzir cansaço, ajustar moral e remover lesões/suspensões suportadas, com prévia individual dos efeitos.
+- **Gerenciar contratos:** localizar vencimentos próximos, editar os contratos existentes e conferir salário semanal, total salarial do clube, término, camisa e situação no elenco. Identificar contratos de empréstimo separadamente.
+- **Melhorar a comissão:** encontrar treinadores, preparadores, olheiros e fisioterapeutas; editar os atributos específicos disponíveis, capacidade, reputação e personalidade; preservar dupla função jogador/staff.
+- **Gerenciar o clube:** consultar elenco e comissão, ajustar saldo, orçamentos e infraestrutura mapeados, mostrando a unidade e o significado de cada campo.
+- **Encontrar e comparar:** combinar filtros, ordenar resultados e comparar dois jogadores ou a evolução de uma entidade entre saves, inclusive atributos ocultos e contratos suportados.
+- **Controlar as mudanças:** revisar valores anteriores e finais por entidade, retirar alterações do plano, desfazer/refazer operações inteiras e salvar cópia com relatório local.
+
+Os primeiros atalhos de lote serão **recuperar elenco**, **ajustar moral**, **aplicar piso/teto de atributos**, **aumentar/reduzir atributos selecionados** e **copiar um grupo de atributos**. Cada atalho usa as mesmas regras da edição individual; nenhum altera CA ou vínculos silenciosamente.
 
 ### Direção do produto
 
@@ -127,6 +141,8 @@ São metas de implementação, não recursos já demonstrados. Cada domínio dep
 - Comparar jogadores lado a lado e comparar a mesma entidade entre dois saves por UID.
 - Exportar resultados e diferenças para CSV/JSON, salvar filtros e manter histórico local das alterações realizadas.
 - Desfazer/refazer transações inteiras e remover uma alteração pendente antes de salvar.
+- Mostrar um painel do elenco com distribuição de idade/posição, médias de atributos, folha salarial e vencimentos próximos; permitir abrir os jogadores a partir desses resumos.
+- Oferecer presets iniciais editáveis e permitir duplicar, renomear, excluir e exportar/importar presets locais, com versão e validação dos campos.
 
 **v0.8 — Produto utilizável no Windows**
 
@@ -135,6 +151,19 @@ São metas de implementação, não recursos já demonstrados. Cada domínio dep
 - Permitir cancelar buscas ou análises demoradas e confirmar descarte de alterações pendentes.
 - Medir abertura, busca, consumo de memória e gravação nas amostras; registrar limites e corrigir travamentos.
 - Testar instalação e fluxo completo em máquina sem Rust/Node.js e ampliar a matriz de saves e usuários.
+- Guardar relatórios de gravação consultáveis no aplicativo e permitir localizar a cópia gerada e sua origem.
+
+### Sequência de entrega e demonstrações
+
+| Marco | Demonstração necessária na interface |
+|---|---|
+| **0.4 — Jogador** | Abrir Clodoaldo, editar vários grupos, revisar conversões e salvar uma cópia. |
+| **0.5 — Carreira** | Alterar estado e contrato, remover uma lesão e uma suspensão suportadas e conferir os efeitos após evolução no jogo. |
+| **0.6 — Clube** | Abrir um clube, navegar entre elenco e comissão, editar staff e dados financeiros/infraestrutura validados. |
+| **0.7 — Lote** | Filtrar um elenco, aplicar um preset, revisar exceções, desfazer/refazer e comparar o resultado com a origem. |
+| **0.8 — Beta** | Instalar em Windows sem ferramentas de desenvolvimento e completar os fluxos anteriores em outra carreira. |
+
+A prioridade é concluir as validações pendentes da v0.5 e seguir para staff e clubes. Novas funcionalidades deste planejamento não antecipam a conclusão de nenhum marco.
 
 **v0.9 — Estabilização**
 

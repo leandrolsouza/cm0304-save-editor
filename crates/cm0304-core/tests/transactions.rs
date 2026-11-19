@@ -28,6 +28,7 @@ fn plan() -> Transaction {
             },
         ],
         heal_injuries: BTreeSet::from([356]),
+        clear_suspensions: BTreeSet::from([5640794]),
     }
 }
 #[test]
@@ -35,9 +36,9 @@ fn mixed_transaction_relocates_fields_and_keeps_both_operations() {
     let bytes = sample();
     let (output, report) = transaction::apply(&bytes, &plan()).unwrap();
     assert_eq!(report.changes.len(), 2);
-    assert_eq!(report.removals.len(), 1);
-    assert_eq!(report.removed_bytes, 38);
-    assert_eq!(report.size_before - report.size_after, 38);
+    assert_eq!(report.removals.len(), 2);
+    assert_eq!(report.removed_bytes, 96);
+    assert_eq!(report.size_before - report.size_after, 96);
     assert_eq!(report.source_sha256, cm0304_core::container::hash(&bytes));
     assert_eq!(report.copy_sha256, cm0304_core::container::hash(&output));
     let (db, base) = database::load(&output).unwrap();
@@ -60,6 +61,18 @@ fn mixed_transaction_relocates_fields_and_keeps_both_operations() {
         .unwrap();
     assert_eq!(healed.state.morale, 20);
     assert!(healed.health_records.injuries.is_empty());
+    assert!(
+        db.people
+            .iter()
+            .find(|p| p.uid == 5640794)
+            .unwrap()
+            .playing
+            .as_ref()
+            .unwrap()
+            .health_records
+            .bans
+            .is_empty()
+    );
     let mut invalid = plan();
     invalid.heal_injuries.insert(i32::MAX);
     assert!(transaction::apply(&bytes, &invalid).is_err());

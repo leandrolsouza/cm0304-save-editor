@@ -28,6 +28,7 @@ struct Loaded {
     search_keys: Vec<String>,
     contracts: BTreeMap<i32, Vec<ContractView>>,
     injuries: BTreeMap<i32, Vec<InjuryView>>,
+    suspensions: BTreeMap<i32, usize>,
 }
 #[derive(Default)]
 struct Session {
@@ -72,12 +73,15 @@ struct Detail {
     nations: Vec<String>,
     injuries: Vec<InjuryView>,
     heal_pending: bool,
+    suspension_count: usize,
+    suspension_pending: bool,
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Pending {
     edits: Vec<Edit>,
     heal_injuries: Vec<i32>,
+    clear_suspensions: Vec<i32>,
     undo: bool,
     redo: bool,
 }
@@ -85,6 +89,7 @@ fn pending(s: &Session) -> Pending {
     Pending {
         edits: s.plan.edits.clone(),
         heal_injuries: s.plan.heal_injuries.iter().copied().collect(),
+        clear_suspensions: s.plan.clear_suspensions.iter().copied().collect(),
         undo: !s.undo.is_empty(),
         redo: !s.redo.is_empty(),
     }
@@ -131,6 +136,15 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
                 .filter(|p| p.playing.is_some())
                 .map(|p| (p.uid, health::injuries(&db, p)))
                 .collect();
+            let suspensions = db
+                .people
+                .iter()
+                .filter_map(|p| {
+                    p.playing
+                        .as_ref()
+                        .map(|v| (p.uid, v.health_records.bans.len()))
+                })
+                .collect();
             let search_keys = players
                 .iter()
                 .map(|p| {
@@ -164,6 +178,7 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
                     search_keys,
                     contracts,
                     injuries,
+                    suspensions,
                 }),
                 summary,
             )))
@@ -226,7 +241,8 @@ async fn player_detail(uid: i32, state: State<'_, Shared>) -> Result<Detail> {
         .cloned()
         .collect::<Vec<_>>();
     let heal_pending = plan.heal_injuries.contains(&uid);
-    let effective = if pending.is_empty() && !heal_pending {
+    let suspension_pending = plan.clear_suspensions.contains(&uid);
+    let effective = if pending.is_empty() && !heal_pending && !suspension_pending {
         p.clone()
     } else {
         let bytes = data.bytes.clone();
@@ -254,12 +270,15 @@ async fn player_detail(uid: i32, state: State<'_, Shared>) -> Result<Detail> {
         nations: data.nations.clone(),
         injuries: data.injuries.get(&uid).cloned().unwrap_or_default(),
         heal_pending,
+        suspension_count: data.suspensions.get(&uid).copied().unwrap_or(0),
+        suspension_pending,
     })
 }
 #[tauri::command]
 async fn stage_edits(
     edits: Vec<Edit>,
     healing: Option<HealingUpdate>,
+    suspension: Option<HealingUpdate>,
     state: State<'_, Shared>,
 ) -> Result<Pending> {
     let data = loaded(&state)?;
@@ -277,6 +296,20 @@ async fn stage_edits(
             next.heal_injuries.insert(update.uid);
         } else {
             next.heal_injuries.remove(&update.uid);
+        }
+    }
+    if let Some(update) = suspension {
+        let count = data
+            .suspensions
+            .get(&update.uid)
+            .ok_or("Jogador não encontrado")?;
+        if update.enabled {
+            if *count == 0 {
+                return Err("Jogador sem registros de suspensão".into());
+            }
+            next.clear_suspensions.insert(update.uid);
+        } else {
+            next.clear_suspensions.remove(&update.uid);
         }
     }
     if !next.is_empty() {

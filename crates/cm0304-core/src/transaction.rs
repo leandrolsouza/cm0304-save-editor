@@ -20,10 +20,12 @@ pub struct Transaction {
     pub edits: Vec<Edit>,
     #[serde(default)]
     pub heal_injuries: BTreeSet<i32>,
+    #[serde(default)]
+    pub clear_suspensions: BTreeSet<i32>,
 }
 impl Transaction {
     pub fn is_empty(&self) -> bool {
-        self.edits.is_empty() && self.heal_injuries.is_empty()
+        self.edits.is_empty() && self.heal_injuries.is_empty() && self.clear_suspensions.is_empty()
     }
     pub fn merge_fields(&mut self, players: &[Player], edits: Vec<Edit>) -> Result<()> {
         let previous = self
@@ -61,13 +63,20 @@ pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
         let (bytes, report) = editor::apply(input, &plan.edits)?;
         (bytes, report.changed_bytes, report.changes)
     };
-    let (output, removals) = if plan.heal_injuries.is_empty() {
+    let selections = plan
+        .heal_injuries
+        .iter()
+        .map(|uid| (*uid, health::RemovalKind::Injuries))
+        .chain(
+            plan.clear_suspensions
+                .iter()
+                .map(|uid| (*uid, health::RemovalKind::Suspensions)),
+        )
+        .collect::<Vec<_>>();
+    let (output, removals) = if selections.is_empty() {
         (fields_output, Vec::new())
     } else {
-        let (bytes, report) = health::remove_injuries(
-            &fields_output,
-            &plan.heal_injuries.iter().copied().collect::<Vec<_>>(),
-        )?;
+        let (bytes, report) = health::remove_records(&fields_output, &selections)?;
         (bytes, report.removals)
     };
     let report = Report {

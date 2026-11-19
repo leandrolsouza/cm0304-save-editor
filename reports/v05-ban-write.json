@@ -1,0 +1,20 @@
+{
+  "sourceSha256": "5d03bbb02d1f7c472cb3bd57f1fd5ecc6fd05177a3edf5410e5661920fccda68",
+  "copySha256": "42bb2401724b6c7874713dcac18c956376f267f5a10062b7be6ec9864cf34355",
+  "sizeBefore": 35054406,
+  "sizeAfter": 35054348,
+  "fieldChangedBytes": 0,
+  "removedBytes": 58,
+  "changes": [],
+  "removals": [
+    {
+      "kind": "suspensions",
+      "uid": 5640794,
+      "name": "Baffour Gyan",
+      "count": 1,
+      "countOffset": 17552503,
+      "offset": 17552504,
+      "removedBytes": 58
+    }
+  ]
+}

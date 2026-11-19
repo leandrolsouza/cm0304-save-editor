@@ -6,7 +6,7 @@ O [roadmap até a v1.0](ROADMAP.md) amplia o produto para jogadores, staff, cont
 
 A [validação da v0.4](reports/v0.4-validation.md) registra o fluxo Tauri e uma cópia CLI que avançou sete dias, foi regravada e carregada novamente no jogo. Os 12 alvos editados persistiram; outros atributos sofreram recálculos durante a evolução.
 
-A prévia **0.5.0-alpha.1** acrescenta estado, valores e contratos existentes. A remoção de lesões já participa do mesmo plano de revisão e desfazer/refazer dos campos. O primeiro caso isolado passou avanço e recarga no jogo; a transação mista foi salva pelo Tauri e relida pelo Rust. Consulte [transações da v0.5](reports/v0.5-transactions.md) para evidências e pendências. Suspensões e a matriz completa de variantes ainda estão em desenvolvimento.
+A prévia **0.5.0-alpha.1** acrescenta estado, valores e contratos existentes. Lesões e suspensões participam do mesmo plano de revisão e desfazer/refazer dos campos. A transação mista de lesão/moral foi conferida no jogo; os primeiros casos de remoção de lesão e suspensão passaram avanço de sete dias, regravação e recarga. Consulte [transações da v0.5](reports/v0.5-transactions.md) e [suspensões](reports/v0.5-suspensions.md) para evidências e pendências. A matriz completa de variantes ainda está em desenvolvimento.
 
 ## Aplicativo desktop
 

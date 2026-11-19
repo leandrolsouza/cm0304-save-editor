@@ -166,3 +166,82 @@ fn injury_removal_handles_multiple_players_noops_and_invalid_selections() {
     assert!(cm0304_core::health::remove_injuries(&input, &[selected[0], selected[0]]).is_err());
     assert!(cm0304_core::health::remove_injuries(&input, &[selected[0], -12345]).is_err());
 }
+
+#[test]
+fn combined_suspension_and_injury_removal_preserves_bookings_and_status() {
+    use cm0304_core::health::{self, RemovalKind};
+    use std::collections::{BTreeMap, BTreeSet};
+    for sample in ["save_inicial.cm4", "save_modificado.cm4"] {
+        let input = fs::read(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../game/user data/games")
+                .join(sample),
+        )
+        .unwrap();
+        let (db, _) = database::load(&input).unwrap();
+        let banned = db
+            .people
+            .iter()
+            .filter(|p| {
+                p.playing
+                    .as_ref()
+                    .is_some_and(|v| !v.health_records.bans.is_empty())
+            })
+            .map(|p| p.uid)
+            .collect::<BTreeSet<_>>();
+        assert!(!banned.is_empty());
+        let injured = db
+            .people
+            .iter()
+            .find(|p| {
+                p.playing.as_ref().is_some_and(|v| {
+                    !v.health_records.injuries.is_empty() && !v.health_records.bans.is_empty()
+                })
+            })
+            .or_else(|| {
+                db.people.iter().find(|p| {
+                    p.playing
+                        .as_ref()
+                        .is_some_and(|v| !v.health_records.injuries.is_empty())
+                })
+            })
+            .unwrap()
+            .uid;
+        let mut selections = banned
+            .iter()
+            .map(|uid| (*uid, RemovalKind::Suspensions))
+            .collect::<Vec<_>>();
+        selections.push((injured, RemovalKind::Injuries));
+        let (out, report) = health::remove_records(&input, &selections).unwrap();
+        assert_eq!(report.removals.len(), banned.len() + 1);
+        let (after, _) = database::load(&out).unwrap();
+        let index = after
+            .people
+            .iter()
+            .map(|p| (p.uid, p))
+            .collect::<BTreeMap<_, _>>();
+        let records = |spans: &[database::RecordSpan]| {
+            spans.iter().map(|r| r.bytes.clone()).collect::<Vec<_>>()
+        };
+        for person in &db.people {
+            let Some(old) = &person.playing else { continue };
+            let new = &index[&person.uid].playing.as_ref().unwrap().health_records;
+            let old = &old.health_records;
+            assert_eq!(records(&old.bookings), records(&new.bookings));
+            assert_eq!(
+                old.injury_status.as_ref().map(|r| &r.bytes),
+                new.injury_status.as_ref().map(|r| &r.bytes)
+            );
+            if banned.contains(&person.uid) {
+                assert!(new.bans.is_empty());
+            } else {
+                assert_eq!(records(&old.bans), records(&new.bans));
+            }
+            if person.uid == injured {
+                assert!(new.injuries.is_empty());
+            } else {
+                assert_eq!(records(&old.injuries), records(&new.injuries));
+            }
+        }
+    }
+}

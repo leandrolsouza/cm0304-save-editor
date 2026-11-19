@@ -1,7 +1,30 @@
-//! Structural injury removal. Desktop integration and variant validation are pending.
+//! Structural removal of injury and suspension records, preserving booking counts.
 use crate::{Result, container, database};
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RemovalKind {
+    Injuries,
+    Suspensions,
+}
+impl RemovalKind {
+    fn records(self, health: &database::HealthRecords) -> &[database::RecordSpan] {
+        match self {
+            Self::Injuries => &health.injuries,
+            Self::Suspensions => &health.bans,
+        }
+    }
+    fn bounds(self, health: &database::HealthRecords) -> Option<(usize, usize)> {
+        match self {
+            Self::Injuries => Some((health.injury_count_offset?, health.ban_count_offset?)),
+            Self::Suspensions => {
+                Some((health.ban_count_offset?, health.injury_status_flag_offset?))
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct InjuryView {
@@ -33,6 +56,7 @@ pub fn injuries(db: &database::Database, person: &database::Person) -> Vec<Injur
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Removal {
+    pub kind: RemovalKind,
     pub uid: i32,
     pub name: String,
     pub count: usize,
@@ -53,11 +77,23 @@ pub struct Report {
 /// Applies all selected removals atomically in memory, preserving status,
 /// contracts, booking counts and unrelated payloads. Healthy players are no-ops.
 pub fn remove_injuries(input: &[u8], uids: &[i32]) -> Result<(Vec<u8>, Report)> {
-    if uids.is_empty() {
+    remove_records(
+        input,
+        &uids
+            .iter()
+            .map(|uid| (*uid, RemovalKind::Injuries))
+            .collect::<Vec<_>>(),
+    )
+}
+pub fn remove_records(
+    input: &[u8],
+    selections: &[(i32, RemovalKind)],
+) -> Result<(Vec<u8>, Report)> {
+    if selections.is_empty() {
         return Err("Nenhum jogador selecionado".into());
     }
-    let selected = uids.iter().copied().collect::<BTreeSet<_>>();
-    if selected.len() != uids.len() {
+    let selected = selections.iter().copied().collect::<BTreeSet<_>>();
+    if selected.len() != selections.len() {
         return Err("Jogador repetido na operação".into());
     }
     let (db, base) = database::load(input)?;
@@ -77,7 +113,7 @@ pub fn remove_injuries(input: &[u8], uids: &[i32]) -> Result<(Vec<u8>, Report)> 
         .ok_or("Banco não encontrado")?;
     let mut payload = input[base..base + block.size].to_vec();
     let mut removals = Vec::new();
-    for uid in selected {
+    for (uid, kind) in selected {
         let name = names
             .get(&uid)
             .ok_or_else(|| format!("Jogador não encontrado: {uid}"))?;
@@ -87,25 +123,26 @@ pub fn remove_injuries(input: &[u8], uids: &[i32]) -> Result<(Vec<u8>, Report)> 
             .find(|p| p.uid == uid && p.playing.is_some())
             .ok_or("Dados do jogador ausentes")?;
         let health = &person.playing.as_ref().unwrap().health_records;
-        if health.injuries.is_empty() {
+        let records = kind.records(health);
+        if records.is_empty() {
             continue;
         }
-        let count_offset = health
-            .injury_count_offset
-            .ok_or("Contador de lesões ausente")?;
+        let (count_offset, end) = kind
+            .bounds(health)
+            .ok_or("Limites dos registros ausentes")?;
         let start = count_offset + 1;
-        let end = health.ban_count_offset.ok_or("Limite das lesões ausente")?;
-        let length = health.injuries.iter().map(|r| r.bytes.len()).sum::<usize>();
+        let length = records.iter().map(|r| r.bytes.len()).sum::<usize>();
         if start + length != end
-            || payload[count_offset] as usize != health.injuries.len()
-            || health.injuries.first().is_none_or(|r| r.offset != start)
+            || payload[count_offset] as usize != records.len()
+            || records.first().is_none_or(|r| r.offset != start)
         {
-            return Err("Limites dos registros de lesão inconsistentes".into());
+            return Err("Limites dos registros inconsistentes".into());
         }
         removals.push(Removal {
+            kind,
             uid,
             name: (*name).to_owned(),
-            count: health.injuries.len(),
+            count: records.len(),
             count_offset: base + count_offset,
             offset: base + start,
             removed_bytes: length,
@@ -128,7 +165,7 @@ pub fn remove_injuries(input: &[u8], uids: &[i32]) -> Result<(Vec<u8>, Report)> 
     let (after, new_base) = database::load(&output)?;
     let after_players = after.players(new_base)?;
     if players.len() != after_players.len() || db.people.len() != after.people.len() {
-        return Err("Quantidade de entidades alterada ao remover lesões".into());
+        return Err("Quantidade de entidades alterada ao remover registros".into());
     }
     for (before, after) in players.iter().zip(&after_players) {
         if before.uid != after.uid
@@ -167,8 +204,8 @@ pub fn remove_injuries(input: &[u8], uids: &[i32]) -> Result<(Vec<u8>, Report)> 
             .as_ref()
             .ok_or("Dados ausentes após remoção")?
             .health_records;
-        if !health.injuries.is_empty() {
-            return Err("Lesões não foram removidas".into());
+        if !removal.kind.records(health).is_empty() {
+            return Err("Registros não foram removidos".into());
         }
     }
     let report = Report {

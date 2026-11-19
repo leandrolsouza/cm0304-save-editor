@@ -1,0 +1,56 @@
+{
+  "club": "Slovan Liberec",
+  "databaseBase": 2124953,
+  "injuryCandidates": [],
+  "name": "Baffour Gyan",
+  "records": {
+    "banCountOffset": 15803367,
+    "bans": [],
+    "bookings": [
+      {
+        "bytes": [
+          0,
+          3,
+          1,
+          1
+        ],
+        "offset": 15803396
+      }
+    ],
+    "injuries": [],
+    "injuryCountOffset": 15803366,
+    "injuryStatus": {
+      "bytes": [
+        205,
+        0,
+        211,
+        7,
+        206,
+        0,
+        211,
+        7,
+        255,
+        255,
+        255,
+        255,
+        0,
+        255,
+        255,
+        255,
+        255,
+        0,
+        255,
+        255,
+        255,
+        255,
+        0,
+        0,
+        0,
+        5
+      ],
+      "offset": 15803369
+    },
+    "injuryStatusFlagOffset": 15803368
+  },
+  "uid": 5640794
+}
