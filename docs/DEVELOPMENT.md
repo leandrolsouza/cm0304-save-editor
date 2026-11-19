@@ -40,6 +40,24 @@ Campos repetidos, não suportados, sem alteração efetiva ou não representáve
 
 Na interface, alterações de um mesmo campo substituem a intenção anterior na sessão; o plano final contém uma intenção por UID/campo. Desfazer/refazer opera sobre esses planos. A cópia usa o snapshot aberto e recusa uma origem modificada externamente durante a sessão.
 
+Para combinar campos e remoções estruturais, use `apply-plan` com um objeto:
+
+```json
+{
+  "edits": [{ "uid": 356, "attribute": "state.morale", "value": 20 }],
+  "healInjuries": [356],
+  "clearSuspensions": [5640794]
+}
+```
+
+```powershell
+cargo run --offline -p cm0304-cli -- apply-plan "origem.cm4" "nova_copia.cm4" "transacao.json"
+cargo run --offline -p cm0304-cli -- health "origem.cm4" "5640794"
+cargo run --offline -p cm0304-cli -- health-cases "origem.cm4"
+```
+
+`health` mostra os registros brutos de uma entidade; `health-cases` inventaria as variantes estruturais presentes, com contagens e até três exemplos por grupo. Os discriminadores brutos não representam automaticamente duração ou categoria. Consulte `reports/v0.5-suspensions.md` para os casos conferidos no jogo e as variantes ainda pendentes. Remover suspensão preserva os cartões; remover lesão preserva condição e ritmo.
+
 ## Referências de Tauri
 
 - [Comandos Rust](https://v2.tauri.app/develop/calling-rust/)

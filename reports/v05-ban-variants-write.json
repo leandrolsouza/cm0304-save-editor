@@ -1,0 +1,38 @@
+{
+  "sourceSha256": "489ecfb97a416fd50f605eb37f8c6002ca10c0104a995552b0391b729bb2e584",
+  "copySha256": "2dda5747f6840815bb06f1b3405f97703cfd08c4d4ce43b77e4fd15f81bf92e3",
+  "sizeBefore": 43291545,
+  "sizeAfter": 43291449,
+  "fieldChangedBytes": 0,
+  "removedBytes": 96,
+  "changes": [],
+  "removals": [
+    {
+      "kind": "suspensions",
+      "uid": 1873,
+      "name": "Fredrik",
+      "count": 1,
+      "countOffset": 14598448,
+      "offset": 14598449,
+      "removedBytes": 58
+    },
+    {
+      "kind": "suspensions",
+      "uid": 11944,
+      "name": "Roberto Carlos",
+      "count": 1,
+      "countOffset": 14819605,
+      "offset": 14819606,
+      "removedBytes": 19
+    },
+    {
+      "kind": "suspensions",
+      "uid": 5601832,
+      "name": "Bozo Kovacevic",
+      "count": 1,
+      "countOffset": 20121521,
+      "offset": 20121522,
+      "removedBytes": 19
+    }
+  ]
+}

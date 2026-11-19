@@ -1,0 +1,83 @@
+[
+  {
+    "club": "Real Madrid C.F.",
+    "databaseBase": 4054218,
+    "injuryCandidates": [],
+    "name": "Roberto Carlos",
+    "records": {
+      "banCountOffset": 10765387,
+      "bans": [
+        {
+          "bytes": [
+            1,
+            1,
+            0,
+            255,
+            255,
+            0,
+            2,
+            0,
+            0,
+            0,
+            108,
+            7,
+            20,
+            255,
+            255,
+            255,
+            255,
+            255,
+            0
+          ],
+          "offset": 10765388
+        }
+      ],
+      "bookings": [
+        {
+          "bytes": [
+            0,
+            1,
+            2,
+            0
+          ],
+          "offset": 10765435
+        }
+      ],
+      "injuries": [],
+      "injuryCountOffset": 10765386,
+      "injuryStatus": {
+        "bytes": [
+          227,
+          0,
+          211,
+          7,
+          227,
+          0,
+          211,
+          7,
+          255,
+          255,
+          255,
+          255,
+          0,
+          255,
+          255,
+          255,
+          255,
+          0,
+          255,
+          255,
+          255,
+          255,
+          0,
+          0,
+          0,
+          5
+        ],
+        "offset": 10765408
+      },
+      "injuryStatusFlagOffset": 10765407
+    },
+    "uid": 11944
+  }
+]

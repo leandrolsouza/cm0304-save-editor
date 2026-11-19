@@ -1,0 +1,58 @@
+[
+  {
+    "club": "SV Pasching",
+    "databaseBase": 4054218,
+    "injuryCandidates": [],
+    "name": "Bozo Kovacevic",
+    "records": {
+      "banCountOffset": 16067226,
+      "bans": [],
+      "bookings": [
+        {
+          "bytes": [
+            0,
+            3,
+            3,
+            1
+          ],
+          "offset": 16067255
+        }
+      ],
+      "injuries": [],
+      "injuryCountOffset": 16067225,
+      "injuryStatus": {
+        "bytes": [
+          225,
+          0,
+          211,
+          7,
+          235,
+          0,
+          211,
+          7,
+          255,
+          255,
+          255,
+          255,
+          0,
+          255,
+          255,
+          255,
+          255,
+          0,
+          255,
+          255,
+          255,
+          255,
+          0,
+          0,
+          0,
+          5
+        ],
+        "offset": 16067228
+      },
+      "injuryStatusFlagOffset": 16067227
+    },
+    "uid": 5601832
+  }
+]

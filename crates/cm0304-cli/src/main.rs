@@ -50,7 +50,7 @@ fn run() -> Result<()> {
         return Ok(());
     }
     if a.len() < 2 {
-        return Err("Usage: cm0304-cli inspect <save> | players <save> [query] | career <save> [query] | health <save> [query] | injury-types <save> | career-summary <save> | export <save> <json> | edit <save> <new-copy> <fields.json> | apply-plan <save> <new-copy> <transaction.json>".into());
+        return Err("Usage: cm0304-cli inspect <save> | players <save> [query] | career <save> [query] | health <save> [query] | health-cases <save> | injury-types <save> | career-summary <save> | export <save> <json> | edit <save> <new-copy> <fields.json> | apply-plan <save> <new-copy> <transaction.json>".into());
     }
     let bytes = fs::read(&a[1]).map_err(|e| e.to_string())?;
     if command == "inspect" {
@@ -93,6 +93,46 @@ fn run() -> Result<()> {
         return Ok(());
     }
     let mut players = db.players(base)?;
+    if command == "health-cases" {
+        // Group by observed structure only; raw discriminator semantics remain unconfirmed.
+        let index = players
+            .iter()
+            .map(|p| (p.uid, p))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let mut groups = std::collections::BTreeMap::<
+            (String, usize, u8),
+            (usize, Vec<serde_json::Value>),
+        >::new();
+        for person in &db.people {
+            let Some(playing) = &person.playing else {
+                continue;
+            };
+            let Some(player) = index.get(&person.uid) else {
+                continue;
+            };
+            for (kind, records) in [
+                ("injury", &playing.health_records.injuries),
+                ("suspension", &playing.health_records.bans),
+            ] {
+                for record in records {
+                    let discriminator_offset = if kind == "injury" { 10 } else { 0 };
+                    let key = (
+                        kind.to_owned(),
+                        record.bytes.len(),
+                        record.bytes[discriminator_offset],
+                    );
+                    let group = groups.entry(key).or_default();
+                    group.0 += 1;
+                    if group.1.len() < 3 {
+                        group.1.push(serde_json::json!({"uid":player.uid,"name":player.name,"club":player.club,"record":record}));
+                    }
+                }
+            }
+        }
+        let variants = groups.into_iter().map(|((kind, length, discriminator), (count, examples))| serde_json::json!({"discriminatorOffset":if kind == "injury" {10} else {0},"kind":kind,"recordBytes":length,"rawDiscriminator":discriminator,"count":count,"examples":examples})).collect::<Vec<_>>();
+        println!("{}", serde_json::to_string_pretty(&serde_json::json!({"sourceSha256":cm0304_core::container::hash(&bytes),"databaseBase":base,"variants":variants})).map_err(|e| e.to_string())?);
+        return Ok(());
+    }
     match command {
         "players" | "career" | "health" => {
             if let Some(q) = a.get(2) {
