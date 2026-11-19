@@ -6,6 +6,25 @@ Atualizado em 19/11/2026. Stack definida: **Rust + Tauri + TypeScript**. Este do
 
 Entregar um editor desktop local para Windows, em português, para saves do **CM0304 4.1.5**. A v1.0 permitirá editar jogadores, comissão técnica, contratos e dados de clubes, trabalhar em lote e salvar cópias carregáveis pelo jogo. O usuário final não precisará de terminal, Node.js ou Rust instalado.
 
+## Decisão de escopo: editor de carreira
+
+A stack aprovada é **Rust + Tauri + TypeScript**. O produto deve permitir administrar um elenco, sua comissão e o clube, além de editar atributos. O resumo abaixo orienta a entrega; as seções de progresso registram separadamente o que já foi demonstrado.
+
+| Prioridade | O que o usuário poderá fazer | Marco |
+|---|---|---|
+| Essencial | Montar jogadores: atributos de todos os grupos, CA/PA, posições, pés, personalidade, reputação e dados pessoais. | 0.4 |
+| Essencial | Recuperar o elenco e administrar contratos existentes: condição, cansaço, moral, lesões, suspensões, salário, vencimento, camisa, situação e valores. | 0.5 |
+| Essencial | Editar treinadores, preparadores, olheiros e fisioterapeutas; navegar por elenco e comissão; ajustar finanças e infraestrutura do clube. | 0.6 |
+| Essencial | Editar vários jogadores de uma vez, copiar grupos de atributos, criar presets, filtrar e comparar jogadores ou saves. | 0.7 |
+| Essencial | Retomar planos locais, instalar no Windows e usar todos os fluxos sem terminal. | 0.8 |
+| Lançamento | Concluir testes de regressão, documentação, matriz de saves e distribuição versionada. | 0.9–1.0 |
+
+Para tornar a gestão do clube útil, o painel deve reunir **saldo, orçamento de transferências, orçamento salarial, folha atual, instalações de treino, formação de jovens e reputação**, distinguindo dados editáveis de resumos calculados. Campos financeiros e de infraestrutura só recebem edição após identificação e conferência no jogo; uma pendência nessa área mantém o marco aberto.
+
+As ferramentas de lote devem atender a tarefas concretas: recuperar todo o elenco, renovar vencimentos de contratos selecionados, ajustar salários, aplicar incrementos com limites, melhorar apenas fundamentos escolhidos e copiar um perfil de atributos. Cada operação apresenta os destinos e a prévia individual, admite exclusões e pode ser desfeita inteira. Renovar aqui significa editar o término de um contrato existente; transferências e criação de contratos continuam após a v1.0.
+
+O aceite da v1.0 exige completar pela interface os fluxos de jogador, carreira, comissão, clube e lote. Uma interface que apenas pesquisa jogadores e altera atributos não atende ao escopo.
+
 ## Arquitetura
 
 - **Rust:** leitura binária, modelos, índices de busca, conversão de atributos, regras de edição, transações, validação e gravação.
@@ -51,7 +70,11 @@ A edição experimental de oito campos de personalidade está integrada ao núcl
 
 A consulta de clubes por UID, elenco e staff/direção foi integrada ao núcleo, CLI e frontend Tauri. Dois testes de clubes e 16 verificações de frontend passaram. Falta conferir a navegação nativa e implementar/validar finanças e infraestrutura. Evidências em `reports/v0.6-clubs-navigation.md`.
 
+O diagnóstico Rust `club-data` lê os registros financeiros e os campos brutos de infraestrutura nas duas amostras. Cada amostra contém 3.415 registros financeiros básicos, 138 completos e um sem saldo. O campo identificado como saldo do Braga passa de 525.326 no save inicial para 1.464.831 no save de um mês. Na cópia de 27/07, o jogo confirmou o saldo de £685.427 do registro completo. O orçamento de transferências da temporada e o restante foram identificados e editados separadamente. O CM0304 exibiu os alvos de £900.000 e £700.000. O orçamento salarial e as demais variantes financeiras seguem pendentes. Veja [a conferência no jogo](reports/v0.6-club-finance-native.md).
+
 Na v0.5, os casos de suspensão de 19 e 58 bytes passaram avanço/regravação/recarga. Contratos de Clodoaldo e empréstimo de Liam passaram o mesmo ciclo: o vencimento de Clodoaldo foi convertido pelo jogo em contrato mensal; salários e vínculos de Liam persistiram. Detalhes e pendências em `reports/v0.5-suspensions.md` e `reports/v0.5-contract-variants.md`. O marco permanece aberto.
+
+Na v0.6, a edição experimental de balanço de clubes com registro financeiro completo está integrada à revisão, ao histórico e à gravação em cópia no Tauri. O frontend passou 21 verificações com IPC controlado. A ficha do clube mostra a folha contratual e a estimativa após contribuições de empréstimo, conferidas para o Braga em duas datas. A lista de vencimentos de 90 dias reflete o plano de edição e abre o contrato correspondente. O jogo carregou o balanço editado de £2.500.000 e regravou £2.811.025 após oito dias, em acordo com a evolução do lucro. Treino e formação foram editados em conjunto no Tauri nativo, com cópia relida e dois bytes alterados. Permanecem pendentes a conferência dessa cópia no jogo, a execução nativa do formulário financeiro e os ciclos de avanço e recarga dos orçamentos e da infraestrutura.
 
 ## Funcionalidades da v1.0
 
@@ -163,6 +186,7 @@ São metas de implementação, não recursos já demonstrados. Cada domínio dep
 - Filtrar por clube, nacionalidade, idade, posição, pé, CA/PA, atributo e situação contratual; combinar filtros e ordenar resultados.
 - Selecionar jogadores individualmente, todo o elenco ou todos os resultados filtrados, com contagem explícita.
 - Aplicar valor fixo, incremento/redução e limites mínimo/máximo em campos compatíveis.
+- Ajustar salários e vencimentos de contratos existentes em lote, com seleção explícita, unidade salarial, datas e validação de cada vínculo; separar empréstimos dos contratos do clube proprietário.
 - Criar e salvar presets locais, por exemplo: recuperar elenco, ajustar profissionalismo ou melhorar fundamentos de uma posição.
 - Copiar atributos selecionados de um jogador para outro, preservando identidade e vínculos; validar conversões e limites de cada destino.
 - Comparar jogadores lado a lado e comparar a mesma entidade entre dois saves por UID.

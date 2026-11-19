@@ -1,0 +1,42 @@
+{
+  "sourceSha256": "3d3b3e28107dbff8c6fef9458949104a05bba0009ae3f5466a75a311de1b4724",
+  "copySha256": "4b4145c9e0d4de81697a0b56eeac9c4a6612ae999a485dde9777ea056616eabf",
+  "sizeBefore": 40183398,
+  "sizeAfter": 40183398,
+  "fieldChangedBytes": 6,
+  "removedBytes": 0,
+  "changes": [
+    {
+      "uid": 1488,
+      "name": "Sporting Clube de Braga",
+      "attribute": "club.transferBudgetSeason",
+      "before": 118033,
+      "after": 900000,
+      "rawBefore": 118033,
+      "rawAfter": 900000,
+      "offset": 3752105,
+      "width": 4,
+      "derived": false,
+      "context": "Clube · finanças",
+      "displayBefore": null,
+      "displayAfter": null
+    },
+    {
+      "uid": 1488,
+      "name": "Sporting Clube de Braga",
+      "attribute": "club.transferBudgetRemaining",
+      "before": 121595,
+      "after": 700000,
+      "rawBefore": 121595,
+      "rawAfter": 700000,
+      "offset": 3752109,
+      "width": 4,
+      "derived": false,
+      "context": "Clube · finanças",
+      "displayBefore": null,
+      "displayAfter": null
+    }
+  ],
+  "staffChanges": [],
+  "removals": []
+}

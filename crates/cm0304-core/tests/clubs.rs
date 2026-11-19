@@ -10,6 +10,73 @@ fn sample(name: &str) -> Vec<u8> {
 }
 
 #[test]
+fn club_finance_variants_remain_aligned_and_isolate_balance_from_players() {
+    for name in ["save_inicial.cm4", "save_modificado.cm4"] {
+        let input = sample(name);
+        let (db, base) = database::load(&input).unwrap();
+        assert_eq!(db.clubs.len(), 3554);
+        assert_eq!(db.sections.len(), 23);
+        let players = serde_json::to_vec(&db.players(base).unwrap()).unwrap();
+        let mut kinds = std::collections::BTreeSet::new();
+        for club in &db.clubs {
+            let d = club.details.as_ref().unwrap();
+            kinds.insert(d.finance_kind);
+            assert!(d.record_offset < d.infrastructure_offset);
+            assert!(d.infrastructure_offset + 17 <= d.finance_offset);
+            assert_eq!(
+                d.finance_raw,
+                input[base + d.finance_offset..base + d.finance_offset + d.finance_raw.len()]
+            );
+            match d.finance_kind {
+                0 | 1 => {
+                    let offset = d.balance_offset.unwrap();
+                    assert_eq!(
+                        d.finance_raw.len(),
+                        if d.finance_kind == 0 { 4 } else { 438 }
+                    );
+                    // One representative of each variant is enough for the costly reparse.
+                    if db
+                        .clubs
+                        .iter()
+                        .find(|c| c.details.as_ref().unwrap().finance_kind == d.finance_kind)
+                        .unwrap()
+                        .uid
+                        == club.uid
+                    {
+                        let mut edited = input.clone();
+                        edited[base + offset..base + offset + 4]
+                            .copy_from_slice(&(-1234567i32).to_le_bytes());
+                        let (after, after_base) = database::load(&edited).unwrap();
+                        assert_eq!(after_base, base);
+                        assert_eq!(after.sections.len(), 23);
+                        assert_eq!(
+                            serde_json::to_vec(&after.players(base).unwrap()).unwrap(),
+                            players
+                        );
+                        for (before, after) in db.clubs.iter().zip(&after.clubs) {
+                            assert_eq!(before.uid, after.uid);
+                            let expected = if before.uid == club.uid {
+                                Some(-1234567)
+                            } else {
+                                before.details.as_ref().unwrap().balance
+                            };
+                            assert_eq!(after.details.as_ref().unwrap().balance, expected);
+                        }
+                    }
+                }
+                2 => {
+                    assert!(d.finance_raw.is_empty());
+                    assert!(d.balance.is_none() && d.balance_offset.is_none());
+                }
+                other => panic!("unsupported finance kind {other}"),
+            }
+        }
+        assert_eq!(kinds, [0, 1, 2].into());
+        println!("{name}: finance variants {kinds:?}");
+    }
+}
+
+#[test]
 fn club_uids_and_memberships_resolve_both_samples_without_name_joins() {
     for name in ["save_inicial.cm4", "save_modificado.cm4"] {
         let input = sample(name);

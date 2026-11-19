@@ -260,3 +260,55 @@ pub fn display_field(p: &Player, key: &str) -> Option<String> {
     }
     None
 }
+
+/// Gross weekly wages recorded on player contracts, keyed by contracting club index.
+pub fn player_wages_by_club(db: &Database) -> std::collections::BTreeMap<usize, i64> {
+    let mut wages = std::collections::BTreeMap::new();
+    for person in db.people.iter().filter(|p| p.playing.is_some()) {
+        for contract in &person.contracts {
+            if contract.entity_type == 0
+                && matches!(contract.kind, 0 | 1)
+                && let Ok(index) = usize::try_from(contract.entity_index)
+                && index < db.clubs.len()
+            {
+                *wages.entry(index).or_default() += i64::from(contract.weekly_wage);
+            }
+        }
+    }
+    wages
+}
+
+/// Weekly loan contributions that offset the owning club's wage obligation.
+pub fn loan_wage_offsets_by_club(db: &Database) -> std::collections::BTreeMap<usize, i64> {
+    let mut offsets = std::collections::BTreeMap::new();
+    for person in db.people.iter().filter(|p| p.playing.is_some()) {
+        let mut owners = person
+            .contracts
+            .iter()
+            .filter(|c| c.kind == 0 && c.entity_type == 0);
+        let mut loans = person
+            .contracts
+            .iter()
+            .filter(|c| c.kind == 1 && c.entity_type == 0);
+        let (Some(owner), Some(loan)) = (owners.next(), loans.next()) else {
+            continue;
+        };
+        if owners.next().is_some()
+            || loans.next().is_some()
+            || owner.entity_index == loan.entity_index
+        {
+            continue;
+        }
+        let (Ok(owner_index), Ok(loan_index)) = (
+            usize::try_from(owner.entity_index),
+            usize::try_from(loan.entity_index),
+        ) else {
+            continue;
+        };
+        if owner_index < db.clubs.len() && loan_index < db.clubs.len() {
+            let contribution = loan.weekly_wage.min(owner.weekly_wage).max(0);
+            *offsets.entry(owner_index).or_default() += i64::from(contribution);
+        }
+    }
+    offsets
+}

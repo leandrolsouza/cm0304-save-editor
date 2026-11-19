@@ -16,7 +16,12 @@
     "club pagination/search",
     "club player/staff navigation",
     "club draft guard",
-    "club session reset"
+    "club session reset",
+    "club finance and facilities",
+    "club balance review/history/save",
+    "club infrastructure atomic review and undo",
+    "club transfer budget field count",
+    "club expiry opens exact loan"
   ],
   "frontendErrors": []
 }

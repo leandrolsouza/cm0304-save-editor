@@ -17,6 +17,14 @@ use std::{
 #[serde(rename_all = "camelCase")]
 pub struct Transaction {
     #[serde(default)]
+    pub club_balances: BTreeMap<i32, i32>,
+    #[serde(default)]
+    pub club_transfer_budgets: BTreeMap<i32, TransferBudgets>,
+    #[serde(default)]
+    pub club_training: BTreeMap<i32, u8>,
+    #[serde(default)]
+    pub club_youth_setup: BTreeMap<i32, u8>,
+    #[serde(default)]
     pub edits: Vec<Edit>,
     #[serde(default)]
     pub staff_edits: Vec<crate::staff_editor::Edit>,
@@ -27,6 +35,12 @@ pub struct Transaction {
     #[serde(default)]
     pub clear_suspensions: BTreeSet<i32>,
 }
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TransferBudgets {
+    pub season: i32,
+    pub remaining: i32,
+}
+
 impl Transaction {
     /// Merge a staff form atomically against the source snapshot. Final byte validation
     /// remains in apply(), where CA and explicit attribute targets are resolved together.
@@ -155,6 +169,10 @@ impl Transaction {
             && self.staff_header_edits.is_empty()
             && self.heal_injuries.is_empty()
             && self.clear_suspensions.is_empty()
+            && self.club_balances.is_empty()
+            && self.club_transfer_budgets.is_empty()
+            && self.club_training.is_empty()
+            && self.club_youth_setup.is_empty()
     }
     pub fn merge_fields(&mut self, players: &[Player], edits: Vec<Edit>) -> Result<()> {
         for edit in &edits {
@@ -304,6 +322,134 @@ pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
                             "Staff · alvo explícito"
                         } else {
                             "Staff · efeito da CA de jogador"
+                        }
+                        .into(),
+                    ),
+                    display_before: None,
+                    display_after: None,
+                });
+            }
+        }
+    }
+    let mut fields_output = fields_output;
+    if !plan.club_balances.is_empty()
+        || !plan.club_transfer_budgets.is_empty()
+        || !plan.club_training.is_empty()
+        || !plan.club_youth_setup.is_empty()
+    {
+        let (db, base) = crate::database::load(&fields_output)?;
+        let club_uids = plan
+            .club_balances
+            .keys()
+            .chain(plan.club_transfer_budgets.keys())
+            .chain(plan.club_training.keys())
+            .chain(plan.club_youth_setup.keys())
+            .copied()
+            .collect::<BTreeSet<_>>();
+        for uid in club_uids {
+            let mut matches = db.clubs.iter().filter(|c| c.uid == uid);
+            let club = matches
+                .next()
+                .ok_or_else(|| format!("Clube {uid} não encontrado"))?;
+            if matches.next().is_some() {
+                return Err(format!("UID de clube repetido: {uid}"));
+            }
+            let details = club
+                .details
+                .as_ref()
+                .ok_or_else(|| format!("Clube {uid} sem registro financeiro completo"))?;
+            if details.finance_kind != 1
+                && (plan.club_balances.contains_key(&uid)
+                    || plan.club_transfer_budgets.contains_key(&uid))
+            {
+                return Err(format!("Clube {uid} sem registro financeiro completo"));
+            }
+            let mut fields = Vec::with_capacity(5);
+            if let Some(&target) = plan.club_youth_setup.get(&uid) {
+                if !(1..=20).contains(&target) {
+                    return Err(format!(
+                        "Formação de jovens do clube {uid} deve ficar entre 1 e 20"
+                    ));
+                }
+                fields.push((
+                    "club.youthSetup",
+                    i32::from(details.youth_setup_raw),
+                    details.infrastructure_offset + 1,
+                    i32::from(target),
+                    1,
+                ));
+            }
+            if let Some(&target) = plan.club_training.get(&uid) {
+                if !(1..=20).contains(&target) {
+                    return Err(format!(
+                        "Instalações de treino do clube {uid} devem ficar entre 1 e 20"
+                    ));
+                }
+                fields.push((
+                    "club.training",
+                    i32::from(details.training_raw),
+                    details.infrastructure_offset + 15,
+                    i32::from(target),
+                    1,
+                ));
+            }
+            if let Some(&target) = plan.club_balances.get(&uid) {
+                let (before, offset) = details
+                    .balance
+                    .zip(details.balance_offset)
+                    .ok_or("Registro financeiro sem balanço")?;
+                fields.push(("club.balance", before, offset, target, 4));
+            }
+            if let Some(target) = plan.club_transfer_budgets.get(&uid) {
+                if target.season < 0 || target.remaining < 0 {
+                    return Err(format!(
+                        "Orçamentos de transferências do clube {uid} devem ser não negativos"
+                    ));
+                }
+                let season = details
+                    .transfer_budget_season
+                    .ok_or("Orçamento da temporada indisponível")?;
+                let remaining = details
+                    .transfer_budget_remaining
+                    .ok_or("Orçamento restante indisponível")?;
+                fields.push((
+                    "club.transferBudgetSeason",
+                    season,
+                    details.finance_offset,
+                    target.season,
+                    4,
+                ));
+                fields.push((
+                    "club.transferBudgetRemaining",
+                    remaining,
+                    details.finance_offset + 4,
+                    target.remaining,
+                    4,
+                ));
+            }
+            for (attribute, before, offset, target, width) in fields {
+                if before == target {
+                    continue;
+                }
+                let offset = base + offset;
+                fields_output[offset..offset + width]
+                    .copy_from_slice(&target.to_le_bytes()[..width]);
+                changes.push(crate::editor::Change {
+                    uid,
+                    name: club.name.clone(),
+                    attribute: attribute.into(),
+                    before,
+                    after: target,
+                    raw_before: before,
+                    raw_after: target,
+                    offset,
+                    width: width as u8,
+                    derived: false,
+                    context: Some(
+                        if width == 1 {
+                            "Clube · infraestrutura"
+                        } else {
+                            "Clube · finanças"
                         }
                         .into(),
                     ),

@@ -13,6 +13,17 @@ fn sample() -> Vec<u8> {
 }
 fn plan() -> Transaction {
     Transaction {
+        club_balances: [(1488, -250_000)].into(),
+        club_training: [(1488, 20)].into(),
+        club_youth_setup: [(1488, 19)].into(),
+        club_transfer_budgets: [(
+            1488,
+            transaction::TransferBudgets {
+                season: 900_000,
+                remaining: 700_000,
+            },
+        )]
+        .into(),
         edits: vec![
             Edit {
                 uid: 356,
@@ -45,7 +56,7 @@ fn plan() -> Transaction {
 fn mixed_transaction_relocates_fields_and_keeps_both_operations() {
     let bytes = sample();
     let (output, report) = transaction::apply(&bytes, &plan()).unwrap();
-    assert_eq!(report.changes.len(), 3);
+    assert_eq!(report.changes.len(), 8);
     assert_eq!(report.staff_changes.len(), 1);
     assert_eq!(report.removals.len(), 2);
     assert_eq!(report.removed_bytes, 96);
@@ -53,6 +64,55 @@ fn mixed_transaction_relocates_fields_and_keeps_both_operations() {
     assert_eq!(report.source_sha256, cm0304_core::container::hash(&bytes));
     assert_eq!(report.copy_sha256, cm0304_core::container::hash(&output));
     let (db, base) = database::load(&output).unwrap();
+    let balance = |uid| {
+        db.clubs
+            .iter()
+            .find(|c| c.uid == uid)
+            .unwrap()
+            .details
+            .as_ref()
+            .unwrap()
+            .balance
+    };
+    assert_eq!(balance(1488), Some(-250_000));
+    let details = db
+        .clubs
+        .iter()
+        .find(|c| c.uid == 1488)
+        .unwrap()
+        .details
+        .as_ref()
+        .unwrap();
+    assert_eq!(details.training_raw, 20);
+    assert_eq!(details.youth_setup_raw, 19);
+    assert_eq!(details.transfer_budget_season, Some(900_000));
+    assert_eq!(details.transfer_budget_remaining, Some(700_000));
+    assert!(
+        report
+            .changes
+            .iter()
+            .any(|c| c.attribute == "club.transferBudgetSeason" && c.after == 900_000)
+    );
+    assert!(
+        report
+            .changes
+            .iter()
+            .any(|c| c.attribute == "club.transferBudgetRemaining" && c.after == 700_000)
+    );
+    assert_eq!(balance(104750), Some(1_250_000));
+    let change = report
+        .changes
+        .iter()
+        .find(|c| c.attribute == "club.balance")
+        .unwrap();
+    assert_eq!(
+        (change.uid, change.before, change.after),
+        (1488, 525_326, -250_000)
+    );
+    assert_eq!(
+        &output[change.offset..change.offset + 4],
+        &(-250_000i32).to_le_bytes()
+    );
     let staff = cm0304_core::staff::profiles(&db, &output, base).unwrap();
     assert_eq!(
         staff
@@ -107,6 +167,15 @@ fn mixed_transaction_relocates_fields_and_keeps_both_operations() {
     invalid.heal_injuries.insert(i32::MAX);
     assert!(transaction::apply(&bytes, &invalid).is_err());
     assert!(transaction::apply(&bytes, &Transaction::default()).is_err());
+    let unsupported = Transaction {
+        club_balances: [(104750, 1)].into(),
+        ..Default::default()
+    };
+    assert!(
+        transaction::apply(&bytes, &unsupported)
+            .unwrap_err()
+            .contains("registro financeiro completo")
+    );
 }
 #[test]
 fn mixed_snapshot_save_is_exclusive_and_checks_source_before_persisting() {

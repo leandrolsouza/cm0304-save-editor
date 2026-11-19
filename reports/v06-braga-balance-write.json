@@ -1,0 +1,27 @@
+{
+  "sourceSha256": "0c0f9765e8b84332524ab023c38ff09f4f1ae953c8360bed669e97b10dbacdbb",
+  "copySha256": "0ba8e2e55b65a50eec6152ac486b9219d2bbaa56a004718a286a315add0914a8",
+  "sizeBefore": 37411464,
+  "sizeAfter": 37411464,
+  "fieldChangedBytes": 3,
+  "removedBytes": 0,
+  "changes": [
+    {
+      "uid": 1488,
+      "name": "Sporting Clube de Braga",
+      "attribute": "club.balance",
+      "before": 685427,
+      "after": 2500000,
+      "rawBefore": 685427,
+      "rawAfter": 2500000,
+      "offset": 2789228,
+      "width": 4,
+      "derived": false,
+      "context": "Clube · balanço",
+      "displayBefore": null,
+      "displayAfter": null
+    }
+  ],
+  "staffChanges": [],
+  "removals": []
+}

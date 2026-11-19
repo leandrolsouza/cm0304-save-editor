@@ -25,6 +25,8 @@ struct Loaded {
     bytes: Arc<Vec<u8>>,
     players: Vec<Player>,
     clubs: Vec<cm0304_core::clubs::ClubProfile>,
+    club_info: BTreeMap<i32, ClubInfo>,
+    club_contract_dates: BTreeMap<i32, Vec<ClubContractDate>>,
     nations: Vec<String>,
     game_date: Date,
     search_keys: Vec<String>,
@@ -112,8 +114,13 @@ struct Detail {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Pending {
+    club_transfer_budget_field_count: usize,
     edits: Vec<Edit>,
     staff_edits: Vec<cm0304_core::staff_editor::Edit>,
+    club_balances: BTreeMap<i32, i32>,
+    club_transfer_budgets: BTreeMap<i32, transaction::TransferBudgets>,
+    club_training: BTreeMap<i32, u8>,
+    club_youth_setup: BTreeMap<i32, u8>,
     staff_header_edits: Vec<cm0304_core::staff_header::Edit>,
     heal_injuries: Vec<i32>,
     clear_suspensions: Vec<i32>,
@@ -121,9 +128,26 @@ struct Pending {
     redo: bool,
 }
 fn pending(s: &Session) -> Pending {
+    let club_transfer_budget_field_count = s
+        .plan
+        .club_transfer_budgets
+        .iter()
+        .filter_map(|(uid, targets)| {
+            let original = s.loaded.as_ref()?.club_info.get(uid)?;
+            Some(
+                usize::from(original.transfer_budget_season != Some(targets.season))
+                    + usize::from(original.transfer_budget_remaining != Some(targets.remaining)),
+            )
+        })
+        .sum();
     Pending {
+        club_transfer_budget_field_count,
         edits: s.plan.edits.clone(),
         staff_edits: s.plan.staff_edits.clone(),
+        club_balances: s.plan.club_balances.clone(),
+        club_transfer_budgets: s.plan.club_transfer_budgets.clone(),
+        club_training: s.plan.club_training.clone(),
+        club_youth_setup: s.plan.club_youth_setup.clone(),
         staff_header_edits: s.plan.staff_header_edits.clone(),
         heal_injuries: s.plan.heal_injuries.iter().copied().collect(),
         clear_suspensions: s.plan.clear_suspensions.iter().copied().collect(),
@@ -161,6 +185,69 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
             let (db, base) = database::load(&bytes)?;
             let players = db.players(base)?;
             let clubs = cm0304_core::clubs::profiles(&db)?;
+            let player_wages = career::player_wages_by_club(&db);
+            let loan_offsets = career::loan_wage_offsets_by_club(&db);
+            let club_info = db
+                .clubs
+                .iter()
+                .enumerate()
+                .filter_map(|(index, club)| {
+                    let d = club.details.as_ref()?;
+                    Some((
+                        club.uid,
+                        ClubInfo {
+                            balance: d.balance,
+                            loan_wage_offset_weekly: loan_offsets
+                                .get(&index)
+                                .copied()
+                                .unwrap_or_default(),
+                            player_contract_wages_weekly: player_wages
+                                .get(&index)
+                                .copied()
+                                .unwrap_or_default(),
+                            transfer_budget_season: d.transfer_budget_season,
+                            transfer_budget_remaining: d.transfer_budget_remaining,
+                            balance_editable: d.finance_kind == 1,
+                            training_raw: d.training_raw,
+                            youth_setup_raw: d.youth_setup_raw,
+                            average_attendance: d.average_attendance,
+                        },
+                    ))
+                })
+                .collect();
+            let mut club_contract_dates = BTreeMap::<i32, Vec<ClubContractDate>>::new();
+
+            let player_names = players
+                .iter()
+                .map(|p| (p.uid, p.name.as_str()))
+                .collect::<BTreeMap<_, _>>();
+            for person in &db.people {
+                let Some(name) = player_names.get(&person.uid) else {
+                    continue;
+                };
+                for (index, contract) in person.contracts.iter().enumerate() {
+                    if contract.entity_type != 0 || !matches!(contract.kind, 0 | 1) {
+                        continue;
+                    }
+                    let Some(club) = usize::try_from(contract.entity_index)
+                        .ok()
+                        .and_then(|index| db.clubs.get(index))
+                    else {
+                        continue;
+                    };
+                    club_contract_dates
+                        .entry(club.uid)
+                        .or_default()
+                        .push(ClubContractDate {
+                            uid: person.uid,
+                            name: (*name).to_owned(),
+                            expires: contract.expires.clone(),
+                            index,
+                            loan: contract.kind == 1,
+                        });
+                }
+            }
+
             let staff = staff::profiles(&db, &bytes, base)
                 .map_err(|error| format!("Falha ao ler staff: {error}"))?;
             let staff_search_keys = staff
@@ -230,6 +317,8 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
                     bytes: Arc::new(bytes),
                     players,
                     clubs,
+                    club_info,
+                    club_contract_dates,
                     nations,
                     game_date: db.game_date,
                     search_keys,
@@ -316,8 +405,48 @@ struct ClubStaff {
     role: String,
     is_player: bool,
 }
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ClubInfo {
+    balance: Option<i32>,
+    balance_editable: bool,
+    player_contract_wages_weekly: i64,
+    loan_wage_offset_weekly: i64,
+    transfer_budget_season: Option<i32>,
+    transfer_budget_remaining: Option<i32>,
+    training_raw: u8,
+    youth_setup_raw: u8,
+    average_attendance: i32,
+}
+struct ClubContractDate {
+    uid: i32,
+    name: String,
+    expires: Date,
+    index: usize,
+    loan: bool,
+}
+
 #[derive(Serialize)]
+struct ClubExpiry {
+    uid: i32,
+    index: usize,
+    name: String,
+    expires: Date,
+    days: i32,
+    loan: bool,
+}
+
+fn date_ordinal(date: &Date) -> Option<i32> {
+    date.month_day()?;
+    let y = i32::from(date.year).checked_sub(1)?;
+    (y >= 0).then(|| y * 365 + y / 4 - y / 100 + y / 400 + i32::from(date.day))
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ClubDetail {
+    info: Option<ClubInfo>,
+    expiring_contracts: Vec<ClubExpiry>,
     profile: cm0304_core::clubs::ClubProfile,
     players: Vec<Row>,
     staff: Vec<ClubStaff>,
@@ -357,9 +486,70 @@ fn search_clubs(query: String, page: usize, state: State<Shared>) -> Result<Club
             .collect(),
     })
 }
+fn project_club_expiries(
+    records: &[ClubContractDate],
+    game_date: &Date,
+    edits: &[Edit],
+) -> Vec<ClubExpiry> {
+    let dates = edits
+        .iter()
+        .filter_map(|edit| {
+            let (index, field) = edit
+                .attribute
+                .strip_prefix("contract.")?
+                .split_once(".expires.")?;
+            let index = index.parse::<usize>().ok()?;
+            let value = u16::try_from(edit.value).ok()?;
+            Some(((edit.uid, index, field), value))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let today = date_ordinal(game_date);
+    let mut expiring_contracts = records
+        .iter()
+        .filter_map(|record| {
+            let expires = Date {
+                year: dates
+                    .get(&(record.uid, record.index, "year"))
+                    .copied()
+                    .unwrap_or(record.expires.year),
+                day: dates
+                    .get(&(record.uid, record.index, "day"))
+                    .copied()
+                    .unwrap_or(record.expires.day),
+            };
+            if career::is_monthly(&expires) {
+                return None;
+            }
+            let days = date_ordinal(&expires)? - today?;
+            (0..=90).contains(&days).then(|| ClubExpiry {
+                uid: record.uid,
+                index: record.index,
+                name: record.name.clone(),
+                expires,
+                days,
+                loan: record.loan,
+            })
+        })
+        .collect::<Vec<_>>();
+    expiring_contracts.sort_by_key(|row| (row.days, row.uid, row.loan));
+    expiring_contracts
+}
+
 #[tauri::command]
 fn club_detail(uid: i32, state: State<Shared>) -> Result<ClubDetail> {
-    let data = loaded(&state)?;
+    let (data, edits) = {
+        let session = state.lock().map_err(|e| e.to_string())?;
+        (
+            session.loaded.clone().ok_or("Abra um save primeiro")?,
+            session.plan.edits.clone(),
+        )
+    };
+    let records = data
+        .club_contract_dates
+        .get(&uid)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    let expiring_contracts = project_club_expiries(records, &data.game_date, &edits);
     let c = data
         .clubs
         .iter()
@@ -390,6 +580,8 @@ fn club_detail(uid: i32, state: State<Shared>) -> Result<ClubDetail> {
         })
         .collect();
     Ok(ClubDetail {
+        info: data.club_info.get(&uid).cloned(),
+        expiring_contracts,
         profile: c.clone(),
         players,
         staff,
@@ -480,6 +672,98 @@ async fn stage_staff_edits(
         s.plan = next;
     }
     Ok(pending(&s))
+}
+#[tauri::command]
+fn stage_club_balance(
+    uid: i32,
+    value: i32,
+    budgets: Option<transaction::TransferBudgets>,
+    state: State<Shared>,
+) -> Result<Pending> {
+    let mut session = state.lock().map_err(|e| e.to_string())?;
+    let info = session
+        .loaded
+        .as_ref()
+        .and_then(|d| d.club_info.get(&uid))
+        .filter(|info| info.balance_editable)
+        .ok_or("Clube sem registro financeiro completo")?;
+    let original = info.balance.ok_or("Balanço indisponível")?;
+    let target = (value != original).then_some(value);
+    let mut budget_target = session.plan.club_transfer_budgets.get(&uid).cloned();
+    if let Some(budgets) = budgets {
+        if budgets.season < 0 || budgets.remaining < 0 {
+            return Err("Informe orçamentos não negativos".into());
+        }
+        let original = info
+            .transfer_budget_season
+            .zip(info.transfer_budget_remaining)
+            .ok_or("Orçamentos indisponíveis")?;
+        budget_target = ((budgets.season, budgets.remaining) != original).then_some(budgets);
+    }
+    if session.plan.club_balances.get(&uid).copied() != target
+        || session.plan.club_transfer_budgets.get(&uid) != budget_target.as_ref()
+    {
+        record(&mut session);
+        if let Some(value) = target {
+            session.plan.club_balances.insert(uid, value);
+        } else {
+            session.plan.club_balances.remove(&uid);
+        }
+        if let Some(budgets) = budget_target {
+            session.plan.club_transfer_budgets.insert(uid, budgets);
+        } else {
+            session.plan.club_transfer_budgets.remove(&uid);
+        }
+    }
+    Ok(pending(&session))
+}
+
+#[tauri::command]
+fn stage_club_infrastructure(
+    uid: i32,
+    training: Option<u8>,
+    youth: Option<u8>,
+    state: State<Shared>,
+) -> Result<Pending> {
+    let mut session = state.lock().map_err(|e| e.to_string())?;
+    let info = session
+        .loaded
+        .as_ref()
+        .and_then(|d| d.club_info.get(&uid))
+        .ok_or("Infraestrutura indisponível")?;
+    let targets = [
+        (training, info.training_raw, &session.plan.club_training),
+        (youth, info.youth_setup_raw, &session.plan.club_youth_setup),
+    ];
+    let mut next = [None; 2];
+    for (i, (value, original, staged)) in targets.into_iter().enumerate() {
+        next[i] = match value {
+            Some(value) if value == original => None,
+            Some(value) if (1..=20).contains(&value) => Some(value),
+            Some(_) => return Err("Informe um nível de infraestrutura entre 1 e 20".into()),
+            None => staged.get(&uid).copied(),
+        };
+    }
+    if next
+        != [
+            session.plan.club_training.get(&uid).copied(),
+            session.plan.club_youth_setup.get(&uid).copied(),
+        ]
+    {
+        record(&mut session);
+        let plan = &mut session.plan;
+        for (target, staged) in next
+            .into_iter()
+            .zip([&mut plan.club_training, &mut plan.club_youth_setup])
+        {
+            if let Some(value) = target {
+                staged.insert(uid, value);
+            } else {
+                staged.remove(&uid);
+            }
+        }
+    }
+    Ok(pending(&session))
 }
 #[tauri::command]
 fn search_players(query: String, page: usize, state: State<Shared>) -> Result<Page> {
@@ -721,6 +1005,8 @@ fn main() {
             player_detail,
             stage_edits,
             stage_staff_edits,
+            stage_club_balance,
+            stage_club_infrastructure,
             pending_edits,
             history_action,
             preview_edits,
@@ -732,4 +1018,47 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("Falha ao iniciar o editor");
+}
+
+#[cfg(test)]
+mod club_expiry_tests {
+    use super::*;
+
+    #[test]
+    fn projects_only_the_selected_contract_across_a_leap_year_boundary() {
+        let today = Date {
+            year: 2003,
+            day: 364,
+        };
+        let record = |index, year, day| ClubContractDate {
+            uid: 42,
+            name: "Jogador".into(),
+            expires: Date { year, day },
+            index,
+            loan: index == 1,
+        };
+        let records = [
+            record(0, 2004, 90),
+            record(1, 2004, 89),
+            record(2, 1900, 1),
+            record(3, 2003, 363),
+            record(4, 2003, 364),
+        ];
+        let original = project_club_expiries(&records, &today, &[]);
+        assert_eq!(original.iter().map(|e| e.days).collect::<Vec<_>>(), [0, 90]);
+        let edit = Edit {
+            uid: 42,
+            attribute: "contract.0.expires.day".into(),
+            value: 0,
+            policy: None,
+        };
+        let projected = project_club_expiries(&records, &today, &[edit]);
+        assert_eq!(
+            projected
+                .iter()
+                .map(|e| (e.days, e.loan))
+                .collect::<Vec<_>>(),
+            [(0, false), (1, false), (90, true)]
+        );
+    }
 }

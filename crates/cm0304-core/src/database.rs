@@ -67,6 +67,29 @@ pub struct Club {
     pub short_name: String,
     pub id: i32,
     pub uid: i32,
+    pub details: Option<ClubDetails>,
+}
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClubDetails {
+    pub record_offset: usize,
+    pub nation_index: i32,
+    pub infrastructure_offset: usize,
+    pub youth_academy_raw: u8,
+    pub youth_setup_raw: u8,
+    pub professional_status_raw: u8,
+    pub average_attendance: i32,
+    pub minimum_attendance: i32,
+    pub maximum_attendance: i32,
+    pub training_raw: u8,
+    pub plc_raw: u8,
+    pub finance_kind: u8,
+    pub transfer_budget_season: Option<i32>,
+    pub transfer_budget_remaining: Option<i32>,
+    pub finance_offset: usize,
+    pub finance_raw: Vec<u8>,
+    pub balance: Option<i32>,
+    pub balance_offset: Option<usize>,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -287,6 +310,7 @@ fn team_container(r: &mut Reader) -> Result<Club> {
         short_name,
         id,
         uid,
+        details: None,
     })
 }
 pub fn read_database(bytes: &[u8]) -> Result<Database> {
@@ -309,23 +333,37 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
         r.skip(11)
     })?;
     let clubs = table(&mut r, &mut s, "clubs", |r, t, _| {
+        let record_offset = r.pos - 1;
         check_type(t, &[0, 12], r.pos - 1)?;
         if t == 12 {
             r.skip(9)?;
         }
-        r.skip(5)?;
+        let nation_index = r.i32()?;
+        r.skip(1)?;
         r.string()?;
         r.skip(1)?;
         r.string()?;
-        r.skip(23)?;
+        let infrastructure_offset = r.pos;
+        let infrastructure = r.take(17)?.to_vec();
+        r.skip(6)?;
         r.array(4, 1)?;
         r.array(4, 1)?;
         let finance = r.kind(&[0, 1, 2])?;
-        r.skip(match finance {
-            0 => 4,
-            1 => 438,
-            _ => 0,
-        })?;
+        let finance_offset = r.pos;
+        let finance_raw = r
+            .take(match finance {
+                0 => 4,
+                1 => 438,
+                _ => 0,
+            })?
+            .to_vec();
+        let balance_local = match finance {
+            0 => Some(0),
+            1 => Some(434),
+            _ => None,
+        };
+        let balance =
+            balance_local.map(|i| i32::from_le_bytes(finance_raw[i..i + 4].try_into().unwrap()));
         if r.i32()? != 0 {
             r.skip(13)?;
         }
@@ -352,7 +390,31 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
         r.array(4, 2)?;
         r.array(5, 1)?;
         r.skip(5)?;
-        team_container(r)
+        let mut club = team_container(r)?;
+        let word = |i| i32::from_le_bytes(infrastructure[i..i + 4].try_into().unwrap());
+        club.details = Some(ClubDetails {
+            record_offset,
+            nation_index,
+            infrastructure_offset,
+            youth_academy_raw: infrastructure[0],
+            youth_setup_raw: infrastructure[1],
+            professional_status_raw: infrastructure[2],
+            average_attendance: word(3),
+            minimum_attendance: word(7),
+            maximum_attendance: word(11),
+            training_raw: infrastructure[15],
+            plc_raw: infrastructure[16],
+            finance_kind: finance,
+            transfer_budget_season: (finance == 1)
+                .then(|| i32::from_le_bytes(finance_raw[..4].try_into().unwrap())),
+            transfer_budget_remaining: (finance == 1)
+                .then(|| i32::from_le_bytes(finance_raw[4..8].try_into().unwrap())),
+            finance_offset,
+            balance,
+            balance_offset: balance_local.map(|i| finance_offset + i),
+            finance_raw,
+        });
+        Ok(club)
     })?;
     table(&mut r, &mut s, "competitions", |r, _, _| {
         r.skip(11)?;

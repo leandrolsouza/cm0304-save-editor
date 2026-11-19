@@ -1,6 +1,7 @@
 interface StaffHeader {uid:number;currentAbility?:number;potentialAbility?:number;reputation?:number[];policy?:'preserveValues'|'preserveRelative'}
 interface Edit {uid:number;attribute:string;value:number;policy?:'preserveValues'|'preserveRelative'}
-interface Pending {edits:Edit[];staffEdits?:Edit[];staffHeaderEdits?:StaffHeader[];healInjuries:number[];clearSuspensions:number[];undo:boolean;redo:boolean}
+interface TransferBudgets {season:number;remaining:number}
+interface Pending {clubTransferBudgetFieldCount?:number;clubYouthSetup?:Record<number,number>;clubTraining?:Record<number,number>;clubTransferBudgets?:Record<number,TransferBudgets>;clubBalances?:Record<number,number>;edits:Edit[];staffEdits?:Edit[];staffHeaderEdits?:StaffHeader[];healInjuries:number[];clearSuspensions:number[];undo:boolean;redo:boolean}
 interface Field {value:number;min:number;max:number;width:number;offset:number}
 interface Player {type?:number;uid:number;name:string;firstName:string;surname:string;club:string|null;nation:string|null;currentAbility:number;potentialAbility:number;attributes:Record<string,number>;rawAttributes:Record<string,number>;fields:Record<string,Field>}
 interface ContractView {index:number;kind:number;kindLabel:string;entityType:number;entity:string|null;started:{year:number;day:number};monthly:boolean}
@@ -9,7 +10,9 @@ interface Change {uid:number;name:string;attribute:string;before:number;after:nu
 interface Report {staffChanges?:{uid:number;name?:string;attribute:string;before:number;after:number}[];changes:Change[];fieldChangedBytes:number;removedBytes:number;removals:{uid:number;name:string;kind:'injuries'|'suspensions';count:number;removedBytes:number}[];sourceSha256:string;copySha256:string}
 interface Page {total:number;rows:{uid:number;name:string;club:string|null;age:number|null;ca:number;pa:number}[]}
 interface ClubRow {uid:number;name:string;shortName:string;players:number;staff:number}
-interface ClubDetail {profile:{uid:number;name:string;shortName:string;playerUids:number[];staffUids:number[]};players:{uid:number;name:string;ca:number;pa:number}[];staff:{uid:number;name:string;role:string;isPlayer:boolean}[]}
+interface ClubInfo {loanWageOffsetWeekly?:number;playerContractWagesWeekly?:number;transferBudgetSeason?:number|null;transferBudgetRemaining?:number|null;balanceEditable?:boolean;balance:number|null;trainingRaw:number;youthSetupRaw:number;averageAttendance:number}
+interface ClubExpiry {uid:number;index:number;name:string;expires:{year:number;day:number};days:number;loan:boolean}
+interface ClubDetail {expiringContracts?:ClubExpiry[];info?:ClubInfo|null;profile:{uid:number;name:string;shortName:string;playerUids:number[];staffUids:number[]};players:{uid:number;name:string;ca:number;pa:number}[];staff:{uid:number;name:string;role:string;isPlayer:boolean}[]}
 interface Summary {clubs?:number;name:string;path:string;players:number;staff:number;sha256:string}
 interface StaffProfile {uid:number;name:string;isPlayer:boolean;isHuman:boolean;team:string|null;clubJob:string;nationalTeam:string|null;nationalJob:string;nation:string|null;dateOfBirth:{year:number;day:number}|null;currentAbility:number;playerCurrentAbility?:number|null;potentialAbility:number;reputation:number[];rawAttributes:Record<string,number>|null;attributes:Record<string,number>|null;personality:Record<string,number>|null}
 interface StaffDetail {profile:StaffProfile;age:number|null;pendingPlayerFields:number;editable?:string[];pendingHeader?:StaffHeader|null}
@@ -63,8 +66,9 @@ function staffHeaderDraft():StaffHeader|null {
   if(rep)header.reputation=[0,1,2].map(i=>Number($<HTMLInputElement>('staff-reputation-'+i).value));
   return changed?header:null;
 }
-function planCount(){return plan.edits.length+(plan.staffEdits?.length??0)+(plan.staffHeaderEdits??[]).reduce((n,h)=>n+Number(h.currentAbility!=null)+Number(h.potentialAbility!=null)+(h.reputation?3:0),0)+plan.healInjuries.length+plan.clearSuspensions.length;}
-function canLeave(){const clean=staffDrafts().length===0&&!staffHeaderDraft();const allowed=(clean&&drafts().length===0&&!healingDraft()&&!suspensionDraft())||window.confirm('Descartar os campos ainda não adicionados à revisão?');if(allowed&&!clean){for(const el of document.querySelectorAll<HTMLInputElement>('#staff-profile [data-staff-field],#staff-profile [data-staff-header]'))el.value=el.dataset.initial!;const policy=$<HTMLSelectElement>('staff-ca-policy');if(policy)policy.value=policy.dataset.initial??'';}return allowed;}
+function planCount(){return Object.keys(plan.clubYouthSetup??{}).length+Object.keys(plan.clubTraining??{}).length+(plan.clubTransferBudgetFieldCount??0)+Object.keys(plan.clubBalances??{}).length+plan.edits.length+(plan.staffEdits?.length??0)+(plan.staffHeaderEdits??[]).reduce((n,h)=>n+Number(h.currentAbility!=null)+Number(h.potentialAbility!=null)+(h.reputation?3:0),0)+plan.healInjuries.length+plan.clearSuspensions.length;}
+function clubDrafts(){return Array.from(document.querySelectorAll<HTMLInputElement>('#club-balance-form input,#club-training-form input')).filter(field=>field.value!==field.dataset.initial);}
+function canLeave(){const club=clubDrafts();const clean=staffDrafts().length===0&&!staffHeaderDraft();const allowed=(clean&&!club.length&&drafts().length===0&&!healingDraft()&&!suspensionDraft())||window.confirm('Descartar os campos ainda não adicionados à revisão?');if(allowed)for(const field of club)field.value=field.dataset.initial!;if(allowed&&!clean){for(const el of document.querySelectorAll<HTMLInputElement>('#staff-profile [data-staff-field],#staff-profile [data-staff-header]'))el.value=el.dataset.initial!;const policy=$<HTMLSelectElement>('staff-ca-policy');if(policy)policy.value=policy.dataset.initial??'';}return allowed;}
 function view(name:string){for(const v of ['players','staff','clubs','changes','diagnostics']){$(`${v}-view`).hidden=v!==name;$(`nav-${v}`).classList.toggle('active',v===name);}}
 function syncPlan(){const count=planCount();$('pending-count').textContent=String(count);$('review-count').textContent=String(count);$<HTMLButtonElement>('review').disabled=busy||!count;$<HTMLButtonElement>('save-copy').disabled=busy||!count;$<HTMLButtonElement>('undo').disabled=busy||!plan.undo;$<HTMLButtonElement>('redo').disabled=busy||!plan.redo;$<HTMLButtonElement>('clear').disabled=busy||!count;$('footer-state').textContent=count?`${count} alteração(ões) preparada(s). A origem continua intacta.`:'Seu save original permanece intacto.';}
 function syncPages(){$<HTMLButtonElement>('previous').disabled=busy||page===0;$<HTMLButtonElement>('next').disabled=busy||(page+1)*50>=total;$('page-label').textContent=`${page+1} / ${Math.max(1,Math.ceil(total/50))}`;}
@@ -148,7 +152,7 @@ function renderProfile(){
   const contractsBody=d.contracts.map(c=>{
     const prefix='contract.'+c.index,role=c.entityType===1?'Seleção':c.kind===0?'Clube proprietário':c.kind===1?'Equipe de empréstimo':'Equipe vinculada';
     const start=new Date(Date.UTC(c.started.year,0,1)+c.started.day*86400000);
-    return '<div class="contract-card"><h3>Contrato '+(c.index+1)+' · '+escape(c.kindLabel)+'</h3><p>'+escape(role)+': <strong>'+escape(c.entity??'Não informada')+'</strong></p><p>Início: '+escape(Number.isFinite(start.getTime())?start.toLocaleDateString('pt-BR',{timeZone:'UTC'}):'Não informado')+'</p>'+field(prefix+'.weeklyWage')+dateControl(prefix+'.expires','Término do contrato '+(c.index+1),c.kind===0)+field(prefix+'.squadStatus')+field(prefix+'.squadNumber')+'</div>';
+    return '<div class="contract-card" id="contract-card-'+c.index+'" tabindex="-1"><h3>Contrato '+(c.index+1)+' · '+escape(c.kindLabel)+'</h3><p>'+escape(role)+': <strong>'+escape(c.entity??'Não informada')+'</strong></p><p>Início: '+escape(Number.isFinite(start.getTime())?start.toLocaleDateString('pt-BR',{timeZone:'UTC'}):'Não informado')+'</p>'+field(prefix+'.weeklyWage')+dateControl(prefix+'.expires','Término do contrato '+(c.index+1),c.kind===0)+field(prefix+'.squadStatus')+field(prefix+'.squadNumber')+'</div>';
   }).join('')||'<p class="profile-meta">Sem contrato ativo para editar.</p>';
   const loanHelp=d.contracts.some(c=>c.kind===1)?'<p class="profile-meta">No empréstimo, o salário do clube proprietário é o total do vínculo; o salário da equipe de empréstimo é a contribuição desse clube. O jogo pode mostrar separadamente a parcela que continua com o proprietário.</p>':'';
   $('profile').innerHTML='<div class="profile-header"><div><div class="eyebrow">PERFIL DO JOGADOR · UID '+p.uid+'</div><h2>'+escape(p.name)+'</h2><div class="profile-meta">'+escape(p.club??'Sem clube')+' · '+escape(d.effective.nation??'—')+(d.age===null?'':' · '+d.age+' anos na data do save')+'</div></div><div class="profile-badges"><div class="ability-badge"><small>CA</small><strong>'+d.effective.currentAbility+'</strong></div><div class="ability-badge"><small>PA</small><strong>'+d.effective.potentialAbility+'</strong></div></div></div><form id="attributes-form" novalidate>'+tabbar+section('attributes','Atributos',groups.map(([title,keys])=>group(title,keys)).join(''))+section('ability','Habilidade, potencial e reputação',group('Habilidade',['currentAbility','potentialAbility'])+group('Reputação',['reputation.home','reputation.current','reputation.world'])+'<p class="profile-meta">PA: 1–200 para potencial fixo; -1/-2 preservam os valores especiais do formato. Zero não é aceito como novo alvo.</p>')+section('positions','Posições, lados e pés',group('Posições',['goalkeeper','sweeper','defender','defensiveMidfielder','midfielder','attackingMidfielder','attacker','wingBack','freeRole'].map(k=>'position.'+k))+group('Lados',['rightSide','leftSide','central'].map(k=>'position.'+k))+group('Pés',['leftFoot','rightFoot']))+section('personal','Dados pessoais',personal)+section('personality','Personalidade',group('Personalidade',['adaptability','ambition','loyalty','pressure','professionalism','sportsmanship','temperament','controversy'].map(k=>'personality.'+k)))+section('hidden','Atributos ocultos e complementares',group('Complementares',['dirtiness','consistency','importantMatches','injuryProneness','versatility','throwIns']))+section('keeper','Atributos de goleiro',group('Goleiro',keeper))+section('state','Estado e valores',stateBody)+section('contracts','Contratos existentes',contractsBody+loanHelp+'<p class="profile-meta">Salários e valores em libras (£); salário semanal. O jogo pode mostrar outra periodicidade e arredondar. Cada cartão edita apenas o contrato indicado.</p>')+'<div class="policy-box"><label for="ability-policy">Ao alterar CA ou a classificação de goleiro</label><select id="ability-policy"><option value="">Escolha uma política se alterar esses campos</option><option value="preserveValues">Preservar valores convertidos dos atributos</option><option value="preserveRelative">Manter bytes relativos e recalcular os atributos</option></select><small>Preservar valores usa os atributos da origem, exceto alvos definidos explicitamente. A revisão mostra os efeitos indiretos; valores impossíveis serão recusados.</small></div>'+(p.type===3?'<p class="profile-meta">Dupla função: esta CA também recalcula os atributos profissionais. A política acima preserva os atributos de jogador; confira os efeitos de staff na revisão e prepare alvos no perfil de staff quando necessário.</p>':'')+'<div class="profile-actions"><small>Revise todas as alterações antes de gravar.</small><button type="submit" class="primary">Adicionar à revisão</button></div></form><details><summary>Dados brutos de diagnóstico</summary><pre>'+escape(JSON.stringify(p.rawAttributes,null,2))+'</pre></details>';
@@ -193,7 +197,7 @@ function renderChanges(report:Report):string {
     if(c.attribute==='birth.day'||c.attribute==='birth.year'||/^contract\.\d+\.expires\.(day|year)$/.test(c.attribute)){
       const key=c.uid+':'+c.attribute.replace(/\.(day|year)$/,'');if(seen.has(key))return false;seen.add(key);
     }return true;
-  }).map(c=>'<div class="change-item"><strong>'+escape(c.name)+'</strong><span>'+escape((c.attribute.startsWith('birth.')?'Nascimento':(c.context?.startsWith('Staff')&&staffFieldLabel(c.attribute)!==c.attribute?staffFieldLabel(c.attribute):fieldLabel(c.attribute)))+(c.derived?' (efeito indireto)':''))+(c.context?'<small class="change-context">'+escape(c.context)+'</small>':'')+'</span><b>'+escape(c.displayBefore??c.before)+' → '+escape(c.displayAfter??c.after)+'</b></div>').join('')+(report.staffChanges??[]).map(c=>'<div class="change-item"><strong>'+escape(c.name??('Staff · UID '+c.uid))+'</strong><span>'+escape(staffFieldLabel(c.attribute))+'</span><b>'+c.before+' → '+c.after+'</b></div>').join('')+report.removals.map(r=>'<div class="change-item"><strong>'+escape(r.name)+'</strong><span>'+ (r.kind==='suspensions'?'Remover suspensões registradas':'Remover lesões registradas')+'</span><b>'+r.count+' → 0</b></div>').join('');
+  }).map(c=>'<div class="change-item"><strong>'+escape(c.name)+'</strong><span>'+escape((c.attribute==='club.youthSetup'?'Formação de jovens':c.attribute==='club.training'?'Instalações de treino':c.attribute==='club.balance'?'Balanço (£)':c.attribute==='club.transferBudgetSeason'?'Orçamento da temporada (£)':c.attribute==='club.transferBudgetRemaining'?'Orçamento restante (£)':c.attribute.startsWith('birth.')?'Nascimento':(c.context?.startsWith('Staff')&&staffFieldLabel(c.attribute)!==c.attribute?staffFieldLabel(c.attribute):fieldLabel(c.attribute)))+(c.derived?' (efeito indireto)':''))+(c.context?'<small class="change-context">'+escape(c.context)+'</small>':'')+'</span><b>'+escape(c.displayBefore??c.before)+' → '+escape(c.displayAfter??c.after)+'</b></div>').join('')+(report.staffChanges??[]).map(c=>'<div class="change-item"><strong>'+escape(c.name??('Staff · UID '+c.uid))+'</strong><span>'+escape(staffFieldLabel(c.attribute))+'</span><b>'+c.before+' → '+c.after+'</b></div>').join('')+report.removals.map(r=>'<div class="change-item"><strong>'+escape(r.name)+'</strong><span>'+ (r.kind==='suspensions'?'Remover suspensões registradas':'Remover lesões registradas')+'</span><b>'+r.count+' → 0</b></div>').join('');
 }
 function reportSummary(report:Report){const fields=report.changes.length+(report.staffChanges?.length??0),records=report.removals.reduce((sum,r)=>sum+r.count,0);return report.removals.length?`${fields} campo(s) editado(s) e ${records} registro(s) removido(s).`:`${fields} campo(s) e ${report.fieldChangedBytes} bytes alterados.`;}
 async function review(){if(!summary||!canLeave())return;view('changes');await task(async()=>{plan=await invoke<Pending>('pending_edits');if(!planCount()){$('changes-list').textContent='Nenhuma alteração pendente.';return;}status('Validando o plano de edição…');const report=await invoke<Report>('preview_edits');$('changes-list').innerHTML=renderChanges(report);status('Plano válido: '+reportSummary(report),'success');});}
@@ -201,7 +205,7 @@ $('open-save').onclick=()=>void open();$('empty-open').onclick=()=>void open();$
 $('results').onclick=e=>{const row=(e.target as HTMLElement).closest<HTMLElement>('[data-uid]');if(row)void task(()=>showPlayer(Number(row.dataset.uid)));};
 $<HTMLInputElement>('search').oninput=()=>{clearTimeout(timer);timer=setTimeout(()=>{page=0;void search().catch(e=>status(String(e),'error'));},180);};
 $('previous').onclick=()=>{page--;void search().catch(e=>status(String(e),'error'));};$('next').onclick=()=>{page++;void search().catch(e=>status(String(e),'error'));};
-for(const action of ['undo','redo','clear'])$(action).onclick=()=>{if(!canLeave())return;void task(async()=>{plan=await invoke<Pending>('history_action',{action});if(detail){detail=await invoke<Detail>('player_detail',{uid:detail.player.uid});renderProfile();}if(planCount()){const report=await invoke<Report>('preview_edits');$('changes-list').innerHTML=renderChanges(report);}else $('changes-list').textContent='Nenhuma alteração pendente.';if(staffDetail)await showStaff(staffDetail.profile.uid,false);status('Plano de alterações atualizado.');});};
+for(const action of ['undo','redo','clear'])$(action).onclick=()=>{if(!canLeave())return;void task(async()=>{plan=await invoke<Pending>('history_action',{action});if(detail){detail=await invoke<Detail>('player_detail',{uid:detail.player.uid});renderProfile();}if(planCount()){const report=await invoke<Report>('preview_edits');$('changes-list').innerHTML=renderChanges(report);}else $('changes-list').textContent='Nenhuma alteração pendente.';if(staffDetail)await showStaff(staffDetail.profile.uid,false);if(clubSelected!==null)await showClub(clubSelected,false);status('Plano de alterações atualizado.');});};
 $('save-copy').onclick=()=>{if(!canLeave())return;void task(async()=>{status('Escolha um nome novo para a cópia. O original não será sobrescrito.');const result=await invoke<{path:string;report:Report}|null>('save_copy');if(!result){status('Gravação cancelada.');return;}$('saved-path').textContent=`Cópia validada e salva: ${result.path}`;status('Cópia salva e verificada: '+reportSummary(result.report),'success');});};
 $('nav-staff').onclick=()=>{
   if(!summary||!canLeave())return;
@@ -216,12 +220,93 @@ let clubPage=0,clubTotal=0,clubGeneration=0,clubSelected:number|null=null,clubTi
 function syncClubPages(){$<HTMLButtonElement>('club-previous').disabled=busy||clubPage===0;$<HTMLButtonElement>('club-next').disabled=busy||(clubPage+1)*50>=clubTotal;$('club-page-label').textContent=(clubPage+1)+' / '+Math.max(1,Math.ceil(clubTotal/50));}
 function resetClubs(){clubPage=0;clubTotal=0;clubSelected=null;clubGeneration++;clearTimeout(clubTimer);$<HTMLInputElement>('club-search').value='';$('club-results').innerHTML='';$('club-result-count').textContent='0 resultados';$('club-count').textContent=(summary?.clubs??0).toLocaleString('pt-BR');$('club-profile').innerHTML='<div class="profile-placeholder"><h2>Escolha um clube</h2><p>Consulte os vínculos e abra os perfis do elenco e staff.</p></div>';syncClubPages();}
 async function searchClubs(){if(!summary)return;const generation=++clubGeneration;const result=await invoke<{total:number;rows:ClubRow[]}>('search_clubs',{query:$<HTMLInputElement>('club-search').value,page:clubPage});if(generation!==clubGeneration)return;clubTotal=result.total;$('club-result-count').textContent=clubTotal.toLocaleString('pt-BR')+' resultados';$('club-results').innerHTML=result.rows.map(c=>'<button class="player-row '+(clubSelected===c.uid?'selected':'')+'" data-club-uid="'+c.uid+'"><span><strong>'+escape(c.name)+'</strong><small>UID '+c.uid+' · '+c.staff+' perfis de staff</small></span><span class="abilities">'+c.players+'</span></button>').join('')||'<p class="profile-meta">Nenhum clube encontrado.</p>';syncClubPages();}
-async function showClub(uid:number){if(!canLeave())return;const d=await invoke<ClubDetail>('club_detail',{uid});clubSelected=uid;$('club-profile').innerHTML='<div class="profile-header"><div><div class="eyebrow">CLUBE · UID '+uid+'</div><h2>'+escape(d.profile.name)+'</h2><p class="profile-meta">'+escape(d.profile.shortName)+'</p></div></div><h3>Elenco · '+d.players.length+'</h3>'+d.players.map(p=>'<button class="player-row" data-club-player="'+p.uid+'"><strong>'+escape(p.name)+'</strong><span class="abilities">'+p.ca+' · '+p.pa+'</span></button>').join('')+'<h3>Staff e direção · '+d.staff.length+'</h3><p class="profile-meta">Pessoas com dupla função também podem aparecer no elenco.</p>'+d.staff.map(p=>'<button class="player-row" data-club-staff="'+p.uid+'"><span><strong>'+escape(p.name)+'</strong><small>'+escape(p.role)+(p.isPlayer?' · Jogador/staff':'')+'</small></span><span>→</span></button>').join('');$('club-profile').scrollTop=0;for(const row of document.querySelectorAll<HTMLElement>('[data-club-uid]'))row.classList.toggle('selected',Number(row.dataset.clubUid)===uid);status('Clube carregado. Abra um perfil para consultar ou editar.','success');}
-$('nav-clubs').onclick=()=>{if(!summary||!canLeave())return;renderProfile();view('clubs');void task(searchClubs);};
+function renderClubInfo(uid:number,info:ClubInfo|null|undefined):string {
+  if(!info)return '';
+  const format = new Intl.NumberFormat('pt-BR');
+  const balance = info.balance === null ? 'Indisponível' : format.format(info.balance);
+  const target=plan.clubBalances?.[uid]??info.balance;
+  const budgets=plan.clubTransferBudgets?.[uid];
+  const budgetInput=(id:string,label:string,value:number|null|undefined)=>value==null?''
+    : '<p><label for="'+id+'">'+label+' (£)</label> <input id="'+id+'" type="number" required step="1" min="0" max="2147483647" value="'+value+'" data-initial="'+value+'"></p>';
+  const form=info.balanceEditable&&target!==null
+    ? '<form id="club-balance-form"><label for="club-balance">Novo balanço (£)</label> '
+      + '<input id="club-balance" type="number" required step="1" min="-2147483648" max="2147483647" value="'+target+'" data-initial="'+target+'"> '
+      + budgetInput('club-budget-season','Orçamento da temporada',budgets?.season??info.transferBudgetSeason)
+      + budgetInput('club-budget-remaining','Orçamento restante',budgets?.remaining??info.transferBudgetRemaining)
+      + '<button type="submit">Adicionar à revisão</button></form>'
+    : '';
+  const levelInput=(id:string,label:string,value:number)=>
+    '<p><label for="'+id+'">'+label+' (1–20)</label> <input id="'+id+'" type="number" step="1" value="'+value+'" data-initial="'+value+'"></p>';
+  const trainingForm='<form id="club-training-form">'
+    +levelInput('club-training','Nível de treino',plan.clubTraining?.[uid]??info.trainingRaw)
+    +levelInput('club-youth','Formação de jovens',plan.clubYouthSetup?.[uid]??info.youthSetupRaw)
+    +'<button type="submit">Adicionar infraestrutura à revisão</button></form>';
+  return '<h3>Finanças e infraestrutura</h3><p class="profile-meta">Os códigos de infraestrutura são valores brutos do save.</p>'
+    + '<dl><dt>Saldo registrado (valor bruto)</dt><dd>'+balance+'</dd>'
+    + (info.transferBudgetSeason == null || info.transferBudgetRemaining == null ? ''
+      : '<dt>Orçamento de transferências da temporada (£)</dt><dd>'+format.format(info.transferBudgetSeason)+'</dd>'
+        + '<dt>Orçamento de transferências restante (£)</dt><dd>'+format.format(info.transferBudgetRemaining)+'</dd>')
+    + (info.playerContractWagesWeekly==null?'':'<dt>Salários dos contratos de jogadores (£/mês)</dt><dd>'+format.format(info.playerContractWagesWeekly*4)+'</dd>')
+    + (info.playerContractWagesWeekly==null||info.loanWageOffsetWeekly==null?''
+      : '<dt>Folha estimada após contribuições de empréstimos (£/mês)</dt><dd>'+format.format((info.playerContractWagesWeekly-info.loanWageOffsetWeekly)*4)+'</dd>')
+    + '<dt>Instalações de treino (código)</dt><dd>'+info.trainingRaw+'</dd>'
+    + '<dt>Formação de jovens (código)</dt><dd>'+info.youthSetupRaw+'</dd>'
+    + '<dt>Público médio registrado</dt><dd>'+format.format(info.averageAttendance)+'</dd></dl>'+form+trainingForm;
+}
+function renderClubExpiries(rows:ClubExpiry[]):string {
+  const entries=rows.map(row=>{
+    const date=new Date(Date.UTC(row.expires.year,0,1)+row.expires.day*86400000);
+    const label=date.toLocaleDateString('pt-BR',{timeZone:'UTC'});
+    const remaining=row.days===0?'Hoje':row.days===1?'1 dia':row.days+' dias';
+    return '<button class="player-row" data-club-player="'+row.uid+'" data-club-contract="'+row.index+'"><span><strong>'+escape(row.name)
+      +'</strong><small>'+(row.loan?'Empréstimo':'Contrato completo')+' · '+escape(label)
+      +'</small></span><span class="abilities">'+remaining+'</span></button>';
+  }).join('');
+  return '<details><summary>Contratos com vencimento nos próximos 90 dias · '+rows.length+'</summary>'
+    +(entries||'<p>Nenhum vencimento registrado nesse período.</p>')+'</details>';
+}
+
+async function showClub(uid:number,checkDraft=true){if(checkDraft&&!canLeave())return;const d=await invoke<ClubDetail>('club_detail',{uid});clubSelected=uid;$('club-profile').innerHTML='<div class="profile-header"><div><div class="eyebrow">CLUBE · UID '+uid+'</div><h2>'+escape(d.profile.name)+'</h2><p class="profile-meta">'+escape(d.profile.shortName)+'</p></div></div>'+renderClubInfo(uid,d.info)+renderClubExpiries(d.expiringContracts??[])+'<h3>Elenco · '+d.players.length+'</h3>'+d.players.map(p=>'<button class="player-row" data-club-player="'+p.uid+'"><strong>'+escape(p.name)+'</strong><span class="abilities">'+p.ca+' · '+p.pa+'</span></button>').join('')+'<h3>Staff e direção · '+d.staff.length+'</h3><p class="profile-meta">Pessoas com dupla função também podem aparecer no elenco.</p>'+d.staff.map(p=>'<button class="player-row" data-club-staff="'+p.uid+'"><span><strong>'+escape(p.name)+'</strong><small>'+escape(p.role)+(p.isPlayer?' · Jogador/staff':'')+'</small></span><span>→</span></button>').join('');$('club-profile').scrollTop=0;for(const row of document.querySelectorAll<HTMLElement>('[data-club-uid]'))row.classList.toggle('selected',Number(row.dataset.clubUid)===uid);status('Clube carregado. Abra um perfil para consultar ou editar.','success');
+  const trainingForm=$<HTMLFormElement>('club-training-form');
+  if(trainingForm)trainingForm.onsubmit=e=>{
+    e.preventDefault();
+    const training=$<HTMLInputElement>('club-training');
+    const youth=$<HTMLInputElement>('club-youth');
+    const fields=[training,youth];
+    const values=fields.map(field=>field.value===field.dataset.initial?null:field.valueAsNumber);
+    if(values.some(value=>value!==null&&(!Number.isInteger(value)||value<1||value>20))){
+      status('Informe um nível de infraestrutura entre 1 e 20.','error');
+      return;
+    }
+    void task(async()=>{
+      const submitted=fields.map(field=>field.value);
+      plan=await invoke<Pending>('stage_club_infrastructure',{uid,training:values[0],youth:values[1]});
+      fields.forEach((field,i)=>field.dataset.initial=submitted[i]);
+      status('Plano de infraestrutura atualizado.','success');
+    });
+  };
+  const form=$<HTMLFormElement>('club-balance-form');
+  if(form)form.onsubmit=e=>{
+    e.preventDefault();
+    const value=$<HTMLInputElement>('club-balance').valueAsNumber;
+    if(!Number.isInteger(value)||value < -2147483648||value > 2147483647)return;
+    void task(async()=>{
+      const season=$<HTMLInputElement>('club-budget-season');
+      const remaining=$<HTMLInputElement>('club-budget-remaining');
+      const budgets=season&&remaining&&(season.value!==season.dataset.initial||remaining.value!==remaining.dataset.initial)
+        ? {season:season.valueAsNumber,remaining:remaining.valueAsNumber} : null;
+      plan=await invoke<Pending>('stage_club_balance',{uid,value,budgets});
+      $<HTMLInputElement>('club-balance').dataset.initial=String(value);
+      if(budgets){season.dataset.initial=String(budgets.season);remaining.dataset.initial=String(budgets.remaining);}
+      status('Plano de balanço atualizado.','success');
+    });
+  };
+}
+$('nav-clubs').onclick=()=>{if(!summary||!canLeave())return;renderProfile();view('clubs');void task(async()=>{await searchClubs();if(clubSelected!==null)await showClub(clubSelected,false);});};
 $('club-results').onclick=e=>{const row=(e.target as HTMLElement).closest<HTMLElement>('[data-club-uid]');if(row)void task(()=>showClub(Number(row.dataset.clubUid)));};
-$('club-profile').onclick=e=>{const target=e.target as HTMLElement;const player=target.closest<HTMLElement>('[data-club-player]'),staff=target.closest<HTMLElement>('[data-club-staff]');if(player)void task(async()=>{if(!canLeave())return;view('players');await showPlayer(Number(player.dataset.clubPlayer));});else if(staff)void task(async()=>{if(!canLeave())return;renderProfile();view('staff');await showStaff(Number(staff.dataset.clubStaff));});};
+$('club-profile').onclick=e=>{const target=e.target as HTMLElement;const player=target.closest<HTMLElement>('[data-club-player]'),staff=target.closest<HTMLElement>('[data-club-staff]');if(player)void task(async()=>{if(!canLeave())return;view('players');const contract=player.dataset.clubContract;if(contract!==undefined)profileTab='contracts';await showPlayer(Number(player.dataset.clubPlayer));if(contract!==undefined){const card=document.getElementById('contract-card-'+contract);card?.focus({preventScroll:true});card?.scrollIntoView({block:'nearest'});}});else if(staff)void task(async()=>{if(!canLeave())return;renderProfile();view('staff');await showStaff(Number(staff.dataset.clubStaff));});};
 $<HTMLInputElement>('club-search').oninput=()=>{clearTimeout(clubTimer);clubTimer=setTimeout(()=>{clubPage=0;void searchClubs().catch(e=>status(String(e),'error'));},180);};
 $('club-previous').onclick=()=>{clubPage--;void searchClubs().catch(e=>status(String(e),'error'));};$('club-next').onclick=()=>{clubPage++;void searchClubs().catch(e=>status(String(e),'error'));};
-window.onbeforeunload=e=>{if(planCount()||staffHeaderDraft()||staffDrafts().length||drafts().length||healingDraft()||suspensionDraft()){e.preventDefault();}};
+window.onbeforeunload=e=>{if(planCount()||clubDrafts().length||staffHeaderDraft()||staffDrafts().length||drafts().length||healingDraft()||suspensionDraft()){e.preventDefault();}};
 syncPlan();
 export {};

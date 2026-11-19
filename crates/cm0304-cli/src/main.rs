@@ -79,7 +79,7 @@ fn run() -> Result<()> {
         return Ok(());
     }
     if a.len() < 2 {
-        return Err("Usage: cm0304-cli staff-ability <save> <uid> <ca> <preserveValues|preserveRelative> | inspect <save> | clubs <save> [query or uid:number] | staff <save> [query or uid:number] | players <save> [query] | career <save> [query] | health <save> [query] | health-cases <save> | injury-types <save> | career-summary <save> | export <save> <json> | edit <save> <new-copy> <fields.json> | apply-plan <save> <new-copy> <transaction.json>".into());
+        return Err("Usage: cm0304-cli staff-ability <save> <uid> <ca> <preserveValues|preserveRelative> | inspect <save> | clubs <save> [query or uid:number] | club-data <save> [query or uid:number] | staff <save> [query or uid:number] | players <save> [query] | career <save> [query] | health <save> [query] | health-cases <save> | injury-types <save> | career-summary <save> | export <save> <json> | edit <save> <new-copy> <fields.json> | apply-plan <save> <new-copy> <transaction.json>".into());
     }
     let bytes = fs::read(&a[1]).map_err(|e| e.to_string())?;
     if command == "inspect" {
@@ -90,6 +90,46 @@ fn run() -> Result<()> {
         return Ok(());
     }
     let (db, base) = database::load(&bytes)?;
+    if command == "club-data" {
+        let q = a.get(2).map(|q| search::key(q));
+        let uid = q
+            .as_deref()
+            .and_then(|q| q.strip_prefix("uid:"))
+            .map(|n| n.parse::<i32>().map_err(|_| "UID de clube inválido"))
+            .transpose()?;
+        let wages = cm0304_core::career::player_wages_by_club(&db);
+        let loan_offsets = cm0304_core::career::loan_wage_offsets_by_club(&db);
+        let rows = db
+            .clubs
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| {
+                uid.map_or_else(
+                    || {
+                        q.as_ref().is_none_or(|q| {
+                            search::key(&format!("{} {} {}", c.uid, c.name, c.short_name))
+                                .contains(q)
+                        })
+                    },
+                    |uid| c.uid == uid,
+                )
+            })
+            .map(|(index, c)| {
+                let gross = wages.get(&index).copied().unwrap_or_default();
+                let loan_offset = loan_offsets.get(&index).copied().unwrap_or_default();
+                serde_json::json!({
+                    "uid": c.uid,
+                    "name": c.name,
+                    "details": c.details,
+                    "playerContractWagesWeekly": gross,
+                    "loanWageOffsetWeekly": loan_offset,
+                    "estimatedPlayerWagesWeekly": gross - loan_offset,
+                })
+            })
+            .collect::<Vec<_>>();
+        println!("{}",serde_json::to_string_pretty(&serde_json::json!({"sourceSha256":cm0304_core::container::hash(&bytes),"databaseBase":base,"gameDate":db.game_date,"clubs":rows})).map_err(|e|e.to_string())?);
+        return Ok(());
+    }
     if command == "clubs" {
         let mut rows = cm0304_core::clubs::profiles(&db)?;
         if let Some(query) = a.get(2) {
@@ -258,8 +298,13 @@ fn run() -> Result<()> {
                     serde_json::to_string_pretty(&rows).map_err(|e| e.to_string())?
                 );
             } else if command == "career" {
+                let people_by_uid = db
+                    .people
+                    .iter()
+                    .map(|person| (person.uid, person))
+                    .collect::<std::collections::BTreeMap<_, _>>();
                 let rows = players.iter().map(|p| {
-                    let person = db.people.iter().find(|v| v.uid == p.uid).unwrap();
+                    let person = people_by_uid[&p.uid];
                     let state = &person.playing.as_ref().unwrap().state;
                     let contracts = person.contracts.iter().map(|c| {
                         let entity = if c.entity_type == 0 { db.clubs.get(c.entity_index as usize) } else { db.nations.get(c.entity_index as usize) };
