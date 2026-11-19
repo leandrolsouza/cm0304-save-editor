@@ -53,10 +53,13 @@ Para combinar campos e remoções estruturais, use `apply-plan` com um objeto:
 ```powershell
 cargo run --offline -p cm0304-cli -- apply-plan "origem.cm4" "nova_copia.cm4" "transacao.json"
 cargo run --offline -p cm0304-cli -- health "origem.cm4" "5640794"
+cargo run --offline -p cm0304-cli -- health "origem.cm4" "uid:1873"
 cargo run --offline -p cm0304-cli -- health-cases "origem.cm4"
 ```
 
 `health` mostra os registros brutos de uma entidade; `health-cases` inventaria as variantes estruturais presentes, com contagens e até três exemplos por grupo. Os discriminadores brutos não representam automaticamente duração ou categoria. Consulte `reports/v0.5-suspensions.md` para os casos conferidos no jogo e as variantes ainda pendentes. Remover suspensão preserva os cartões; remover lesão preserva condição e ritmo.
+
+As consultas `players`, `career` e `health` aceitam `uid:<número>` para igualdade exata. Sem o prefixo, a pesquisa é textual e pode retornar UIDs que apenas contenham os dígitos informados.
 
 ## Referências de Tauri
 

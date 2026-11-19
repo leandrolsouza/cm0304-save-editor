@@ -136,8 +136,19 @@ fn run() -> Result<()> {
     match command {
         "players" | "career" | "health" => {
             if let Some(q) = a.get(2) {
+                let exact_uid = q
+                    .strip_prefix("uid:")
+                    .map(|value| {
+                        value
+                            .parse::<i32>()
+                            .map_err(|_| "UID inválido; use uid:1873".to_string())
+                    })
+                    .transpose()?;
                 let q = search::key(q);
                 players.retain(|p| {
+                    if let Some(uid) = exact_uid {
+                        return p.uid == uid;
+                    }
                     search::key(&format!(
                         "{} {} {} {} {}",
                         p.uid,
