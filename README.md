@@ -14,6 +14,8 @@ A consulta de staff foi integrada ao Tauri, com busca, paginação, funções e 
 
 O núcleo também oferece conversão de atributos profissionais e escrita experimental de 11 atributos de staff pelo plano CLI e pela interface, com revisão e desfazer/refazer. Os testes preservam os dados de jogador em pessoas com dupla função. Dez verificações de frontend passaram com IPC controlado. O caso de treino de campo de Rui passou avanço de sete dias, regravação e recarga, mantendo o alvo 20; outras edições ainda precisam desse ciclo. Detalhes em [validação nativa](reports/v0.6-staff-native.md).
 
+CA/PA e reputação de staff têm escrita experimental pelo plano CLI, com política explícita de CA e revisão dos efeitos derivados. Interface e validação no jogo desses campos ainda estão pendentes; veja [cabeçalho de staff](reports/v0.6-staff-header.md).
+
 ```powershell
 npm install
 npm run build:desktop

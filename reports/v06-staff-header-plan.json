@@ -1,0 +1,9 @@
+{
+  "staffHeaderEdits": [
+    {"uid":4950,"currentAbility":100,"potentialAbility":180,"reputation":[8000,8500,9000],"policy":"preserveRelative"},
+    {"uid":600,"currentAbility":100,"potentialAbility":180,"reputation":[7000,7500,8000],"policy":"preserveValues"}
+  ],
+  "staffEdits": [
+    {"uid":600,"attribute":"coachingOutfieldPlayers","value":20}
+  ]
+}

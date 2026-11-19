@@ -21,6 +21,8 @@ pub struct Transaction {
     #[serde(default)]
     pub staff_edits: Vec<crate::staff_editor::Edit>,
     #[serde(default)]
+    pub staff_header_edits: Vec<crate::staff_header::Edit>,
+    #[serde(default)]
     pub heal_injuries: BTreeSet<i32>,
     #[serde(default)]
     pub clear_suspensions: BTreeSet<i32>,
@@ -29,6 +31,7 @@ impl Transaction {
     pub fn is_empty(&self) -> bool {
         self.edits.is_empty()
             && self.staff_edits.is_empty()
+            && self.staff_header_edits.is_empty()
             && self.heal_injuries.is_empty()
             && self.clear_suspensions.is_empty()
     }
@@ -63,18 +66,39 @@ pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
         return Err("Plano de alterações vazio".into());
     }
     // Fixed fields are applied first, while their source offsets still hold.
-    let (fields_output, field_changed_bytes, changes) = if plan.edits.is_empty() {
+    let (fields_output, _, mut changes) = if plan.edits.is_empty() {
         (input.to_vec(), 0, Vec::new())
     } else {
         let (bytes, report) = editor::apply(input, &plan.edits)?;
         (bytes, report.changed_bytes, report.changes)
     };
-    let (fields_output, staff_changes) = if plan.staff_edits.is_empty() {
+    let (fields_output, header_changes) = if plan.staff_header_edits.is_empty() {
         (fields_output, Vec::new())
     } else {
-        crate::staff_editor::apply(&fields_output, &plan.staff_edits)?
+        crate::staff_header::apply(&fields_output, &plan.staff_header_edits, &plan.staff_edits)?
     };
-    let field_changed_bytes = field_changed_bytes + staff_changes.len();
+    changes.extend(header_changes);
+    let remaining_staff = plan
+        .staff_edits
+        .iter()
+        .filter(|e| {
+            !plan
+                .staff_header_edits
+                .iter()
+                .any(|h| h.uid == e.uid && h.current_ability.is_some())
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let (fields_output, staff_changes) = if remaining_staff.is_empty() {
+        (fields_output, Vec::new())
+    } else {
+        crate::staff_editor::apply(&fields_output, &remaining_staff)?
+    };
+    let field_changed_bytes = input
+        .iter()
+        .zip(&fields_output)
+        .filter(|(a, b)| a != b)
+        .count();
     let selections = plan
         .heal_injuries
         .iter()

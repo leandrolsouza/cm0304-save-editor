@@ -9,6 +9,7 @@ pub mod health;
 pub mod search;
 pub mod staff;
 pub mod staff_editor;
+pub mod staff_header;
 pub mod transaction;
 
 pub type Result<T> = std::result::Result<T, String>;
