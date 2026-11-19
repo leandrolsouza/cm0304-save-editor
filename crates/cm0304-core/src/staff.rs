@@ -57,6 +57,7 @@ pub struct Staff {
     pub date_of_birth: Option<Date>,
     pub reputation: [i16; 3],
     pub current_ability: i16,
+    pub player_current_ability: Option<i16>,
     pub potential_ability: i16,
     pub preferred_formation_raw: i8,
     pub attribute_index: i32,
@@ -77,6 +78,13 @@ pub const RELATIVE: [&str; 8] = [
     "physiotherapy",
     "tacticalKnowledge",
 ];
+
+/// In the game, player/staff professional ratings use the playing role's CA.
+pub fn attribute_ability(profile: &Staff) -> i16 {
+    profile
+        .player_current_ability
+        .unwrap_or(profile.current_ability)
+}
 
 pub fn decoded(raw: &BTreeMap<String, i8>, ca: i16) -> Result<BTreeMap<String, i8>> {
     FIELDS
@@ -273,12 +281,18 @@ pub fn profiles(db: &Database, input: &[u8], base: usize) -> Result<Vec<Staff>> 
                 date_of_birth: person.birth.clone(),
                 reputation,
                 current_ability,
+                player_current_ability: person.playing.as_ref().map(|p| p.ca),
                 potential_ability,
                 preferred_formation_raw,
                 attribute_index,
                 raw_attributes: record.map(|(_, a)| a.clone()),
                 attributes: record
-                    .map(|(_, raw)| decoded(raw, current_ability))
+                    .map(|(_, raw)| {
+                        decoded(
+                            raw,
+                            person.playing.as_ref().map_or(current_ability, |p| p.ca),
+                        )
+                    })
                     .transpose()?,
                 personality,
                 info_offset: base + info_offset,

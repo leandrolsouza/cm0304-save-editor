@@ -79,7 +79,7 @@ cargo run --offline -p cm0304-cli -- staff "origem.cm4" "Braga"
 cargo run --offline -p cm0304-cli -- staff "origem.cm4" "uid:4950"
 ```
 
-Leitura separada do modelo de jogadores, com vínculos de clube/seleção, atributos brutos e convertidos. Oito atributos profissionais usam a CA própria de staff; os demais são diretos. A conversão possui 24 observações de controle em `reports/v06-staff-conversion-observed.json`.
+Leitura separada do modelo de jogadores, com vínculos de clube/seleção, atributos brutos e convertidos. Oito atributos profissionais usam CA de staff ou, na dupla função, CA de jogador; os demais são diretos. A conversão possui 24 observações de controle em `reports/v06-staff-conversion-observed.json`.
 
 A escrita experimental no núcleo aceita `staffEdits` em `apply-plan`, com UID, `attribute` e `value` de 1 a 20. Os 11 campos permitidos estão em `staff_editor::EDITABLE`; CA/PA e personalidade ainda não têm escrita de staff. O plano de exemplo está em `reports/v06-staff-edit-plan.json`. O relatório separa `staffChanges` das alterações de jogador e mantém offsets da origem, antes de remoções estruturais. Campos desconhecidos, repetidos, referências compartilhadas e alvos não representáveis são recusados. A interface prepara essas edições por `stage_staff_edits`, com revisão e histórico compartilhados. A escrita permanece experimental até passar pelo ciclo de carregamento, conferência, evolução e recarga no jogo.
 

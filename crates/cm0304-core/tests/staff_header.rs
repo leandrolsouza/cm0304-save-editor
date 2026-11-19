@@ -86,6 +86,32 @@ fn staff_form_merges_header_and_dependent_attribute_targets_atomically() {
         .is_err()
     );
     assert!(plan.is_empty());
+    // A dual role depends on playing CA, not on the separate staff header.
+    let target = staff_editor::Edit {
+        uid: 600,
+        attribute: "manManagement".into(),
+        value: 12,
+    };
+    plan.merge_staff(
+        &profiles,
+        vec![target.clone()],
+        Some(staff_header::Edit {
+            uid: 600,
+            current_ability: Some(100),
+            policy: Some(AbilityPolicy::PreserveRelative),
+            ..Default::default()
+        }),
+    )
+    .unwrap();
+    assert!(plan.staff_edits.is_empty());
+    plan.edits.push(cm0304_core::editor::Edit {
+        uid: 600,
+        attribute: "currentAbility".into(),
+        value: 100,
+        policy: Some(AbilityPolicy::PreserveValues),
+    });
+    plan.merge_staff(&profiles, vec![target], None).unwrap();
+    assert_eq!(plan.staff_edits.len(), 1);
 }
 
 #[test]
@@ -151,7 +177,7 @@ fn header_edits_preserve_player_role_and_show_ca_effects_for_both_policies() {
                 .iter()
                 .any(|c| c.attribute == "currentAbility" && !c.derived)
         );
-        assert!(report.changes.iter().any(|c| c.derived));
+        assert!(!report.changes.iter().any(|c| c.derived));
         let allowed = report
             .changes
             .iter()

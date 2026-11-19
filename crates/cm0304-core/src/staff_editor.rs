@@ -43,6 +43,8 @@ pub const EDITABLE: [&str; 11] = [
 pub struct AbilityProjection {
     pub current_ability_before: i16,
     pub current_ability_after: i16,
+    pub attribute_ability_before: i16,
+    pub attribute_ability_after: i16,
     pub attributes_before: BTreeMap<String, i8>,
     pub attributes_after: BTreeMap<String, i8>,
     pub raw_attributes_after: BTreeMap<String, i8>,
@@ -63,7 +65,8 @@ pub fn project_ability(
         .raw_attributes
         .as_ref()
         .ok_or("Staff sem atributos brutos")?;
-    let before = staff::decoded(original_raw, profile.current_ability)?;
+    let before = staff::decoded(original_raw, staff::attribute_ability(profile))?;
+    let effective_ca = profile.player_current_ability.unwrap_or(target_ca);
     let mut raw = original_raw.clone();
     for key in targets.keys() {
         if !EDITABLE.contains(&key.as_str()) {
@@ -75,7 +78,7 @@ pub fn project_ability(
         let preserve = policy == crate::editor::AbilityPolicy::PreserveValues
             && staff::RELATIVE.contains(&key);
         if let Some(value) = explicit.or_else(|| preserve.then_some(before[key])) {
-            let encoded = staff::encode_attribute(key, value, target_ca, original_raw[key])
+            let encoded = staff::encode_attribute(key, value, effective_ca, original_raw[key])
                 .map_err(|error| format!("Staff {} · {key}: {error}", profile.uid))?;
             raw.insert(key.to_owned(), encoded);
         }
@@ -83,8 +86,10 @@ pub fn project_ability(
     Ok(AbilityProjection {
         current_ability_before: profile.current_ability,
         current_ability_after: target_ca,
+        attribute_ability_before: staff::attribute_ability(profile),
+        attribute_ability_after: effective_ca,
         attributes_before: before,
-        attributes_after: staff::decoded(&raw, target_ca)?,
+        attributes_after: staff::decoded(&raw, effective_ca)?,
         raw_attributes_after: raw,
     })
 }
@@ -134,7 +139,12 @@ pub fn merge_plan(
         {
             return Err("Registro de atributos de staff compartilhado".into());
         }
-        staff::encode_attribute(&edit.attribute, edit.value, profile.current_ability, *raw)?;
+        staff::encode_attribute(
+            &edit.attribute,
+            edit.value,
+            staff::attribute_ability(profile),
+            *raw,
+        )?;
         if edit.value == *original {
             next.remove(&key);
         } else {
@@ -190,7 +200,7 @@ pub fn apply(input: &[u8], edits: &[Edit]) -> Result<(Vec<u8>, Vec<Change>)> {
         let raw_after = staff::encode_attribute(
             &edit.attribute,
             edit.value,
-            profile.current_ability,
+            staff::attribute_ability(profile),
             raw_before,
         )?;
         output[offset] = raw_after as u8;

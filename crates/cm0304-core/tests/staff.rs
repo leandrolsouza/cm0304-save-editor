@@ -11,6 +11,30 @@ fn sample(name: &str) -> Vec<u8> {
 }
 
 #[test]
+fn dual_role_conversion_matches_original_and_edited_native_profiles() {
+    let observations: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../reports/v06-dual-staff-observed.json"
+    ))
+    .unwrap();
+    assert_eq!(observations.as_array().unwrap().len(), 16);
+    for row in observations.as_array().unwrap() {
+        let raw = row["raw"].as_i64().unwrap() as i8;
+        assert_eq!(
+            cm0304_core::attributes::convert(raw, 147, false).unwrap(),
+            row["observed"].as_i64().unwrap() as i8
+        );
+    }
+    let input = sample("save_inicial.cm4");
+    let (db, base) = database::load(&input).unwrap();
+    let profiles = staff::profiles(&db, &input, base).unwrap();
+    let p = profiles.iter().find(|p| p.uid == 600).unwrap();
+    assert_eq!(p.current_ability, 150);
+    assert_eq!(p.player_current_ability, Some(147));
+    assert_eq!(p.attributes.as_ref().unwrap()["manManagement"], 12);
+    assert_eq!(p.attributes.as_ref().unwrap()["tacticalKnowledge"], 17);
+}
+
+#[test]
 fn staff_ability_projection_requires_a_policy_and_respects_explicit_targets() {
     use cm0304_core::{editor::AbilityPolicy, staff_editor::project_ability};
     use std::collections::BTreeMap;
@@ -23,17 +47,23 @@ fn staff_ability_projection_requires_a_policy_and_respects_explicit_targets() {
         let preserved =
             project_ability(p, 100, AbilityPolicy::PreserveValues, &BTreeMap::new()).unwrap();
         assert_eq!(preserved.attributes_after, *p.attributes.as_ref().unwrap());
-        assert_ne!(
-            preserved.raw_attributes_after,
-            *p.raw_attributes.as_ref().unwrap()
-        );
+        if !p.is_player {
+            assert_ne!(
+                preserved.raw_attributes_after,
+                *p.raw_attributes.as_ref().unwrap()
+            );
+        }
         let relative =
             project_ability(p, 100, AbilityPolicy::PreserveRelative, &BTreeMap::new()).unwrap();
         assert_eq!(
             relative.raw_attributes_after,
             *p.raw_attributes.as_ref().unwrap()
         );
-        assert_ne!(relative.attributes_after, relative.attributes_before);
+        if p.is_player {
+            assert_eq!(relative.attributes_after, relative.attributes_before);
+        } else {
+            assert_ne!(relative.attributes_after, relative.attributes_before);
+        }
         for policy in [
             AbilityPolicy::PreserveValues,
             AbilityPolicy::PreserveRelative,

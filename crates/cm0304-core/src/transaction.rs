@@ -82,6 +82,21 @@ impl Transaction {
                 next.staff_header_edits.push(combined);
             }
         }
+        let dependencies = profiles
+            .iter()
+            .filter(|p| {
+                if p.is_player {
+                    next.edits
+                        .iter()
+                        .any(|e| e.uid == p.uid && e.attribute == "currentAbility")
+                } else {
+                    next.staff_header_edits
+                        .iter()
+                        .any(|h| h.uid == p.uid && h.current_ability.is_some())
+                }
+            })
+            .map(|p| p.uid)
+            .collect::<BTreeSet<_>>();
         let mut fields = next
             .staff_edits
             .iter()
@@ -108,10 +123,7 @@ impl Transaction {
                 .and_then(|a| a.get(&edit.attribute))
                 .ok_or("Staff sem atributo")?;
             let dependent = crate::staff::RELATIVE.contains(&edit.attribute.as_str())
-                && next
-                    .staff_header_edits
-                    .iter()
-                    .any(|h| h.uid == edit.uid && h.current_ability.is_some());
+                && dependencies.contains(&edit.uid);
             let key = (edit.uid, edit.attribute.clone());
             if edit.value == *original && !dependent {
                 fields.remove(&key);
@@ -127,10 +139,7 @@ impl Transaction {
                 .and_then(|a| a.get(&e.attribute))
                 .is_none_or(|v| *v != e.value)
                 || (crate::staff::RELATIVE.contains(&e.attribute.as_str())
-                    && next
-                        .staff_header_edits
-                        .iter()
-                        .any(|h| h.uid == e.uid && h.current_ability.is_some()))
+                    && dependencies.contains(&e.uid))
         });
         next.staff_edits = fields.into_values().collect();
         next.staff_header_edits.sort_by_key(|h| h.uid);

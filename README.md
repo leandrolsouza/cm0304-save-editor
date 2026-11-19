@@ -16,6 +16,8 @@ O núcleo também oferece conversão de atributos profissionais e escrita experi
 
 CA/PA e reputação de staff têm escrita experimental pelo plano CLI e formulário integrado ao Tauri, com política explícita de CA e revisão dos efeitos derivados. Onze verificações de frontend passaram com IPC controlado; execução nativa do novo formulário e validação no jogo desses campos ainda estão pendentes. Veja [cabeçalho de staff](reports/v0.6-staff-header.md).
 
+A conferência nativa corrigiu a conversão de jogador/staff: seus atributos profissionais usam a CA da função de jogador. A cópia de cabeçalho anterior não validou a preservação de Pär e será substituída por novo teste; detalhes em [correção da dupla função](reports/v0.6-dual-staff-correction.md).
+
 ```powershell
 npm install
 npm run build:desktop

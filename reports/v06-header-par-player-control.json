@@ -1,0 +1,829 @@
+[
+  {
+    "uid": 600,
+    "id": 81,
+    "type": 3,
+    "firstName": "Pär",
+    "surname": "Zetterberg",
+    "commonName": "",
+    "name": "Pär Zetterberg",
+    "club": "RSC Anderlecht",
+    "nation": "Suécia",
+    "dateOfBirth": {
+      "day": 286,
+      "year": 1970
+    },
+    "currentAbility": 147,
+    "potentialAbility": 170,
+    "rawAttributes": {
+      "acceleration": 10,
+      "aerialAbility": -120,
+      "aggression": 5,
+      "agility": 12,
+      "anticipation": -17,
+      "attacker": 5,
+      "attackingMidfielder": 20,
+      "balance": 16,
+      "bravery": 14,
+      "central": 20,
+      "commandOfArea": -120,
+      "communication": -120,
+      "consistency": 17,
+      "corners": 7,
+      "creativity": 2,
+      "crossing": -28,
+      "decisions": -13,
+      "defender": 1,
+      "defensiveMidfielder": 10,
+      "determination": 10,
+      "dirtiness": 1,
+      "dribbling": -14,
+      "eccentricity": 9,
+      "finishing": -32,
+      "firstTouch": -4,
+      "flair": 13,
+      "freeRole": 17,
+      "goalkeeper": 1,
+      "handling": -120,
+      "heading": -37,
+      "importantMatches": 11,
+      "influence": 16,
+      "injuryProneness": 14,
+      "jumping": 8,
+      "kicking": -120,
+      "leftFoot": 17,
+      "leftSide": 1,
+      "longShots": -18,
+      "longThrows": 5,
+      "marking": -39,
+      "midfielder": 20,
+      "naturalFitness": 7,
+      "offTheBall": -27,
+      "oneOnOnes": -28,
+      "pace": 11,
+      "passing": -14,
+      "penalties": -14,
+      "positioning": -18,
+      "reflexes": -19,
+      "rightFoot": 20,
+      "rightSide": 13,
+      "rushingOut": 11,
+      "setPieces": 17,
+      "stamina": 15,
+      "strength": 11,
+      "sweeper": 1,
+      "tackling": -39,
+      "teamwork": 15,
+      "technique": -4,
+      "tendencyToPunch": 6,
+      "throwIns": -49,
+      "throwing": -120,
+      "versatility": 12,
+      "wingBack": 1,
+      "workRate": 14
+    },
+    "attributes": {
+      "acceleration": 10,
+      "aerialAbility": 1,
+      "aggression": 5,
+      "agility": 12,
+      "anticipation": 13,
+      "attacker": 5,
+      "attackingMidfielder": 20,
+      "balance": 16,
+      "bravery": 14,
+      "central": 20,
+      "commandOfArea": 1,
+      "communication": 1,
+      "consistency": 17,
+      "corners": 7,
+      "creativity": 16,
+      "crossing": 12,
+      "decisions": 14,
+      "defender": 1,
+      "defensiveMidfielder": 10,
+      "determination": 10,
+      "dirtiness": 1,
+      "dribbling": 14,
+      "eccentricity": 9,
+      "finishing": 11,
+      "firstTouch": 15,
+      "flair": 13,
+      "freeRole": 17,
+      "goalkeeper": 1,
+      "handling": 1,
+      "heading": 11,
+      "importantMatches": 11,
+      "influence": 16,
+      "injuryProneness": 14,
+      "jumping": 8,
+      "kicking": 1,
+      "leftFoot": 17,
+      "leftSide": 1,
+      "longShots": 13,
+      "longThrows": 5,
+      "marking": 11,
+      "midfielder": 20,
+      "naturalFitness": 7,
+      "offTheBall": 12,
+      "oneOnOnes": 12,
+      "pace": 11,
+      "passing": 14,
+      "penalties": 14,
+      "positioning": 13,
+      "reflexes": 13,
+      "rightFoot": 20,
+      "rightSide": 13,
+      "rushingOut": 11,
+      "setPieces": 17,
+      "stamina": 15,
+      "strength": 11,
+      "sweeper": 1,
+      "tackling": 11,
+      "teamwork": 15,
+      "technique": 15,
+      "tendencyToPunch": 6,
+      "throwIns": 9,
+      "throwing": 1,
+      "versatility": 12,
+      "wingBack": 1,
+      "workRate": 14
+    },
+    "personality": {
+      "adaptability": 17,
+      "ambition": 12,
+      "controversy": 4,
+      "loyalty": 18,
+      "pressure": 14,
+      "professionalism": 18,
+      "sportsmanship": 20,
+      "temperament": 20
+    },
+    "offsets": {
+      "person": 12085171,
+      "currentAbility": 12085178,
+      "potentialAbility": 12085180,
+      "attributes": 19657138
+    },
+    "fields": {
+      "acceleration": {
+        "value": 10,
+        "offset": 19657185,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "aerialAbility": {
+        "value": 1,
+        "offset": 19657162,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "aggression": {
+        "value": 5,
+        "offset": 19657196,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "agility": {
+        "value": 12,
+        "offset": 19657197,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "anticipation": {
+        "value": 13,
+        "offset": 19657167,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "balance": {
+        "value": 16,
+        "offset": 19657193,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "birth.day": {
+        "value": 286,
+        "offset": 12085336,
+        "width": 2,
+        "min": 0,
+        "max": 365
+      },
+      "birth.year": {
+        "value": 1970,
+        "offset": 12085338,
+        "width": 2,
+        "min": 1850,
+        "max": 2003
+      },
+      "bravery": {
+        "value": 14,
+        "offset": 19657194,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "commandOfArea": {
+        "value": 1,
+        "offset": 19657163,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "communication": {
+        "value": 1,
+        "offset": 19657164,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "consistency": {
+        "value": 17,
+        "offset": 19657195,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "contract.0.expires.day": {
+        "value": 152,
+        "offset": 12085423,
+        "width": 2,
+        "min": 0,
+        "max": 365
+      },
+      "contract.0.expires.year": {
+        "value": 2004,
+        "offset": 12085425,
+        "width": 2,
+        "min": 1900,
+        "max": 2200
+      },
+      "contract.0.squadNumber": {
+        "value": 21,
+        "offset": 12085444,
+        "width": 1,
+        "min": -1,
+        "max": 99
+      },
+      "contract.0.squadStatus": {
+        "value": 2,
+        "offset": 12085427,
+        "width": 1,
+        "min": -1,
+        "max": 7
+      },
+      "contract.0.weeklyWage": {
+        "value": 1024,
+        "offset": 12085419,
+        "width": 4,
+        "min": 0,
+        "max": 1000000
+      },
+      "corners": {
+        "value": 7,
+        "offset": 19657178,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "creativity": {
+        "value": 16,
+        "offset": 19657160,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "crossing": {
+        "value": 12,
+        "offset": 19657150,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "currentAbility": {
+        "value": 147,
+        "offset": 12085178,
+        "width": 2,
+        "min": 1,
+        "max": 200
+      },
+      "decisions": {
+        "value": 14,
+        "offset": 19657168,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "determination": {
+        "value": 10,
+        "offset": 19657202,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "dirtiness": {
+        "value": 1,
+        "offset": 19657192,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "dribbling": {
+        "value": 14,
+        "offset": 19657151,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "eccentricity": {
+        "value": 9,
+        "offset": 19657182,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "finishing": {
+        "value": 11,
+        "offset": 19657152,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "firstTouch": {
+        "value": 15,
+        "offset": 19657173,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "flair": {
+        "value": 13,
+        "offset": 19657177,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "handling": {
+        "value": 1,
+        "offset": 19657161,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "heading": {
+        "value": 11,
+        "offset": 19657153,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "height": {
+        "value": 175,
+        "offset": 12085211,
+        "width": 2,
+        "min": 0,
+        "max": 300
+      },
+      "importantMatches": {
+        "value": 11,
+        "offset": 19657198,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "influence": {
+        "value": 16,
+        "offset": 19657191,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "injuryProneness": {
+        "value": 14,
+        "offset": 19657199,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "jumping": {
+        "value": 8,
+        "offset": 19657190,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "kicking": {
+        "value": 1,
+        "offset": 19657165,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "leftFoot": {
+        "value": 17,
+        "offset": 19657175,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "longShots": {
+        "value": 13,
+        "offset": 19657154,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "longThrows": {
+        "value": 5,
+        "offset": 19657181,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "marking": {
+        "value": 11,
+        "offset": 19657155,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "nationality": {
+        "value": 171,
+        "offset": 12085340,
+        "width": 4,
+        "min": 0,
+        "max": 229
+      },
+      "naturalFitness": {
+        "value": 7,
+        "offset": 19657201,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "offTheBall": {
+        "value": 12,
+        "offset": 19657156,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "oneOnOnes": {
+        "value": 12,
+        "offset": 19657169,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "pace": {
+        "value": 11,
+        "offset": 19657189,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "passing": {
+        "value": 14,
+        "offset": 19657157,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "penalties": {
+        "value": 14,
+        "offset": 19657158,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "personality.adaptability": {
+        "value": 17,
+        "offset": 19177620,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "personality.ambition": {
+        "value": 12,
+        "offset": 19177621,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "personality.controversy": {
+        "value": 4,
+        "offset": 19177627,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "personality.loyalty": {
+        "value": 18,
+        "offset": 19177622,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "personality.pressure": {
+        "value": 14,
+        "offset": 19177623,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "personality.professionalism": {
+        "value": 18,
+        "offset": 19177624,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "personality.sportsmanship": {
+        "value": 20,
+        "offset": 19177625,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "personality.temperament": {
+        "value": 20,
+        "offset": 19177626,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "position.attacker": {
+        "value": 5,
+        "offset": 19657144,
+        "width": 1,
+        "min": 0,
+        "max": 20
+      },
+      "position.attackingMidfielder": {
+        "value": 20,
+        "offset": 19657143,
+        "width": 1,
+        "min": 0,
+        "max": 20
+      },
+      "position.central": {
+        "value": 20,
+        "offset": 19657149,
+        "width": 1,
+        "min": 0,
+        "max": 20
+      },
+      "position.defender": {
+        "value": 1,
+        "offset": 19657140,
+        "width": 1,
+        "min": 0,
+        "max": 20
+      },
+      "position.defensiveMidfielder": {
+        "value": 10,
+        "offset": 19657141,
+        "width": 1,
+        "min": 0,
+        "max": 20
+      },
+      "position.freeRole": {
+        "value": 17,
+        "offset": 19657146,
+        "width": 1,
+        "min": 0,
+        "max": 20
+      },
+      "position.goalkeeper": {
+        "value": 1,
+        "offset": 19657138,
+        "width": 1,
+        "min": 0,
+        "max": 20
+      },
+      "position.leftSide": {
+        "value": 1,
+        "offset": 19657148,
+        "width": 1,
+        "min": 0,
+        "max": 20
+      },
+      "position.midfielder": {
+        "value": 20,
+        "offset": 19657142,
+        "width": 1,
+        "min": 0,
+        "max": 20
+      },
+      "position.rightSide": {
+        "value": 13,
+        "offset": 19657147,
+        "width": 1,
+        "min": 0,
+        "max": 20
+      },
+      "position.sweeper": {
+        "value": 1,
+        "offset": 19657139,
+        "width": 1,
+        "min": 0,
+        "max": 20
+      },
+      "position.wingBack": {
+        "value": 1,
+        "offset": 19657145,
+        "width": 1,
+        "min": 0,
+        "max": 20
+      },
+      "positioning": {
+        "value": 13,
+        "offset": 19657170,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "potentialAbility": {
+        "value": 170,
+        "offset": 12085180,
+        "width": 2,
+        "min": -2,
+        "max": 200
+      },
+      "reflexes": {
+        "value": 13,
+        "offset": 19657171,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "reputation.current": {
+        "value": 7000,
+        "offset": 12085174,
+        "width": 2,
+        "min": 0,
+        "max": 10000
+      },
+      "reputation.home": {
+        "value": 7000,
+        "offset": 12085172,
+        "width": 2,
+        "min": 0,
+        "max": 10000
+      },
+      "reputation.world": {
+        "value": 1750,
+        "offset": 12085176,
+        "width": 2,
+        "min": 0,
+        "max": 10000
+      },
+      "rightFoot": {
+        "value": 20,
+        "offset": 19657176,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "rushingOut": {
+        "value": 11,
+        "offset": 19657183,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "setPieces": {
+        "value": 17,
+        "offset": 19657186,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "stamina": {
+        "value": 15,
+        "offset": 19657188,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "state.condition": {
+        "value": 10000,
+        "offset": 12085200,
+        "width": 2,
+        "min": 0,
+        "max": 10000
+      },
+      "state.estimatedValue": {
+        "value": 806744,
+        "offset": 12085190,
+        "width": 4,
+        "min": 0,
+        "max": 1000000000
+      },
+      "state.fitness": {
+        "value": 10000,
+        "offset": 12085196,
+        "width": 2,
+        "min": 0,
+        "max": 10000
+      },
+      "state.jadedness": {
+        "value": 0,
+        "offset": 12085198,
+        "width": 2,
+        "min": -1500,
+        "max": 1000
+      },
+      "state.morale": {
+        "value": 10,
+        "offset": 12085194,
+        "width": 1,
+        "min": 0,
+        "max": 20
+      },
+      "state.saleValue": {
+        "value": 1606848,
+        "offset": 12085214,
+        "width": 4,
+        "min": -1,
+        "max": 1000000000
+      },
+      "strength": {
+        "value": 11,
+        "offset": 19657187,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "tackling": {
+        "value": 11,
+        "offset": 19657159,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "teamwork": {
+        "value": 15,
+        "offset": 19657179,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "technique": {
+        "value": 15,
+        "offset": 19657174,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "tendencyToPunch": {
+        "value": 6,
+        "offset": 19657184,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "throwIns": {
+        "value": 9,
+        "offset": 19657172,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "throwing": {
+        "value": 1,
+        "offset": 19657166,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "versatility": {
+        "value": 12,
+        "offset": 19657200,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      },
+      "weight": {
+        "value": 0,
+        "offset": 12085209,
+        "width": 2,
+        "min": 0,
+        "max": 300
+      },
+      "workRate": {
+        "value": 14,
+        "offset": 19657180,
+        "width": 1,
+        "min": 1,
+        "max": 20
+      }
+    }
+  }
+]
