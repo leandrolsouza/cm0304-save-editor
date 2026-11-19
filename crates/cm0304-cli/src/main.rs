@@ -99,6 +99,20 @@ fn run() -> Result<()> {
             .transpose()?;
         let wages = cm0304_core::career::player_wages_by_club(&db);
         let loan_offsets = cm0304_core::career::loan_wage_offsets_by_club(&db);
+        let mut reputations = std::collections::BTreeMap::<i32, Vec<_>>::new();
+        for team in db
+            .teams
+            .iter()
+            .filter(|team| team.container_type == 0 && team.squad == 0)
+        {
+            reputations
+                .entry(team.container_index)
+                .or_default()
+                .push(serde_json::json!({
+                    "value": team.reputation,
+                    "offset": team.reputation_offset,
+                }));
+        }
         let rows = db
             .clubs
             .iter()
@@ -121,6 +135,7 @@ fn run() -> Result<()> {
                     "uid": c.uid,
                     "name": c.name,
                     "details": c.details,
+                    "firstTeamReputation": reputations.get(&(index as i32)).map(Vec::as_slice).unwrap_or_default(),
                     "playerContractWagesWeekly": gross,
                     "loanWageOffsetWeekly": loan_offset,
                     "estimatedPlayerWagesWeekly": gross - loan_offset,

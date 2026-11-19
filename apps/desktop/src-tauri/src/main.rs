@@ -120,6 +120,7 @@ struct Pending {
     club_balances: BTreeMap<i32, i32>,
     club_transfer_budgets: BTreeMap<i32, transaction::TransferBudgets>,
     club_training: BTreeMap<i32, u8>,
+    club_reputation: BTreeMap<i32, i16>,
     club_youth_setup: BTreeMap<i32, u8>,
     staff_header_edits: Vec<cm0304_core::staff_header::Edit>,
     heal_injuries: Vec<i32>,
@@ -147,6 +148,7 @@ fn pending(s: &Session) -> Pending {
         club_balances: s.plan.club_balances.clone(),
         club_transfer_budgets: s.plan.club_transfer_budgets.clone(),
         club_training: s.plan.club_training.clone(),
+        club_reputation: s.plan.club_reputation.clone(),
         club_youth_setup: s.plan.club_youth_setup.clone(),
         staff_header_edits: s.plan.staff_header_edits.clone(),
         heal_injuries: s.plan.heal_injuries.iter().copied().collect(),
@@ -187,6 +189,17 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
             let clubs = cm0304_core::clubs::profiles(&db)?;
             let player_wages = career::player_wages_by_club(&db);
             let loan_offsets = career::loan_wage_offsets_by_club(&db);
+            let mut reputations = BTreeMap::new();
+            for team in db
+                .teams
+                .iter()
+                .filter(|t| t.container_type == 0 && t.squad == 0)
+            {
+                reputations
+                    .entry(team.container_index)
+                    .and_modify(|value| *value = None)
+                    .or_insert(Some(team.reputation));
+            }
             let club_info = db
                 .clubs
                 .iter()
@@ -197,6 +210,7 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
                         club.uid,
                         ClubInfo {
                             balance: d.balance,
+                            reputation: reputations.get(&(index as i32)).copied().flatten(),
                             loan_wage_offset_weekly: loan_offsets
                                 .get(&index)
                                 .copied()
@@ -408,6 +422,7 @@ struct ClubStaff {
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ClubInfo {
+    reputation: Option<i16>,
     balance: Option<i32>,
     balance_editable: bool,
     player_contract_wages_weekly: i64,
@@ -723,6 +738,7 @@ fn stage_club_infrastructure(
     uid: i32,
     training: Option<u8>,
     youth: Option<u8>,
+    reputation: Option<i16>,
     state: State<Shared>,
 ) -> Result<Pending> {
     let mut session = state.lock().map_err(|e| e.to_string())?;
@@ -731,6 +747,17 @@ fn stage_club_infrastructure(
         .as_ref()
         .and_then(|d| d.club_info.get(&uid))
         .ok_or("Infraestrutura indisponível")?;
+    let previous_reputation = session.plan.club_reputation.get(&uid).copied();
+    let next_reputation = match reputation {
+        Some(value) => {
+            let original = info.reputation.ok_or("Equipe principal indisponível")?;
+            if value != original && !(0..=10_000).contains(&value) {
+                return Err("Informe uma reputação entre 0 e 10000".into());
+            }
+            (value != original).then_some(value)
+        }
+        None => previous_reputation,
+    };
     let targets = [
         (training, info.training_raw, &session.plan.club_training),
         (youth, info.youth_setup_raw, &session.plan.club_youth_setup),
@@ -744,14 +771,20 @@ fn stage_club_infrastructure(
             None => staged.get(&uid).copied(),
         };
     }
-    if next
-        != [
-            session.plan.club_training.get(&uid).copied(),
-            session.plan.club_youth_setup.get(&uid).copied(),
-        ]
+    if next_reputation != previous_reputation
+        || next
+            != [
+                session.plan.club_training.get(&uid).copied(),
+                session.plan.club_youth_setup.get(&uid).copied(),
+            ]
     {
         record(&mut session);
         let plan = &mut session.plan;
+        if let Some(value) = next_reputation {
+            plan.club_reputation.insert(uid, value);
+        } else {
+            plan.club_reputation.remove(&uid);
+        }
         for (target, staged) in next
             .into_iter()
             .zip([&mut plan.club_training, &mut plan.club_youth_setup])

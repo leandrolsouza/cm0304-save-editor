@@ -108,6 +108,9 @@ pub struct InjuryType {
 }
 #[derive(Debug)]
 pub struct Team {
+    pub squad: u8,
+    pub reputation: i16,
+    pub reputation_offset: usize,
     pub container_type: u8,
     pub container_index: i32,
 }
@@ -524,7 +527,10 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
         if t == 11 {
             r.skip(14)?;
         }
-        r.skip(42)?;
+        r.skip(1)?;
+        let reputation_offset = r.pos;
+        let reputation = r.i16()?;
+        r.skip(39)?;
         r.array(4, 1)?;
         r.array(4, 2)?;
         r.array(4, 1)?;
@@ -539,6 +545,9 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
         let container_index = r.i32()?;
         r.identity()?;
         Ok(Team {
+            squad,
+            reputation,
+            reputation_offset,
             container_type,
             container_index,
         })

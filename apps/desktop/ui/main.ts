@@ -1,7 +1,7 @@
 interface StaffHeader {uid:number;currentAbility?:number;potentialAbility?:number;reputation?:number[];policy?:'preserveValues'|'preserveRelative'}
 interface Edit {uid:number;attribute:string;value:number;policy?:'preserveValues'|'preserveRelative'}
 interface TransferBudgets {season:number;remaining:number}
-interface Pending {clubTransferBudgetFieldCount?:number;clubYouthSetup?:Record<number,number>;clubTraining?:Record<number,number>;clubTransferBudgets?:Record<number,TransferBudgets>;clubBalances?:Record<number,number>;edits:Edit[];staffEdits?:Edit[];staffHeaderEdits?:StaffHeader[];healInjuries:number[];clearSuspensions:number[];undo:boolean;redo:boolean}
+interface Pending {clubReputation?:Record<number,number>;clubTransferBudgetFieldCount?:number;clubYouthSetup?:Record<number,number>;clubTraining?:Record<number,number>;clubTransferBudgets?:Record<number,TransferBudgets>;clubBalances?:Record<number,number>;edits:Edit[];staffEdits?:Edit[];staffHeaderEdits?:StaffHeader[];healInjuries:number[];clearSuspensions:number[];undo:boolean;redo:boolean}
 interface Field {value:number;min:number;max:number;width:number;offset:number}
 interface Player {type?:number;uid:number;name:string;firstName:string;surname:string;club:string|null;nation:string|null;currentAbility:number;potentialAbility:number;attributes:Record<string,number>;rawAttributes:Record<string,number>;fields:Record<string,Field>}
 interface ContractView {index:number;kind:number;kindLabel:string;entityType:number;entity:string|null;started:{year:number;day:number};monthly:boolean}
@@ -10,7 +10,7 @@ interface Change {uid:number;name:string;attribute:string;before:number;after:nu
 interface Report {staffChanges?:{uid:number;name?:string;attribute:string;before:number;after:number}[];changes:Change[];fieldChangedBytes:number;removedBytes:number;removals:{uid:number;name:string;kind:'injuries'|'suspensions';count:number;removedBytes:number}[];sourceSha256:string;copySha256:string}
 interface Page {total:number;rows:{uid:number;name:string;club:string|null;age:number|null;ca:number;pa:number}[]}
 interface ClubRow {uid:number;name:string;shortName:string;players:number;staff:number}
-interface ClubInfo {loanWageOffsetWeekly?:number;playerContractWagesWeekly?:number;transferBudgetSeason?:number|null;transferBudgetRemaining?:number|null;balanceEditable?:boolean;balance:number|null;trainingRaw:number;youthSetupRaw:number;averageAttendance:number}
+interface ClubInfo {reputation?:number|null;loanWageOffsetWeekly?:number;playerContractWagesWeekly?:number;transferBudgetSeason?:number|null;transferBudgetRemaining?:number|null;balanceEditable?:boolean;balance:number|null;trainingRaw:number;youthSetupRaw:number;averageAttendance:number}
 interface ClubExpiry {uid:number;index:number;name:string;expires:{year:number;day:number};days:number;loan:boolean}
 interface ClubDetail {expiringContracts?:ClubExpiry[];info?:ClubInfo|null;profile:{uid:number;name:string;shortName:string;playerUids:number[];staffUids:number[]};players:{uid:number;name:string;ca:number;pa:number}[];staff:{uid:number;name:string;role:string;isPlayer:boolean}[]}
 interface Summary {clubs?:number;name:string;path:string;players:number;staff:number;sha256:string}
@@ -66,7 +66,7 @@ function staffHeaderDraft():StaffHeader|null {
   if(rep)header.reputation=[0,1,2].map(i=>Number($<HTMLInputElement>('staff-reputation-'+i).value));
   return changed?header:null;
 }
-function planCount(){return Object.keys(plan.clubYouthSetup??{}).length+Object.keys(plan.clubTraining??{}).length+(plan.clubTransferBudgetFieldCount??0)+Object.keys(plan.clubBalances??{}).length+plan.edits.length+(plan.staffEdits?.length??0)+(plan.staffHeaderEdits??[]).reduce((n,h)=>n+Number(h.currentAbility!=null)+Number(h.potentialAbility!=null)+(h.reputation?3:0),0)+plan.healInjuries.length+plan.clearSuspensions.length;}
+function planCount(){return Object.keys(plan.clubReputation??{}).length+Object.keys(plan.clubYouthSetup??{}).length+Object.keys(plan.clubTraining??{}).length+(plan.clubTransferBudgetFieldCount??0)+Object.keys(plan.clubBalances??{}).length+plan.edits.length+(plan.staffEdits?.length??0)+(plan.staffHeaderEdits??[]).reduce((n,h)=>n+Number(h.currentAbility!=null)+Number(h.potentialAbility!=null)+(h.reputation?3:0),0)+plan.healInjuries.length+plan.clearSuspensions.length;}
 function clubDrafts(){return Array.from(document.querySelectorAll<HTMLInputElement>('#club-balance-form input,#club-training-form input')).filter(field=>field.value!==field.dataset.initial);}
 function canLeave(){const club=clubDrafts();const clean=staffDrafts().length===0&&!staffHeaderDraft();const allowed=(clean&&!club.length&&drafts().length===0&&!healingDraft()&&!suspensionDraft())||window.confirm('Descartar os campos ainda não adicionados à revisão?');if(allowed)for(const field of club)field.value=field.dataset.initial!;if(allowed&&!clean){for(const el of document.querySelectorAll<HTMLInputElement>('#staff-profile [data-staff-field],#staff-profile [data-staff-header]'))el.value=el.dataset.initial!;const policy=$<HTMLSelectElement>('staff-ca-policy');if(policy)policy.value=policy.dataset.initial??'';}return allowed;}
 function view(name:string){for(const v of ['players','staff','clubs','changes','diagnostics']){$(`${v}-view`).hidden=v!==name;$(`nav-${v}`).classList.toggle('active',v===name);}}
@@ -197,7 +197,7 @@ function renderChanges(report:Report):string {
     if(c.attribute==='birth.day'||c.attribute==='birth.year'||/^contract\.\d+\.expires\.(day|year)$/.test(c.attribute)){
       const key=c.uid+':'+c.attribute.replace(/\.(day|year)$/,'');if(seen.has(key))return false;seen.add(key);
     }return true;
-  }).map(c=>'<div class="change-item"><strong>'+escape(c.name)+'</strong><span>'+escape((c.attribute==='club.youthSetup'?'Formação de jovens':c.attribute==='club.training'?'Instalações de treino':c.attribute==='club.balance'?'Balanço (£)':c.attribute==='club.transferBudgetSeason'?'Orçamento da temporada (£)':c.attribute==='club.transferBudgetRemaining'?'Orçamento restante (£)':c.attribute.startsWith('birth.')?'Nascimento':(c.context?.startsWith('Staff')&&staffFieldLabel(c.attribute)!==c.attribute?staffFieldLabel(c.attribute):fieldLabel(c.attribute)))+(c.derived?' (efeito indireto)':''))+(c.context?'<small class="change-context">'+escape(c.context)+'</small>':'')+'</span><b>'+escape(c.displayBefore??c.before)+' → '+escape(c.displayAfter??c.after)+'</b></div>').join('')+(report.staffChanges??[]).map(c=>'<div class="change-item"><strong>'+escape(c.name??('Staff · UID '+c.uid))+'</strong><span>'+escape(staffFieldLabel(c.attribute))+'</span><b>'+c.before+' → '+c.after+'</b></div>').join('')+report.removals.map(r=>'<div class="change-item"><strong>'+escape(r.name)+'</strong><span>'+ (r.kind==='suspensions'?'Remover suspensões registradas':'Remover lesões registradas')+'</span><b>'+r.count+' → 0</b></div>').join('');
+  }).map(c=>'<div class="change-item"><strong>'+escape(c.name)+'</strong><span>'+escape((c.attribute==='club.reputation'?'Reputação da equipe principal':c.attribute==='club.youthSetup'?'Formação de jovens':c.attribute==='club.training'?'Instalações de treino':c.attribute==='club.balance'?'Balanço (£)':c.attribute==='club.transferBudgetSeason'?'Orçamento da temporada (£)':c.attribute==='club.transferBudgetRemaining'?'Orçamento restante (£)':c.attribute.startsWith('birth.')?'Nascimento':(c.context?.startsWith('Staff')&&staffFieldLabel(c.attribute)!==c.attribute?staffFieldLabel(c.attribute):fieldLabel(c.attribute)))+(c.derived?' (efeito indireto)':''))+(c.context?'<small class="change-context">'+escape(c.context)+'</small>':'')+'</span><b>'+escape(c.displayBefore??c.before)+' → '+escape(c.displayAfter??c.after)+'</b></div>').join('')+(report.staffChanges??[]).map(c=>'<div class="change-item"><strong>'+escape(c.name??('Staff · UID '+c.uid))+'</strong><span>'+escape(staffFieldLabel(c.attribute))+'</span><b>'+c.before+' → '+c.after+'</b></div>').join('')+report.removals.map(r=>'<div class="change-item"><strong>'+escape(r.name)+'</strong><span>'+ (r.kind==='suspensions'?'Remover suspensões registradas':'Remover lesões registradas')+'</span><b>'+r.count+' → 0</b></div>').join('');
 }
 function reportSummary(report:Report){const fields=report.changes.length+(report.staffChanges?.length??0),records=report.removals.reduce((sum,r)=>sum+r.count,0);return report.removals.length?`${fields} campo(s) editado(s) e ${records} registro(s) removido(s).`:`${fields} campo(s) e ${report.fieldChangedBytes} bytes alterados.`;}
 async function review(){if(!summary||!canLeave())return;view('changes');await task(async()=>{plan=await invoke<Pending>('pending_edits');if(!planCount()){$('changes-list').textContent='Nenhuma alteração pendente.';return;}status('Validando o plano de edição…');const report=await invoke<Report>('preview_edits');$('changes-list').innerHTML=renderChanges(report);status('Plano válido: '+reportSummary(report),'success');});}
@@ -237,9 +237,15 @@ function renderClubInfo(uid:number,info:ClubInfo|null|undefined):string {
     : '';
   const levelInput=(id:string,label:string,value:number)=>
     '<p><label for="'+id+'">'+label+' (1–20)</label> <input id="'+id+'" type="number" step="1" value="'+value+'" data-initial="'+value+'"></p>';
+  const reputation=plan.clubReputation?.[uid]??info.reputation;
+  const reputationInput=reputation==null?''
+    : '<p><label for="club-reputation">Reputação da equipe principal (0–10.000)</label> '
+      +'<input id="club-reputation" type="number" step="1" value="'+reputation+'" data-initial="'+reputation+'"></p>'
+      +'<p class="profile-meta">A reputação pode mudar como o jogo descreve as condições de treino.</p>';
   const trainingForm='<form id="club-training-form">'
     +levelInput('club-training','Nível de treino',plan.clubTraining?.[uid]??info.trainingRaw)
     +levelInput('club-youth','Formação de jovens',plan.clubYouthSetup?.[uid]??info.youthSetupRaw)
+    +reputationInput
     +'<button type="submit">Adicionar infraestrutura à revisão</button></form>';
   return '<h3>Finanças e infraestrutura</h3><p class="profile-meta">Os códigos de infraestrutura são valores brutos do save.</p>'
     + '<dl><dt>Saldo registrado (valor bruto)</dt><dd>'+balance+'</dd>'
@@ -272,15 +278,21 @@ async function showClub(uid:number,checkDraft=true){if(checkDraft&&!canLeave())r
     e.preventDefault();
     const training=$<HTMLInputElement>('club-training');
     const youth=$<HTMLInputElement>('club-youth');
-    const fields=[training,youth];
+    const reputation=document.querySelector<HTMLInputElement>('#club-reputation');
+    const fields=reputation?[training,youth,reputation]:[training,youth];
     const values=fields.map(field=>field.value===field.dataset.initial?null:field.valueAsNumber);
-    if(values.some(value=>value!==null&&(!Number.isInteger(value)||value<1||value>20))){
+    if(values.slice(0,2).some(value=>value!==null&&(!Number.isInteger(value)||value<1||value>20))){
       status('Informe um nível de infraestrutura entre 1 e 20.','error');
+      return;
+    }
+    const rep=values[2]??null;
+    if(rep!==null&&(!Number.isInteger(rep)||rep<0||rep>10000)){
+      status('Informe uma reputação entre 0 e 10.000.','error');
       return;
     }
     void task(async()=>{
       const submitted=fields.map(field=>field.value);
-      plan=await invoke<Pending>('stage_club_infrastructure',{uid,training:values[0],youth:values[1]});
+      plan=await invoke<Pending>('stage_club_infrastructure',{uid,training:values[0],youth:values[1],reputation:rep});
       fields.forEach((field,i)=>field.dataset.initial=submitted[i]);
       status('Plano de infraestrutura atualizado.','success');
     });

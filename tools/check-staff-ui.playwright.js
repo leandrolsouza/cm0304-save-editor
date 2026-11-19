@@ -19,14 +19,14 @@ async page => {
     const player = { uid: 600, name: 'Pär Zetterberg', firstName: 'Pär', surname: 'Zetterberg', club: 'RSC Anderlecht', nation: 'Suécia', currentAbility: 140, potentialAbility: 150, attributes: {}, rawAttributes: {}, fields: { 'birth.year': field(1970), 'birth.day': field(286), nationality: field(0), passing: { ...field(15), min: 1, max: 20 } } };
     const clubRows=Array.from({length:51},(_,i)=>({uid:200000+i,name:i===0?'Clube de São João':'Clube de teste '+i,shortName:i===0?'São João':'Teste '+i,players:1,staff:2}));
     window.__testCalls = [];
-    let edits=[], header=null, clubBalances={}, clubTransferBudgets={}, clubTraining={}, clubYouthSetup={}, undo=[], redo=[]; const snapshot=()=>structuredClone({edits,header,clubBalances,clubTransferBudgets,clubTraining,clubYouthSetup});
+    let edits=[], header=null, clubBalances={}, clubTransferBudgets={}, clubTraining={}, clubYouthSetup={}, clubReputation={}, undo=[], redo=[]; const snapshot=()=>structuredClone({edits,header,clubBalances,clubTransferBudgets,clubTraining,clubYouthSetup,clubReputation});
     const original=e=>{const p=profiles.find(p=>p.uid===e.uid);return e.attribute.startsWith('personality.')?p.personality[e.attribute.slice(12)]:p.attributes[e.attribute];};
-    const pending=()=>({clubTransferBudgetFieldCount:Object.values(clubTransferBudgets).reduce((n,b)=>n+Number(b.season!==118033)+Number(b.remaining!==121595),0),clubBalances,clubTransferBudgets,clubTraining,clubYouthSetup,edits:[],staffEdits:edits,staffHeaderEdits:header?[header]:[],healInjuries:[],clearSuspensions:[],undo:undo.length>0,redo:redo.length>0});
+    const pending=()=>({clubTransferBudgetFieldCount:Object.values(clubTransferBudgets).reduce((n,b)=>n+Number(b.season!==118033)+Number(b.remaining!==121595),0),clubBalances,clubTransferBudgets,clubTraining,clubYouthSetup,clubReputation,edits:[],staffEdits:edits,staffHeaderEdits:header?[header]:[],healInjuries:[],clearSuspensions:[],undo:undo.length>0,redo:redo.length>0});
     window.__TAURI__ = { core: { invoke: async (command, args = {}) => {
       window.__testCalls.push({ command, args });
       if (command === 'open_save') return { name: 'controle_ui.cm4', path: 'controle_ui.cm4', players: 1, staff: 51, clubs:51, sha256: 'controlled-fixture' };
       if(command==='search_clubs'){const found=clubRows.filter(c=>args.query.startsWith('uid:')?c.uid===Number(args.query.slice(4)):key(c.name+' '+c.uid).includes(key(args.query)));return {total:found.length,rows:found.slice(args.page*50,args.page*50+50)};}
-      if(command==='club_detail')return {expiringContracts:args.uid===200000?[{uid:600,index:1,name:player.name,expires:{year:2003,day:230},days:30,loan:true}]:[],info:{balanceEditable:args.uid===200000,balance:args.uid===200000?-685427:null,transferBudgetSeason:args.uid===200000?118033:null,transferBudgetRemaining:args.uid===200000?121595:null,trainingRaw:11,youthSetupRaw:10,averageAttendance:10500},profile:{...clubRows.find(c=>c.uid===args.uid),playerUids:[600],staffUids:[4950,600]},players:[{uid:600,name:player.name,ca:140,pa:150}],staff:[{uid:4950,name:'Rui Águas',role:'Treinador adjunto',isPlayer:false},{uid:600,name:'Pär Zetterberg',role:'Jogador',isPlayer:true}]};
+      if(command==='club_detail')return {expiringContracts:args.uid===200000?[{uid:600,index:1,name:player.name,expires:{year:2003,day:230},days:30,loan:true}]:[],info:{balanceEditable:args.uid===200000,balance:args.uid===200000?-685427:null,transferBudgetSeason:args.uid===200000?118033:null,transferBudgetRemaining:args.uid===200000?121595:null,reputation:5497,trainingRaw:11,youthSetupRaw:10,averageAttendance:10500},profile:{...clubRows.find(c=>c.uid===args.uid),playerUids:[600],staffUids:[4950,600]},players:[{uid:600,name:player.name,ca:140,pa:150}],staff:[{uid:4950,name:'Rui Águas',role:'Treinador adjunto',isPlayer:false},{uid:600,name:'Pär Zetterberg',role:'Jogador',isPlayer:true}]};
       if (command === 'search_players') return { total: 1, rows: [{ uid: 600, name: player.name, club: player.club, age: 32, ca: 140, pa: 150 }] };
       if (command === 'search_staff') {
         const found = profiles.filter(p => key([p.uid, p.name, p.team, p.clubJob, p.nationalTeam, p.nationalJob].join(' ')).includes(key(args.query)));
@@ -39,16 +39,17 @@ async page => {
       }
       if(command==='stage_staff_edits'){undo.push(snapshot());redo=[];if(args.header)header=args.header;for(const e of args.edits){edits=edits.filter(x=>x.uid!==e.uid||x.attribute!==e.attribute);if(e.value!==original(e))edits.push(e);}return pending();}
       if(command==='pending_edits')return pending();
-      if(command==='history_action'){if(args.action==='undo'){redo.push(snapshot());({edits,header,clubBalances,clubTransferBudgets,clubTraining,clubYouthSetup}=undo.pop());}else if(args.action==='redo'){undo.push(snapshot());({edits,header,clubBalances,clubTransferBudgets,clubTraining,clubYouthSetup}=redo.pop());}else {undo.push(snapshot());edits=[];header=null;clubBalances={};clubTransferBudgets={};clubTraining={};clubYouthSetup={};}return pending();}
+      if(command==='history_action'){if(args.action==='undo'){redo.push(snapshot());({edits,header,clubBalances,clubTransferBudgets,clubTraining,clubYouthSetup,clubReputation}=undo.pop());}else if(args.action==='redo'){undo.push(snapshot());({edits,header,clubBalances,clubTransferBudgets,clubTraining,clubYouthSetup,clubReputation}=redo.pop());}else {undo.push(snapshot());edits=[];header=null;clubBalances={};clubTransferBudgets={};clubTraining={};clubYouthSetup={};clubReputation={};}return pending();}
       if(command==='stage_club_balance'){undo.push(snapshot());redo=[];if(args.value!==-685427)clubBalances[args.uid]=args.value;else delete clubBalances[args.uid];if(args.budgets)clubTransferBudgets[args.uid]=args.budgets;return pending();}
       if(command==='stage_club_infrastructure'){
         undo.push(snapshot());redo=[];
         if(args.training!==null)clubTraining[args.uid]=args.training;
         if(args.youth!==null)clubYouthSetup[args.uid]=args.youth;
+        if(args.reputation!=null)clubReputation[args.uid]=args.reputation;
         return pending();
       }
       const clubChanges=Object.entries(clubBalances).map(([uid,after])=>({uid:Number(uid),name:'Clube de São João',attribute:'club.balance',before:-685427,after}));
-      for(const [values,attribute,before] of [[clubTraining,'club.training',11],[clubYouthSetup,'club.youthSetup',10]]){
+      for(const [values,attribute,before] of [[clubTraining,'club.training',11],[clubYouthSetup,'club.youthSetup',10],[clubReputation,'club.reputation',5497]]){
         for(const [uid,after] of Object.entries(values))clubChanges.push({uid:Number(uid),name:'Clube de São João',attribute,before,after});
       }
       if(command==='save_copy')return {path:'copia_teste.cm4',report:{changes:clubChanges,staffChanges:[],removals:[],fieldChangedBytes:3}};
@@ -204,15 +205,17 @@ async page => {
   await page.locator('#nav-clubs').click();
   await page.locator('#club-training').fill('20');
   await page.locator('#club-youth').fill('19');
+  await page.locator('#club-reputation').fill('10000');
   await page.locator('#club-training-form button').click();
   await page.locator('#status').filter({hasText:'Plano de infraestrutura atualizado'}).waitFor();
   await page.locator('#review').click();
   await page.locator('#changes-list .change-item').filter({hasText:'11 → 20'}).waitFor();
   await page.locator('#changes-list .change-item').filter({hasText:'10 → 19'}).waitFor();
+  await page.locator('#changes-list .change-item').filter({hasText:'5497 → 10000'}).waitFor();
   await page.locator('#undo').click();
   await page.locator('#changes-list').filter({hasText:'Nenhuma alteração pendente'}).waitFor();
   await page.locator('#nav-clubs').click();
-  assert(await page.locator('#club-training').inputValue()==='11' && await page.locator('#club-youth').inputValue()==='10','Undo must restore both infrastructure fields');
+  assert(await page.locator('#club-training').inputValue()==='11' && await page.locator('#club-youth').inputValue()==='10' && await page.locator('#club-reputation').inputValue()==='5497','Undo must restore training, youth and reputation');
   await page.screenshot({path:'reports/v06-clubs-ui.png'});
   await page.locator('[data-club-player="600"]:not([data-club-contract])').click();
   await page.locator('#profile h2').filter({hasText:'Pär Zetterberg'}).waitFor();
@@ -239,7 +242,7 @@ async page => {
   await page.locator('#panel-contracts').waitFor();
   assert(await page.locator('#contract-card-1').evaluate(card=>card===document.activeElement),'Expiry shortcut must focus the loan');
   assert(errors.length===0,'Frontend errors: '+errors.join(', '));
-  const result = { passed: true, checks: ['pagination', 'accentless search', 'role search', '11 staff controls', 'staff staging and review', 'staff undo/redo/clear', 'staff draft cancel/discard', 'dual-role navigation', 'player draft cancel/discard', 'save session reset', 'staff header policy/payload/projection/review/undo', 'staff personality staging/review/undo', 'club pagination/search', 'club player/staff navigation', 'club draft guard', 'club session reset', 'club finance and facilities', 'club balance review/history/save', 'club infrastructure atomic review and undo', 'club transfer budget field count', 'club expiry opens exact loan'], frontendErrors: errors };
+  const result = { passed: true, checks: ['pagination', 'accentless search', 'role search', '11 staff controls', 'staff staging and review', 'staff undo/redo/clear', 'staff draft cancel/discard', 'dual-role navigation', 'player draft cancel/discard', 'save session reset', 'staff header policy/payload/projection/review/undo', 'staff personality staging/review/undo', 'club pagination/search', 'club player/staff navigation', 'club draft guard', 'club session reset', 'club finance and facilities', 'club balance review/history/save', 'club infrastructure and reputation atomic review and undo', 'club transfer budget field count', 'club expiry opens exact loan'], frontendErrors: errors };
   await page.evaluate(value => { window.__staffUiResult = value; }, result);
   return result;
 }

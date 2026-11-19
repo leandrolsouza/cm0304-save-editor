@@ -15,6 +15,7 @@ fn plan() -> Transaction {
     Transaction {
         club_balances: [(1488, -250_000)].into(),
         club_training: [(1488, 20)].into(),
+        club_reputation: [(1488, 10_000)].into(),
         club_youth_setup: [(1488, 19)].into(),
         club_transfer_budgets: [(
             1488,
@@ -56,7 +57,7 @@ fn plan() -> Transaction {
 fn mixed_transaction_relocates_fields_and_keeps_both_operations() {
     let bytes = sample();
     let (output, report) = transaction::apply(&bytes, &plan()).unwrap();
-    assert_eq!(report.changes.len(), 8);
+    assert_eq!(report.changes.len(), 9);
     assert_eq!(report.staff_changes.len(), 1);
     assert_eq!(report.removals.len(), 2);
     assert_eq!(report.removed_bytes, 96);
@@ -64,6 +65,26 @@ fn mixed_transaction_relocates_fields_and_keeps_both_operations() {
     assert_eq!(report.source_sha256, cm0304_core::container::hash(&bytes));
     assert_eq!(report.copy_sha256, cm0304_core::container::hash(&output));
     let (db, base) = database::load(&output).unwrap();
+    let braga_index = db.clubs.iter().position(|club| club.uid == 1488).unwrap();
+    let mut teams = db.teams.iter().filter(|team| {
+        team.container_type == 0 && team.container_index == braga_index as i32 && team.squad == 0
+    });
+    let main = teams.next().unwrap();
+    assert!(teams.next().is_none());
+    assert_eq!(main.reputation, 10_000);
+    let report_entry = report
+        .changes
+        .iter()
+        .find(|change| change.attribute == "club.reputation")
+        .unwrap();
+    assert_eq!(
+        (report_entry.uid, report_entry.after, report_entry.width),
+        (1488, 10_000, 2)
+    );
+    assert_eq!(
+        &output[base + main.reputation_offset..base + main.reputation_offset + 2],
+        &10_000i16.to_le_bytes()
+    );
     let balance = |uid| {
         db.clubs
             .iter()

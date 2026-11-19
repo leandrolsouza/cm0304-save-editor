@@ -23,6 +23,8 @@ pub struct Transaction {
     #[serde(default)]
     pub club_training: BTreeMap<i32, u8>,
     #[serde(default)]
+    pub club_reputation: BTreeMap<i32, i16>,
+    #[serde(default)]
     pub club_youth_setup: BTreeMap<i32, u8>,
     #[serde(default)]
     pub edits: Vec<Edit>,
@@ -172,6 +174,7 @@ impl Transaction {
             && self.club_balances.is_empty()
             && self.club_transfer_budgets.is_empty()
             && self.club_training.is_empty()
+            && self.club_reputation.is_empty()
             && self.club_youth_setup.is_empty()
     }
     pub fn merge_fields(&mut self, players: &[Player], edits: Vec<Edit>) -> Result<()> {
@@ -335,6 +338,7 @@ pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
     if !plan.club_balances.is_empty()
         || !plan.club_transfer_budgets.is_empty()
         || !plan.club_training.is_empty()
+        || !plan.club_reputation.is_empty()
         || !plan.club_youth_setup.is_empty()
     {
         let (db, base) = crate::database::load(&fields_output)?;
@@ -343,12 +347,13 @@ pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
             .keys()
             .chain(plan.club_transfer_budgets.keys())
             .chain(plan.club_training.keys())
+            .chain(plan.club_reputation.keys())
             .chain(plan.club_youth_setup.keys())
             .copied()
             .collect::<BTreeSet<_>>();
         for uid in club_uids {
-            let mut matches = db.clubs.iter().filter(|c| c.uid == uid);
-            let club = matches
+            let mut matches = db.clubs.iter().enumerate().filter(|(_, c)| c.uid == uid);
+            let (club_index, club) = matches
                 .next()
                 .ok_or_else(|| format!("Clube {uid} não encontrado"))?;
             if matches.next().is_some() {
@@ -364,7 +369,32 @@ pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
             {
                 return Err(format!("Clube {uid} sem registro financeiro completo"));
             }
-            let mut fields = Vec::with_capacity(5);
+            let mut fields = Vec::with_capacity(6);
+            if let Some(&target) = plan.club_reputation.get(&uid) {
+                if !(0..=10_000).contains(&target) {
+                    return Err(format!(
+                        "Reputação do clube {uid} deve ficar entre 0 e 10000"
+                    ));
+                }
+                let mut teams = db.teams.iter().filter(|team| {
+                    team.container_type == 0
+                        && team.container_index == club_index as i32
+                        && team.squad == 0
+                });
+                let team = teams
+                    .next()
+                    .ok_or_else(|| format!("Clube {uid} sem equipe principal"))?;
+                if teams.next().is_some() {
+                    return Err(format!("Clube {uid} com mais de uma equipe principal"));
+                }
+                fields.push((
+                    "club.reputation",
+                    i32::from(team.reputation),
+                    team.reputation_offset,
+                    i32::from(target),
+                    2,
+                ));
+            }
             if let Some(&target) = plan.club_youth_setup.get(&uid) {
                 if !(1..=20).contains(&target) {
                     return Err(format!(
@@ -446,7 +476,9 @@ pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
                     width: width as u8,
                     derived: false,
                     context: Some(
-                        if width == 1 {
+                        if width == 2 {
+                            "Clube · reputação"
+                        } else if width == 1 {
                             "Clube · infraestrutura"
                         } else {
                             "Clube · finanças"

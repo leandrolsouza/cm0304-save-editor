@@ -108,6 +108,17 @@ fn club_uids_and_memberships_resolve_both_samples_without_name_joins() {
                 .count()
         );
         assert_eq!(db.sections.len(), 23);
+        let first_teams = db
+            .teams
+            .iter()
+            .filter(|t| {
+                t.container_type == 0 && t.container_index == fortaleza.index as i32 && t.squad == 0
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(first_teams.len(), 1);
+        assert_eq!(first_teams[0].reputation, 4500);
+        let offset = base + first_teams[0].reputation_offset;
+        assert_eq!(&input[offset..offset + 2], &4500i16.to_le_bytes());
         let braga_uid = braga.uid;
         let braga_index = braga.index;
         let roster = braga.player_uids.clone();
@@ -143,6 +154,9 @@ fn club_links_reject_bad_references_and_keep_national_teams_separate() {
     db.people[person].team = original;
     let national = db.teams.len();
     db.teams.push(database::Team {
+        squad: 0,
+        reputation: 0,
+        reputation_offset: 0,
         container_type: 1,
         container_index: 0,
     });
