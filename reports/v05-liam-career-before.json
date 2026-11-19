@@ -1,0 +1,62 @@
+[
+  {
+    "club": "Northampton Town",
+    "contracts": [
+      {
+        "contract": {
+          "commonOffset": 15182504,
+          "entityIndex": 227,
+          "entityType": 0,
+          "expires": {
+            "day": 151,
+            "year": 2005
+          },
+          "kind": 0,
+          "offset": 15182470,
+          "squadNumber": -1,
+          "squadStatus": 7,
+          "started": {
+            "day": 151,
+            "year": 1998
+          },
+          "transferStatus": 4,
+          "weeklyWage": 800
+        },
+        "entity": "Arsenal"
+      },
+      {
+        "contract": {
+          "commonOffset": 15182546,
+          "entityIndex": 290,
+          "entityType": 0,
+          "expires": {
+            "day": 303,
+            "year": 2003
+          },
+          "kind": 1,
+          "offset": 15182538,
+          "squadNumber": -1,
+          "squadStatus": 2,
+          "started": {
+            "day": 181,
+            "year": 2003
+          },
+          "transferStatus": 0,
+          "weeklyWage": 600
+        },
+        "entity": "Northampton Town"
+      }
+    ],
+    "databaseBase": 1805943,
+    "name": "Liam Chilvers",
+    "state": {
+      "condition": 10000,
+      "estimatedValue": 225235,
+      "fitness": 10000,
+      "jadedness": 0,
+      "morale": 10,
+      "saleValue": 423761
+    },
+    "uid": 5101855
+  }
+]

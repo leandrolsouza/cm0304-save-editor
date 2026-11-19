@@ -1,0 +1,40 @@
+[
+  {
+    "club": "Fortaleza EC",
+    "contracts": [
+      {
+        "contract": {
+          "commonOffset": 14256195,
+          "entityIndex": 1253,
+          "entityType": 0,
+          "expires": {
+            "day": 203,
+            "year": 2003
+          },
+          "kind": 0,
+          "offset": 14256166,
+          "squadNumber": 99,
+          "squadStatus": 1,
+          "started": {
+            "day": 181,
+            "year": 1999
+          },
+          "transferStatus": 4,
+          "weeklyWage": 2500
+        },
+        "entity": "Fortaleza EC"
+      }
+    ],
+    "databaseBase": 1805943,
+    "name": "Clodoaldo",
+    "state": {
+      "condition": 7000,
+      "estimatedValue": 2000000,
+      "fitness": 8000,
+      "jadedness": -1000,
+      "morale": 20,
+      "saleValue": 3000000
+    },
+    "uid": 2001642
+  }
+]
