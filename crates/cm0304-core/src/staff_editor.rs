@@ -38,6 +38,57 @@ pub const EDITABLE: [&str; 11] = [
     "discipline",
 ];
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AbilityProjection {
+    pub current_ability_before: i16,
+    pub current_ability_after: i16,
+    pub attributes_before: BTreeMap<String, i8>,
+    pub attributes_after: BTreeMap<String, i8>,
+    pub raw_attributes_after: BTreeMap<String, i8>,
+}
+
+/// Compute CA effects before any write. Explicit targets override either policy.
+/// This does not change PA or the ability of the player's other role.
+pub fn project_ability(
+    profile: &staff::Staff,
+    target_ca: i16,
+    policy: crate::editor::AbilityPolicy,
+    targets: &BTreeMap<String, i8>,
+) -> Result<AbilityProjection> {
+    if !(0..=200).contains(&target_ca) {
+        return Err("CA de staff deve estar entre 0 e 200".into());
+    }
+    let original_raw = profile
+        .raw_attributes
+        .as_ref()
+        .ok_or("Staff sem atributos brutos")?;
+    let before = staff::decoded(original_raw, profile.current_ability)?;
+    let mut raw = original_raw.clone();
+    for key in targets.keys() {
+        if !EDITABLE.contains(&key.as_str()) {
+            return Err(format!("Campo de staff sem edição suportada: {key}"));
+        }
+    }
+    for key in staff::FIELDS {
+        let explicit = targets.get(key).copied();
+        let preserve = policy == crate::editor::AbilityPolicy::PreserveValues
+            && staff::RELATIVE.contains(&key);
+        if let Some(value) = explicit.or_else(|| preserve.then_some(before[key])) {
+            let encoded = staff::encode_attribute(key, value, target_ca, original_raw[key])
+                .map_err(|error| format!("Staff {} · {key}: {error}", profile.uid))?;
+            raw.insert(key.to_owned(), encoded);
+        }
+    }
+    Ok(AbilityProjection {
+        current_ability_before: profile.current_ability,
+        current_ability_after: target_ca,
+        attributes_before: before,
+        attributes_after: staff::decoded(&raw, target_ca)?,
+        raw_attributes_after: raw,
+    })
+}
+
 /// Merge intentions against the original snapshot; failures never mutate the old plan.
 pub fn merge_plan(
     profiles: &[staff::Staff],

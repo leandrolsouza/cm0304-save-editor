@@ -63,6 +63,15 @@ As consultas `players`, `career` e `health` aceitam `uid:<número>` para igualda
 
 ## Diagnóstico de staff
 
+Para antecipar os efeitos de uma CA de staff, sem gravar o save:
+
+```powershell
+cargo run --offline -p cm0304-cli -- staff-ability "origem.cm4" 4950 100 preserveValues
+cargo run --offline -p cm0304-cli -- staff-ability "origem.cm4" 4950 100 preserveRelative
+```
+
+A política é obrigatória. Preservar valores exige inversa exata; preservar bytes mostra atributos recalculados. Esta é uma prévia de diagnóstico, ainda sem escrita de CA. Exemplos e verificação em `reports/v0.6-staff-ability.md`.
+
 ```powershell
 cargo run --offline -p cm0304-cli -- staff "origem.cm4" "Braga"
 cargo run --offline -p cm0304-cli -- staff "origem.cm4" "uid:4950"

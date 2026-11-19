@@ -11,6 +11,81 @@ fn sample(name: &str) -> Vec<u8> {
 }
 
 #[test]
+fn staff_ability_projection_requires_a_policy_and_respects_explicit_targets() {
+    use cm0304_core::{editor::AbilityPolicy, staff_editor::project_ability};
+    use std::collections::BTreeMap;
+    let input = sample("save_inicial.cm4");
+    let (db, base) = database::load(&input).unwrap();
+    let profiles = staff::profiles(&db, &input, base).unwrap();
+    for uid in [4950, 600] {
+        let p = profiles.iter().find(|p| p.uid == uid).unwrap();
+        let original = serde_json::to_value(p).unwrap();
+        let preserved =
+            project_ability(p, 100, AbilityPolicy::PreserveValues, &BTreeMap::new()).unwrap();
+        assert_eq!(preserved.attributes_after, *p.attributes.as_ref().unwrap());
+        assert_ne!(
+            preserved.raw_attributes_after,
+            *p.raw_attributes.as_ref().unwrap()
+        );
+        let relative =
+            project_ability(p, 100, AbilityPolicy::PreserveRelative, &BTreeMap::new()).unwrap();
+        assert_eq!(
+            relative.raw_attributes_after,
+            *p.raw_attributes.as_ref().unwrap()
+        );
+        assert_ne!(relative.attributes_after, relative.attributes_before);
+        for policy in [
+            AbilityPolicy::PreserveValues,
+            AbilityPolicy::PreserveRelative,
+        ] {
+            let overrides = BTreeMap::from([
+                ("coachingOutfieldPlayers".into(), 20),
+                ("discipline".into(), 19),
+            ]);
+            let result = project_ability(p, 100, policy, &overrides).unwrap();
+            assert_eq!(result.attributes_after["coachingOutfieldPlayers"], 20);
+            assert_eq!(result.attributes_after["discipline"], 19);
+            assert_eq!(result.current_ability_before, p.current_ability);
+            assert_eq!(result.current_ability_after, 100);
+        }
+        assert_eq!(serde_json::to_value(p).unwrap(), original);
+        assert!(project_ability(p, -1, AbilityPolicy::PreserveValues, &BTreeMap::new()).is_err());
+        assert!(project_ability(p, 201, AbilityPolicy::PreserveValues, &BTreeMap::new()).is_err());
+        for (key, value) in [("unknown", 20), ("discipline", 0), ("discipline", 21)] {
+            assert!(
+                project_ability(
+                    p,
+                    100,
+                    AbilityPolicy::PreserveValues,
+                    &BTreeMap::from([(key.into(), value)])
+                )
+                .is_err()
+            );
+        }
+        assert!(
+            project_ability(
+                p,
+                200,
+                AbilityPolicy::PreserveRelative,
+                &BTreeMap::from([("coachingOutfieldPlayers".into(), 1)])
+            )
+            .is_err()
+        );
+    }
+    let mut missing = profiles[0].clone();
+    missing.raw_attributes = None;
+    assert!(
+        project_ability(
+            &missing,
+            100,
+            AbilityPolicy::PreserveValues,
+            &BTreeMap::new()
+        )
+        .is_err()
+    );
+}
+
+#[test]
 fn staff_plan_replaces_targets_reverts_and_rejects_invalid_submissions_atomically() {
     use cm0304_core::staff_editor::{Edit, merge_plan};
     let input = sample("save_inicial.cm4");

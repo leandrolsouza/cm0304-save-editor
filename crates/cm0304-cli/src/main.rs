@@ -16,6 +16,35 @@ fn main() {
 fn run() -> Result<()> {
     let a = env::args().skip(1).collect::<Vec<_>>();
     let command = a.first().map(String::as_str).unwrap_or("");
+    if command == "staff-ability" && a.len() == 5 {
+        let uid = a[2]
+            .parse::<i32>()
+            .map_err(|_| "UID inválido".to_string())?;
+        let ca = a[3].parse::<i16>().map_err(|_| "CA inválida".to_string())?;
+        let policy = match a[4].as_str() {
+            "preserveValues" => cm0304_core::editor::AbilityPolicy::PreserveValues,
+            "preserveRelative" => cm0304_core::editor::AbilityPolicy::PreserveRelative,
+            _ => return Err("Escolha preserveValues ou preserveRelative".into()),
+        };
+        let input = fs::read(&a[1]).map_err(|e| e.to_string())?;
+        let (db, base) = database::load(&input)?;
+        let profiles = cm0304_core::staff::profiles(&db, &input, base)?;
+        let profile = profiles
+            .iter()
+            .find(|p| p.uid == uid)
+            .ok_or("Staff não encontrado")?;
+        let projection =
+            cm0304_core::staff_editor::project_ability(profile, ca, policy, &Default::default())?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "sourceSha256":cm0304_core::container::hash(&input),"uid":uid,"name":profile.name,
+                "policy":policy,"projection":projection,"writesSave":false
+            }))
+            .map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
     if command == "apply-plan" && a.len() == 4 {
         let plan: transaction::Transaction =
             serde_json::from_slice(&fs::read(&a[3]).map_err(|e| e.to_string())?)
@@ -50,7 +79,7 @@ fn run() -> Result<()> {
         return Ok(());
     }
     if a.len() < 2 {
-        return Err("Usage: cm0304-cli inspect <save> | staff <save> [query or uid:number] | players <save> [query] | career <save> [query] | health <save> [query] | health-cases <save> | injury-types <save> | career-summary <save> | export <save> <json> | edit <save> <new-copy> <fields.json> | apply-plan <save> <new-copy> <transaction.json>".into());
+        return Err("Usage: cm0304-cli staff-ability <save> <uid> <ca> <preserveValues|preserveRelative> | inspect <save> | staff <save> [query or uid:number] | players <save> [query] | career <save> [query] | health <save> [query] | health-cases <save> | injury-types <save> | career-summary <save> | export <save> <json> | edit <save> <new-copy> <fields.json> | apply-plan <save> <new-copy> <transaction.json>".into());
     }
     let bytes = fs::read(&a[1]).map_err(|e| e.to_string())?;
     if command == "inspect" {
