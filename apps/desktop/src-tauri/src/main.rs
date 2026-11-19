@@ -456,6 +456,8 @@ async fn stage_edits(
     let previous = state.lock().map_err(|e| e.to_string())?.plan.clone();
     let mut next = previous.clone();
     next.merge_fields(&data.players, edits)?;
+    // Returning playing CA to its source removes redundant professional targets.
+    next.merge_staff(&data.staff, Vec::new(), None)?;
     if let Some(update) = healing {
         if !data.players.iter().any(|p| p.uid == update.uid) {
             return Err("Jogador não encontrado".into());

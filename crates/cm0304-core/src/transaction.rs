@@ -207,11 +207,88 @@ pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
         })
         .cloned()
         .collect::<Vec<_>>();
-    let (fields_output, staff_changes) = if remaining_staff.is_empty() {
+    let (fields_output, mut staff_changes) = if remaining_staff.is_empty() {
         (fields_output, Vec::new())
     } else {
         crate::staff_editor::apply(&fields_output, &remaining_staff)?
     };
+    let playing_ca = plan
+        .edits
+        .iter()
+        .filter(|e| e.attribute == "currentAbility")
+        .map(|e| e.uid)
+        .collect::<BTreeSet<_>>();
+    if !playing_ca.is_empty() {
+        // Reconcile against the source, not intermediate headers: a staff target may
+        // override or cancel a conversion effect caused by the playing-role CA.
+        let (before_db, before_base) = crate::database::load(input)?;
+        let before = crate::staff::profiles(&before_db, input, before_base)?;
+        let (after_db, after_base) = crate::database::load(&fields_output)?;
+        let after = crate::staff::profiles(&after_db, &fields_output, after_base)?;
+        for p in before
+            .iter()
+            .filter(|p| p.is_player && playing_ca.contains(&p.uid))
+        {
+            let q = after
+                .iter()
+                .find(|q| q.uid == p.uid)
+                .ok_or("Jogador/staff ausente após projeção")?;
+            let (
+                Some(before_values),
+                Some(after_values),
+                Some(before_raw),
+                Some(after_raw),
+                Some(offset),
+            ) = (
+                &p.attributes,
+                &q.attributes,
+                &p.raw_attributes,
+                &q.raw_attributes,
+                p.attributes_offset,
+            )
+            else {
+                continue;
+            };
+            for (i, key) in crate::staff::FIELDS.iter().enumerate() {
+                changes.retain(|c| {
+                    !(c.uid == p.uid
+                        && c.attribute == *key
+                        && c.context.as_deref().is_some_and(|s| s.starts_with("Staff")))
+                });
+                staff_changes.retain(|c| !(c.uid == p.uid && c.attribute == *key));
+                if before_values[*key] == after_values[*key] && before_raw[*key] == after_raw[*key]
+                {
+                    continue;
+                }
+                let explicit = plan
+                    .staff_edits
+                    .iter()
+                    .any(|e| e.uid == p.uid && e.attribute == *key);
+                changes.push(editor::Change {
+                    uid: p.uid,
+                    name: p.name.clone(),
+                    attribute: key.to_string(),
+                    before: i32::from(before_values[*key]),
+                    after: i32::from(after_values[*key]),
+                    raw_before: i32::from(before_raw[*key]),
+                    raw_after: i32::from(after_raw[*key]),
+                    offset: offset + i,
+                    width: 1,
+                    derived: !explicit,
+                    context: Some(
+                        if explicit {
+                            "Staff · alvo explícito"
+                        } else {
+                            "Staff · efeito da CA de jogador"
+                        }
+                        .into(),
+                    ),
+                    display_before: None,
+                    display_after: None,
+                });
+            }
+        }
+    }
     let field_changed_bytes = input
         .iter()
         .zip(&fields_output)

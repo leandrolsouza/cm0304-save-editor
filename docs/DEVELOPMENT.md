@@ -85,6 +85,8 @@ A escrita experimental no núcleo aceita `staffEdits` em `apply-plan`, com UID, 
 
 O frontend de consulta também pode ser verificado em navegador isolado com IPC controlado; comandos e limites da prova em `reports/v0.6-staff-ui.md`. Isso não substitui a conferência no aplicativo Tauri com save real.
 
+Na dupla função, alterar CA de jogador também pode recalcular atributos profissionais. O relatório transacional inclui esses efeitos derivados mesmo sem mudança no byte de staff e consolida alvos explícitos contra a origem. A política de jogador preserva seu grupo de atributos; use alvos profissionais para ajustar esse outro grupo. Verificação em `reports/v0.6-dual-staff-review.md`.
+
 ## Referências de Tauri
 
 - [Comandos Rust](https://v2.tauri.app/develop/calling-rust/)
