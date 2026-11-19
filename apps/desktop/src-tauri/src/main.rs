@@ -24,6 +24,7 @@ struct Loaded {
     source: PathBuf,
     bytes: Arc<Vec<u8>>,
     players: Vec<Player>,
+    clubs: Vec<cm0304_core::clubs::ClubProfile>,
     nations: Vec<String>,
     game_date: Date,
     search_keys: Vec<String>,
@@ -47,6 +48,7 @@ struct Summary {
     name: String,
     path: String,
     players: usize,
+    clubs: usize,
     staff: usize,
     sha256: String,
 }
@@ -158,6 +160,7 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
             let bytes = std::fs::read(&source).map_err(|e| e.to_string())?;
             let (db, base) = database::load(&bytes)?;
             let players = db.players(base)?;
+            let clubs = cm0304_core::clubs::profiles(&db)?;
             let staff = staff::profiles(&db, &bytes, base)
                 .map_err(|error| format!("Falha ao ler staff: {error}"))?;
             let staff_search_keys = staff
@@ -217,6 +220,7 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
                     .into(),
                 path: source.display().to_string(),
                 players: players.len(),
+                clubs: clubs.len(),
                 staff: staff.len(),
                 sha256: hash(&bytes),
             };
@@ -225,6 +229,7 @@ async fn open_save(app: tauri::AppHandle, state: State<'_, Shared>) -> Result<Op
                     source,
                     bytes: Arc::new(bytes),
                     players,
+                    clubs,
                     nations,
                     game_date: db.game_date,
                     search_keys,
@@ -287,6 +292,107 @@ fn search_staff(query: String, page: usize, state: State<Shared>) -> Result<Staf
                 is_player: p.is_player,
             })
             .collect(),
+    })
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ClubRow {
+    uid: i32,
+    name: String,
+    short_name: String,
+    players: usize,
+    staff: usize,
+}
+#[derive(Serialize)]
+struct ClubPage {
+    total: usize,
+    rows: Vec<ClubRow>,
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ClubStaff {
+    uid: i32,
+    name: String,
+    role: String,
+    is_player: bool,
+}
+#[derive(Serialize)]
+struct ClubDetail {
+    profile: cm0304_core::clubs::ClubProfile,
+    players: Vec<Row>,
+    staff: Vec<ClubStaff>,
+}
+
+#[tauri::command]
+fn search_clubs(query: String, page: usize, state: State<Shared>) -> Result<ClubPage> {
+    let data = loaded(&state)?;
+    let q = search::key(query.trim());
+    let uid = q
+        .strip_prefix("uid:")
+        .map(|n| n.parse::<i32>().map_err(|_| "UID de clube inválido"))
+        .transpose()?;
+    let found = data
+        .clubs
+        .iter()
+        .filter(|c| {
+            uid.map_or_else(
+                || search::key(&format!("{} {} {}", c.uid, c.name, c.short_name)).contains(&q),
+                |u| c.uid == u,
+            )
+        })
+        .collect::<Vec<_>>();
+    Ok(ClubPage {
+        total: found.len(),
+        rows: found
+            .into_iter()
+            .skip(page.saturating_mul(50))
+            .take(50)
+            .map(|c| ClubRow {
+                uid: c.uid,
+                name: c.name.clone(),
+                short_name: c.short_name.clone(),
+                players: c.player_uids.len(),
+                staff: c.staff_uids.len(),
+            })
+            .collect(),
+    })
+}
+#[tauri::command]
+fn club_detail(uid: i32, state: State<Shared>) -> Result<ClubDetail> {
+    let data = loaded(&state)?;
+    let c = data
+        .clubs
+        .iter()
+        .find(|c| c.uid == uid)
+        .ok_or("Clube não encontrado")?;
+    let players = data
+        .players
+        .iter()
+        .filter(|p| c.player_uids.binary_search(&p.uid).is_ok())
+        .map(|p| Row {
+            uid: p.uid,
+            name: p.name.clone(),
+            club: p.club.clone(),
+            age: p.date_of_birth.age_on(&data.game_date),
+            ca: p.current_ability,
+            pa: p.potential_ability,
+        })
+        .collect();
+    let staff = data
+        .staff
+        .iter()
+        .filter(|p| c.staff_uids.binary_search(&p.uid).is_ok())
+        .map(|p| ClubStaff {
+            uid: p.uid,
+            name: p.name.clone(),
+            role: p.club_job.to_owned(),
+            is_player: p.is_player,
+        })
+        .collect();
+    Ok(ClubDetail {
+        profile: c.clone(),
+        players,
+        staff,
     })
 }
 #[tauri::command]
@@ -608,6 +714,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             open_save,
             search_players,
+            search_clubs,
+            club_detail,
             search_staff,
             staff_detail,
             player_detail,

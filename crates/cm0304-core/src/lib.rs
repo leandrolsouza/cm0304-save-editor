@@ -1,6 +1,7 @@
 pub mod attributes;
 pub mod binary;
 pub mod career;
+pub mod clubs;
 pub mod container;
 pub mod database;
 pub mod editor;

@@ -20,6 +20,8 @@ A conferência nativa corrigiu a conversão de jogador/staff: seus atributos pro
 
 Oito campos de personalidade também têm escrita experimental no núcleo e controles no formulário de staff, compartilhando os dados pessoais com o perfil de jogador quando há dupla função. Dois testes de integração e 12 verificações de frontend passaram; o ciclo nativo dessa edição ainda está pendente. Veja [personalidade de staff](reports/v0.6-staff-personality.md).
 
+A nova área Clubes permite buscar por nome/UID e navegar entre clube, elenco e staff/direção. O núcleo resolve3.554 clubes nas duas amostras; dois testes de clubes e 16 verificações de frontend passaram. A conferência nativa do fluxo e a edição financeira/infraestrutura ainda estão pendentes. Veja [navegação de clubes](reports/v0.6-clubs-navigation.md).
+
 ```powershell
 npm install
 npm run build:desktop

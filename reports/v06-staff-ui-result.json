@@ -12,7 +12,11 @@
     "player draft cancel/discard",
     "save session reset",
     "staff header policy/payload/projection/review/undo",
-    "staff personality staging/review/undo"
+    "staff personality staging/review/undo",
+    "club pagination/search",
+    "club player/staff navigation",
+    "club draft guard",
+    "club session reset"
   ],
   "frontendErrors": []
 }

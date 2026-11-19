@@ -89,6 +89,15 @@ Na dupla função, alterar CA de jogador também pode recalcular atributos profi
 
 `staffEdits` também aceita `personality.adaptability`, `ambition`, `loyalty`, `pressure`, `professionalism`, `sportsmanship`, `temperament` e `controversy`, todos com prefixo `personality.` e valores1–20. O registro é comum à pessoa. Referências compartilhadas entre pessoas e intenções conflitantes entre os grupos de jogador/staff são recusadas. Plano de exemplo em `reports/v06-staff-personality-plan.json`, evidência e pendências em `reports/v0.6-staff-personality.md`.
 
+## Consulta de clubes
+
+```powershell
+cargo run --offline -p cm0304-cli -- clubs "origem.cm4" Fortaleza
+cargo run --offline -p cm0304-cli -- clubs "origem.cm4" uid:1488
+```
+
+O núcleo preserva id/UID do contêiner e resolve os membros por referências, sem associar por nome. O Tauri oferece `search_clubs` (páginas de 50) e `club_detail` (links de elenco e staff/direção). O grupo profissional pode conter a mesma pessoa do elenco na dupla função. A consulta de elenco atual é distinta de propriedade contratual; finanças e infraestrutura não têm escrita nesta etapa. Evidências e pendências em `reports/v0.6-clubs-navigation.md`.
+
 ## Referências de Tauri
 
 - [Comandos Rust](https://v2.tauri.app/develop/calling-rust/)

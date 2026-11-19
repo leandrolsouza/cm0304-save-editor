@@ -61,10 +61,12 @@ pub struct Section {
     pub count: usize,
     pub end: usize,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Club {
     pub name: String,
     pub short_name: String,
+    pub id: i32,
+    pub uid: i32,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -279,8 +281,13 @@ fn team_container(r: &mut Reader) -> Result<Club> {
     r.array(6, 1)?;
     r.array(4, 1)?;
     r.array(8, 1)?;
-    r.identity()?;
-    Ok(Club { name, short_name })
+    let (id, uid) = r.identity()?;
+    Ok(Club {
+        name,
+        short_name,
+        id,
+        uid,
+    })
 }
 pub fn read_database(bytes: &[u8]) -> Result<Database> {
     let mut r = Reader::new(bytes);

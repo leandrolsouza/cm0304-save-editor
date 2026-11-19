@@ -79,7 +79,7 @@ fn run() -> Result<()> {
         return Ok(());
     }
     if a.len() < 2 {
-        return Err("Usage: cm0304-cli staff-ability <save> <uid> <ca> <preserveValues|preserveRelative> | inspect <save> | staff <save> [query or uid:number] | players <save> [query] | career <save> [query] | health <save> [query] | health-cases <save> | injury-types <save> | career-summary <save> | export <save> <json> | edit <save> <new-copy> <fields.json> | apply-plan <save> <new-copy> <transaction.json>".into());
+        return Err("Usage: cm0304-cli staff-ability <save> <uid> <ca> <preserveValues|preserveRelative> | inspect <save> | clubs <save> [query or uid:number] | staff <save> [query or uid:number] | players <save> [query] | career <save> [query] | health <save> [query] | health-cases <save> | injury-types <save> | career-summary <save> | export <save> <json> | edit <save> <new-copy> <fields.json> | apply-plan <save> <new-copy> <transaction.json>".into());
     }
     let bytes = fs::read(&a[1]).map_err(|e| e.to_string())?;
     if command == "inspect" {
@@ -90,6 +90,25 @@ fn run() -> Result<()> {
         return Ok(());
     }
     let (db, base) = database::load(&bytes)?;
+    if command == "clubs" {
+        let mut rows = cm0304_core::clubs::profiles(&db)?;
+        if let Some(query) = a.get(2) {
+            if let Some(uid) = query.strip_prefix("uid:") {
+                let uid = uid.parse::<i32>().map_err(|_| "UID de clube inválido")?;
+                rows.retain(|c| c.uid == uid);
+            } else {
+                let q = search::key(query);
+                rows.retain(|c| {
+                    search::key(&format!("{} {} {}", c.uid, c.name, c.short_name)).contains(&q)
+                });
+            }
+        }
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&rows).map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
     if command == "injury-types" {
         println!(
             "{}",

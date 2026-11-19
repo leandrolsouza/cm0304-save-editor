@@ -17,13 +17,16 @@ async page => {
     const key = value => value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
     const field = value => ({ value, min: 0, max: 2003, width: 2, offset: 0 });
     const player = { uid: 600, name: 'Pär Zetterberg', firstName: 'Pär', surname: 'Zetterberg', club: 'RSC Anderlecht', nation: 'Suécia', currentAbility: 140, potentialAbility: 150, attributes: {}, rawAttributes: {}, fields: { 'birth.year': field(1970), 'birth.day': field(286), nationality: field(0), passing: { ...field(15), min: 1, max: 20 } } };
+    const clubRows=Array.from({length:51},(_,i)=>({uid:200000+i,name:i===0?'Clube de São João':'Clube de teste '+i,shortName:i===0?'São João':'Teste '+i,players:1,staff:2}));
     window.__testCalls = [];
     let edits=[], header=null, undo=[], redo=[]; const snapshot=()=>structuredClone({edits,header});
     const original=e=>{const p=profiles.find(p=>p.uid===e.uid);return e.attribute.startsWith('personality.')?p.personality[e.attribute.slice(12)]:p.attributes[e.attribute];};
     const pending=()=>({edits:[],staffEdits:edits,staffHeaderEdits:header?[header]:[],healInjuries:[],clearSuspensions:[],undo:undo.length>0,redo:redo.length>0});
     window.__TAURI__ = { core: { invoke: async (command, args = {}) => {
       window.__testCalls.push({ command, args });
-      if (command === 'open_save') return { name: 'controle_ui.cm4', path: 'controle_ui.cm4', players: 1, staff: 51, sha256: 'controlled-fixture' };
+      if (command === 'open_save') return { name: 'controle_ui.cm4', path: 'controle_ui.cm4', players: 1, staff: 51, clubs:51, sha256: 'controlled-fixture' };
+      if(command==='search_clubs'){const found=clubRows.filter(c=>key(c.name+' '+c.uid).includes(key(args.query)));return {total:found.length,rows:found.slice(args.page*50,args.page*50+50)};}
+      if(command==='club_detail')return {profile:{...clubRows.find(c=>c.uid===args.uid),playerUids:[600],staffUids:[4950,600]},players:[{uid:600,name:player.name,ca:140,pa:150}],staff:[{uid:4950,name:'Rui Águas',role:'Treinador adjunto',isPlayer:false},{uid:600,name:'Pär Zetterberg',role:'Jogador',isPlayer:true}]};
       if (command === 'search_players') return { total: 1, rows: [{ uid: 600, name: player.name, club: player.club, age: 32, ca: 140, pa: 150 }] };
       if (command === 'search_staff') {
         const found = profiles.filter(p => key([p.uid, p.name, p.team, p.clubJob, p.nationalTeam, p.nationalJob].join(' ')).includes(key(args.query)));
@@ -142,7 +145,39 @@ async page => {
   assert(await page.locator('#staff-search').inputValue() === '', 'Opening a save must reset staff query');
   assert(await page.locator('#staff-page-label').innerText() === '1 / 2', 'Opening a save must reset pagination');
   assert((await page.locator('#staff-profile').innerText()).includes('Escolha um membro do staff'), 'Opening a save must clear previous staff profile');
-  const result = { passed: true, checks: ['pagination', 'accentless search', 'role search', '11 staff controls', 'staff staging and review', 'staff undo/redo/clear', 'staff draft cancel/discard', 'dual-role navigation', 'player draft cancel/discard', 'save session reset', 'staff header policy/payload/projection/review/undo', 'staff personality staging/review/undo'], frontendErrors: errors };
+  await page.locator('#nav-clubs').click();
+  await page.locator('#club-results button').first().waitFor();
+  assert(await page.locator('#club-results button').count()===50,'Club first page must contain 50');
+  await page.locator('#club-next').click();
+  await page.locator('#club-page-label').filter({hasText:'2 / 2'}).waitFor();
+  assert(await page.locator('#club-results button').count()===1,'Club last page must contain one');
+  await page.locator('#club-search').fill('sao joao');
+  await page.locator('#club-results button').filter({hasText:'São João'}).waitFor();
+  assert(await page.locator('#club-results button').count()===1,'Club search must ignore accents');
+  await page.locator('#club-results button').click();
+  await page.locator('#club-profile h2').filter({hasText:'Clube de São João'}).waitFor();
+  assert(await page.locator('[data-club-player="600"]').count()===1&&await page.locator('[data-club-staff="600"]').count()===1,'Dual role may appear in both club groups');
+  await page.screenshot({path:'reports/v06-clubs-ui.png'});
+  await page.locator('[data-club-player="600"]').click();
+  await page.locator('#profile h2').filter({hasText:'Pär Zetterberg'}).waitFor();
+  assert(await page.locator('#players-view').isVisible(),'Club member must open player');
+  await page.locator('[data-field="passing"]').fill('20');
+  page.once('dialog',dialog=>dialog.dismiss());await page.locator('#nav-clubs').click();
+  assert(await page.locator('#players-view').isVisible(),'Cancel must retain player draft before club navigation');
+  page.once('dialog',dialog=>dialog.accept());await page.locator('#nav-clubs').click();
+  await page.locator('#club-results button').first().waitFor();
+  assert(await page.locator('[data-field="passing"]').inputValue()==='15','Discard on club navigation must reset player draft');
+  await page.locator('[data-club-staff="4950"]').click();
+  await page.locator('#staff-profile h2').filter({hasText:'Rui Águas'}).waitFor();
+  assert(await page.locator('#staff-view').isVisible(),'Club staff must open professional profile');
+  await page.locator('#nav-clubs').click();
+  await page.locator('#open-save').click();
+  await page.locator('#status').filter({hasText:'Save carregado'}).waitFor();
+  await page.locator('#nav-clubs').click();
+  await page.locator('#club-results button').first().waitFor();
+  assert(await page.locator('#club-search').inputValue()===''&&await page.locator('#club-page-label').innerText()==='1 / 2','New save must reset club search and page');
+  assert((await page.locator('#club-profile').innerText()).includes('Escolha um clube'),'New save must clear selected club');
+  const result = { passed: true, checks: ['pagination', 'accentless search', 'role search', '11 staff controls', 'staff staging and review', 'staff undo/redo/clear', 'staff draft cancel/discard', 'dual-role navigation', 'player draft cancel/discard', 'save session reset', 'staff header policy/payload/projection/review/undo', 'staff personality staging/review/undo', 'club pagination/search', 'club player/staff navigation', 'club draft guard', 'club session reset'], frontendErrors: errors };
   await page.evaluate(value => { window.__staffUiResult = value; }, result);
   return result;
 }
