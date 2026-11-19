@@ -1,0 +1,24 @@
+{
+  "copy": "tauri_staff_v067d.cm4",
+  "copySha256": "c022b9032c0d17e4e9f8c8036fd2d0f85ffcbd3453230504874622a01e00d2b8",
+  "dateObserved": "2003-07-26 00:00",
+  "sourceSha256": "1e2280f838e8516d4da69c3b15faf01df9ec7cd085a03f56a58e0f516894d3b4",
+  "originalLaterSha256": "489ecfb97a416fd50f605eb37f8c6002ca10c0104a995552b0391b729bb2e584",
+  "uid": 4950,
+  "attribute": "coachingOutfieldPlayers",
+  "value": 20,
+  "currentAbility": 70,
+  "potentialAbility": 140,
+  "professionalAttributesPreserved": true,
+  "reputationBefore": [
+    2500,
+    2500,
+    1000
+  ],
+  "reputationAfter": [
+    2491,
+    2491,
+    1000
+  ],
+  "verifiedInGameAfterRestart": true
+}

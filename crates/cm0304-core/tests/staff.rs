@@ -11,6 +11,102 @@ fn sample(name: &str) -> Vec<u8> {
 }
 
 #[test]
+fn staff_plan_replaces_targets_reverts_and_rejects_invalid_submissions_atomically() {
+    use cm0304_core::staff_editor::{Edit, merge_plan};
+    let input = sample("save_inicial.cm4");
+    let (db, base) = database::load(&input).unwrap();
+    let profiles = staff::profiles(&db, &input, base).unwrap();
+    let edit = |uid, attribute: &str, value| Edit {
+        uid,
+        attribute: attribute.into(),
+        value,
+    };
+    let first = merge_plan(
+        &profiles,
+        &[],
+        vec![edit(4950, "coachingOutfieldPlayers", 20)],
+    )
+    .unwrap();
+    assert_eq!(first.len(), 1);
+    assert_eq!(merge_plan(&profiles, &first, first.clone()).unwrap(), first);
+    let replaced = merge_plan(
+        &profiles,
+        &first,
+        vec![
+            edit(4950, "coachingOutfieldPlayers", 19),
+            edit(600, "judgingPlayerAbility", 20),
+        ],
+    )
+    .unwrap();
+    assert_eq!(replaced.len(), 2);
+    assert_eq!(replaced.iter().find(|e| e.uid == 4950).unwrap().value, 19);
+    let reverted = merge_plan(
+        &profiles,
+        &replaced,
+        vec![edit(4950, "coachingOutfieldPlayers", 12)],
+    )
+    .unwrap();
+    assert_eq!(reverted, vec![edit(600, "judgingPlayerAbility", 20)]);
+    assert!(
+        merge_plan(
+            &profiles,
+            &reverted,
+            vec![edit(600, "judgingPlayerAbility", 15)]
+        )
+        .unwrap()
+        .is_empty()
+    );
+    let snapshot = first.clone();
+    for invalid in [
+        edit(4950, "discipline", 0),
+        edit(4950, "discipline", 21),
+        edit(i32::MAX, "discipline", 20),
+        edit(4950, "unknown", 20),
+    ] {
+        assert!(
+            merge_plan(
+                &profiles,
+                &first,
+                vec![edit(4950, "discipline", 20), invalid]
+            )
+            .is_err()
+        );
+        assert_eq!(first, snapshot);
+    }
+    assert!(merge_plan(&profiles, &first, vec![first[0].clone(), first[0].clone()]).is_err());
+    assert!(merge_plan(&profiles, &[first[0].clone(), first[0].clone()], vec![]).is_err());
+    let mut altered = profiles.clone();
+    let rui = altered.iter_mut().find(|p| p.uid == 4950).unwrap();
+    rui.current_ability = 200;
+    assert!(
+        merge_plan(
+            &altered,
+            &first,
+            vec![edit(4950, "coachingOutfieldPlayers", 1)]
+        )
+        .is_err()
+    );
+    let rui_offset = profiles
+        .iter()
+        .find(|p| p.uid == 4950)
+        .unwrap()
+        .attributes_offset;
+    altered
+        .iter_mut()
+        .find(|p| p.uid == 600)
+        .unwrap()
+        .attributes_offset = rui_offset;
+    assert!(
+        merge_plan(&altered, &first, vec![edit(4950, "discipline", 20)])
+            .unwrap_err()
+            .contains("compartilhado")
+    );
+    let rui = altered.iter_mut().find(|p| p.uid == 4950).unwrap();
+    rui.attributes = None;
+    assert!(merge_plan(&altered, &first, vec![edit(4950, "discipline", 20)]).is_err());
+}
+
+#[test]
 fn staff_attribute_transaction_preserves_players_and_only_changes_planned_bytes() {
     use cm0304_core::staff_editor::{self, Edit};
     for name in ["save_inicial.cm4", "save_modificado.cm4"] {

@@ -38,6 +38,61 @@ pub const EDITABLE: [&str; 11] = [
     "discipline",
 ];
 
+/// Merge intentions against the original snapshot; failures never mutate the old plan.
+pub fn merge_plan(
+    profiles: &[staff::Staff],
+    previous: &[Edit],
+    edits: Vec<Edit>,
+) -> Result<Vec<Edit>> {
+    let index = profiles
+        .iter()
+        .map(|p| (p.uid, p))
+        .collect::<BTreeMap<_, _>>();
+    let mut next = previous
+        .iter()
+        .cloned()
+        .map(|e| ((e.uid, e.attribute.clone()), e))
+        .collect::<BTreeMap<_, _>>();
+    if next.len() != previous.len() {
+        return Err("Plano de staff contém campos repetidos".into());
+    }
+    let mut seen = BTreeSet::new();
+    for edit in edits {
+        let key = (edit.uid, edit.attribute.clone());
+        if !seen.insert(key.clone()) {
+            return Err("Campo de staff repetido na mesma operação".into());
+        }
+        if !EDITABLE.contains(&edit.attribute.as_str()) {
+            return Err("Campo de staff sem edição suportada".into());
+        }
+        let profile = index.get(&edit.uid).ok_or("Staff não encontrado")?;
+        let original = profile
+            .attributes
+            .as_ref()
+            .and_then(|a| a.get(&edit.attribute))
+            .ok_or("Staff sem atributo disponível")?;
+        let raw = profile
+            .raw_attributes
+            .as_ref()
+            .and_then(|a| a.get(&edit.attribute))
+            .ok_or("Staff sem atributo bruto disponível")?;
+        let record = profile.attributes_offset.ok_or("Staff sem atributos")?;
+        if profiles
+            .iter()
+            .any(|p| p.uid != edit.uid && p.attributes_offset == Some(record))
+        {
+            return Err("Registro de atributos de staff compartilhado".into());
+        }
+        staff::encode_attribute(&edit.attribute, edit.value, profile.current_ability, *raw)?;
+        if edit.value == *original {
+            next.remove(&key);
+        } else {
+            next.insert(key, edit);
+        }
+    }
+    Ok(next.into_values().collect())
+}
+
 pub fn apply(input: &[u8], edits: &[Edit]) -> Result<(Vec<u8>, Vec<Change>)> {
     if edits.is_empty() {
         return Err("Plano de staff vazio".into());

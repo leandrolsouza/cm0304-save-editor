@@ -336,34 +336,8 @@ async fn stage_staff_edits(
     let data = loaded(&state)?;
     let previous = state.lock().map_err(|e| e.to_string())?.plan.clone();
     let mut next = previous.clone();
-    let mut seen = std::collections::BTreeSet::new();
-    for edit in edits {
-        if !seen.insert((edit.uid, edit.attribute.clone())) {
-            return Err("Campo de staff repetido na mesma operação".into());
-        }
-        if !cm0304_core::staff_editor::EDITABLE.contains(&edit.attribute.as_str())
-            || !(1..=20).contains(&edit.value)
-        {
-            return Err("Campo ou valor de staff inválido".into());
-        }
-        let profile = data
-            .staff
-            .iter()
-            .find(|p| p.uid == edit.uid)
-            .ok_or("Staff não encontrado")?;
-        let original = profile
-            .attributes
-            .as_ref()
-            .and_then(|a| a.get(&edit.attribute))
-            .ok_or("Staff sem atributo disponível")?;
-        next.staff_edits
-            .retain(|e| e.uid != edit.uid || e.attribute != edit.attribute);
-        if edit.value != *original {
-            next.staff_edits.push(edit);
-        }
-    }
-    next.staff_edits
-        .sort_by(|a, b| (a.uid, &a.attribute).cmp(&(b.uid, &b.attribute)));
+    next.staff_edits =
+        cm0304_core::staff_editor::merge_plan(&data.staff, &previous.staff_edits, edits)?;
     if !next.is_empty() {
         let bytes = data.bytes.clone();
         let plan = next.clone();
