@@ -1,0 +1,68 @@
+{
+  "file": "v06_staff_fix8d.cm4",
+  "sha256": "0c0f9765e8b84332524ab023c38ff09f4f1ae953c8360bed669e97b10dbacdbb",
+  "dateObserved": "2003-07-27 10:00",
+  "daysAdvanced": 8,
+  "cases": [
+    {
+      "uid": 4950,
+      "name": "Rui Águas",
+      "staffCa": 100,
+      "playerCa": null,
+      "staffPa": 180,
+      "reputationBefore": [
+        8000,
+        8500,
+        9000
+      ],
+      "reputationAfter": [
+        7986,
+        8486,
+        9000
+      ],
+      "professionalRatingsPreserved": true
+    },
+    {
+      "uid": 600,
+      "name": "Pär Zetterberg",
+      "staffCa": 100,
+      "playerCa": 147,
+      "staffPa": 180,
+      "reputationBefore": [
+        7000,
+        7500,
+        8000
+      ],
+      "reputationAfter": [
+        7000,
+        7500,
+        8000
+      ],
+      "professionalRatingsPreserved": true
+    }
+  ],
+  "nativeReloadVerified": true,
+  "nativeProfessionalValues": {
+    "rui": {
+      "coachingOutfieldPlayers": 14,
+      "coachingGoalkeepers": 8,
+      "physiotherapy": 9,
+      "tacticalKnowledge": 10,
+      "manManagement": 19,
+      "motivating": 16,
+      "judgingPlayerAbility": 14,
+      "judgingPlayerPotential": 14,
+      "reputationCategory": "Muito Boa"
+    },
+    "par": {
+      "coachingOutfieldPlayers": 20,
+      "coachingGoalkeepers": 15,
+      "physiotherapy": 15,
+      "tacticalKnowledge": 17,
+      "manManagement": 12,
+      "motivating": 17,
+      "judgingPlayerAbility": 15,
+      "judgingPlayerPotential": 15
+    }
+  }
+}
