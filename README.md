@@ -10,9 +10,9 @@ A prévia **0.5.0-alpha.1** acrescenta estado, valores e contratos existentes. L
 
 ## Aplicativo desktop
 
-A consulta de staff foi integrada ao código do Tauri, com busca, paginação, funções e navegação jogador/staff. O frontend passou testes com respostas controladas; execução nativa com save real e edição de staff continuam pendentes. Veja [validação da consulta de staff](reports/v0.6-staff-ui.md).
+A consulta de staff foi integrada ao Tauri, com busca, paginação, funções e navegação jogador/staff. O fluxo nativo com save real passou abertura, consulta, edição de treino de campo de Rui Águas, revisão, desfazer/refazer e gravação. A cópia carregou no CM0304 com o alvo 20. Veja [validação nativa de staff](reports/v0.6-staff-native.md).
 
-O núcleo também oferece conversão de atributos profissionais e escrita experimental de 11 atributos de staff pelo plano CLI e pela interface, com revisão e desfazer/refazer. Os testes preservam os dados de jogador em pessoas com dupla função. Dez verificações de frontend passaram com IPC controlado; execução nativa desse fluxo e ciclo da cópia no jogo ainda estão pendentes. Detalhes em [escrita de staff](reports/v0.6-staff-editing.md).
+O núcleo também oferece conversão de atributos profissionais e escrita experimental de 11 atributos de staff pelo plano CLI e pela interface, com revisão e desfazer/refazer. Os testes preservam os dados de jogador em pessoas com dupla função. Dez verificações de frontend passaram com IPC controlado. Evolução, regravação e recarga da cópia de staff no jogo ainda estão pendentes. Detalhes em [escrita de staff](reports/v0.6-staff-editing.md).
 
 ```powershell
 npm install
