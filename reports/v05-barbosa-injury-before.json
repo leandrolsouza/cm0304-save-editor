@@ -1,0 +1,133 @@
+[
+  {
+    "club": "Sporting Clube de Portugal",
+    "databaseBase": 4054218,
+    "injuryCandidates": [
+      {
+        "dateCandidate": {
+          "day": 213,
+          "year": 2003
+        },
+        "durationWordsUnconfirmed": [
+          14,
+          17
+        ],
+        "flagsUnconfirmed": [
+          1,
+          0
+        ],
+        "injuryIndexCandidate": 24,
+        "offset": 10811201,
+        "typeCandidate": {
+          "category": 3,
+          "chance": 8,
+          "extraDaysOut": 40,
+          "id": 24,
+          "inactiveRatio": 60,
+          "minimumDaysOut": 20,
+          "name": "lesão na rótula",
+          "recurring": false,
+          "sentenceName": "uma lesão na rótula",
+          "severity": 2,
+          "uid": 25
+        }
+      }
+    ],
+    "injuryViews": [
+      {
+        "name": "lesão na rótula",
+        "recordedOn": {
+          "day": 213,
+          "year": 2003
+        }
+      }
+    ],
+    "name": "Pedro Barbosa",
+    "records": {
+      "banCountOffset": 10811241,
+      "bans": [],
+      "bookings": [],
+      "injuries": [
+        {
+          "bytes": [
+            24,
+            0,
+            0,
+            0,
+            213,
+            0,
+            211,
+            7,
+            80,
+            0,
+            1,
+            80,
+            0,
+            1,
+            0,
+            154,
+            3,
+            0,
+            0,
+            0,
+            97,
+            1,
+            0,
+            0,
+            1,
+            1,
+            92,
+            6,
+            0,
+            0,
+            213,
+            0,
+            211,
+            7,
+            14,
+            0,
+            17,
+            0,
+            1,
+            0
+          ],
+          "offset": 10811201
+        }
+      ],
+      "injuryCountOffset": 10811200,
+      "injuryStatus": {
+        "bytes": [
+          227,
+          0,
+          211,
+          7,
+          216,
+          0,
+          211,
+          7,
+          255,
+          255,
+          255,
+          255,
+          0,
+          230,
+          0,
+          0,
+          0,
+          0,
+          24,
+          0,
+          0,
+          0,
+          0,
+          14,
+          0,
+          30
+        ],
+        "offset": 10811243
+      },
+      "injuryStatusFlagOffset": 10811242
+    },
+    "uid": 13352
+  }
+]

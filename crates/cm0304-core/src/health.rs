@@ -27,8 +27,10 @@ impl RemovalKind {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InjuryView {
     pub name: String,
+    pub recorded_on: Option<database::Date>,
 }
 pub fn injuries(db: &database::Database, person: &database::Person) -> Vec<InjuryView> {
     person
@@ -46,11 +48,64 @@ pub fn injuries(db: &database::Database, person: &database::Person) -> Vec<Injur
                             .get(index as usize)
                             .map(|v| v.name.clone())
                             .unwrap_or_else(|| "Lesão não identificada".into()),
+                        recorded_on: injury_date(record, &db.game_date),
                     }
                 })
                 .collect()
         })
         .unwrap_or_default()
+}
+
+fn injury_date(record: &database::RecordSpan, today: &database::Date) -> Option<database::Date> {
+    // The date precedes the two duration words and flags in every fixture variant.
+    let tail = record.bytes.get(record.bytes.len().checked_sub(10)?..)?;
+    let date = database::Date {
+        day: u16::from_le_bytes([tail[0], tail[1]]),
+        year: u16::from_le_bytes([tail[2], tail[3]]),
+    };
+    (date.year > 1900
+        && date.month_day().is_some()
+        && (date.year, date.day) <= (today.year, today.day))
+        .then_some(date)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn injury_dates_follow_variable_record_tails_and_omit_unknown_or_invalid_dates() {
+        let today = database::Date {
+            day: 200,
+            year: 2003,
+        };
+        for length in [38, 40, 42, 44] {
+            let mut record = database::RecordSpan {
+                offset: 0,
+                bytes: vec![255; length],
+            };
+            let start = length - 10;
+            record.bytes[start..start + 4].copy_from_slice(&[193, 0, 211, 7]);
+            let date = injury_date(&record, &today).unwrap();
+            assert_eq!(date.month_day(), Some((7, 13)));
+            // An invalid non-leap ordinal and a future date must never appear as a real injury date.
+            record.bytes[start..start + 2].copy_from_slice(&365u16.to_le_bytes());
+            assert!(injury_date(&record, &today).is_none());
+            record.bytes[start..start + 2].copy_from_slice(&201u16.to_le_bytes());
+            assert!(injury_date(&record, &today).is_none());
+            record.bytes[start..start + 4].fill(255);
+            assert!(injury_date(&record, &today).is_none());
+        }
+        assert!(
+            injury_date(
+                &database::RecordSpan {
+                    offset: 0,
+                    bytes: vec![]
+                },
+                &today
+            )
+            .is_none()
+        );
+    }
 }
 
 #[derive(Debug, Serialize)]

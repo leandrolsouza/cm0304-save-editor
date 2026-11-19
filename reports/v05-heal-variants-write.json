@@ -1,0 +1,29 @@
+{
+  "sourceSha256": "489ecfb97a416fd50f605eb37f8c6002ca10c0104a995552b0391b729bb2e584",
+  "copySha256": "3a2692cdb391a4808a6109076673600502e5f5896e49115207e58307a0bb4f6e",
+  "sizeBefore": 43291545,
+  "sizeAfter": 43291463,
+  "fieldChangedBytes": 0,
+  "removedBytes": 82,
+  "changes": [],
+  "removals": [
+    {
+      "kind": "injuries",
+      "uid": 56,
+      "name": "Demetrio Albertini",
+      "count": 1,
+      "countOffset": 14517141,
+      "offset": 14517142,
+      "removedBytes": 42
+    },
+    {
+      "kind": "injuries",
+      "uid": 13352,
+      "name": "Pedro Barbosa",
+      "count": 1,
+      "countOffset": 14865418,
+      "offset": 14865419,
+      "removedBytes": 40
+    }
+  ]
+}

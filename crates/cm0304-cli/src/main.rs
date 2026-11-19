@@ -175,7 +175,7 @@ fn run() -> Result<()> {
                             "typeCandidate":injury,"dateCandidate":{"day":word(0),"year":word(2)},
                             "durationWordsUnconfirmed":[word(4),word(6)],"flagsUnconfirmed":[tail[8],tail[9]]}))
                     }).collect::<Vec<_>>();
-                    Some(serde_json::json!({"uid":p.uid,"name":p.name,"club":p.club,"databaseBase":base,"records":health,"injuryCandidates":candidates}))
+                    Some(serde_json::json!({"uid":p.uid,"name":p.name,"club":p.club,"databaseBase":base,"records":health,"injuryViews":cm0304_core::health::injuries(&db,person),"injuryCandidates":candidates}))
                 }).collect::<Vec<_>>();
                 println!(
                     "{}",

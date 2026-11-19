@@ -83,6 +83,12 @@ fn reads_existing_contracts_state_and_loan_entities_without_changing_layout() {
     assert_eq!(ankle.name, "entorse dos ligamentos do tornozelo");
     assert_eq!((ankle.id, ankle.uid), (11, 12));
     assert_eq!((ankle.minimum_days_out, ankle.extra_days_out), (15, 30));
+    let hoekstra =
+        cm0304_core::health::injuries(&db, db.people.iter().find(|p| p.uid == 356).unwrap());
+    assert_eq!(hoekstra.len(), 1);
+    assert_eq!(hoekstra[0].name, "entorse dos ligamentos do tornozelo");
+    let recorded = hoekstra[0].recorded_on.as_ref().unwrap();
+    assert_eq!((recorded.year, recorded.month_day()), (2003, Some((7, 13))));
     assert_eq!(db.players(base).unwrap().len(), 22062);
     let player = |uid| db.people.iter().find(|p| p.uid == uid).unwrap();
     let clodoaldo = player(2001642);

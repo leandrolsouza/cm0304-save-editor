@@ -1,0 +1,135 @@
+[
+  {
+    "club": "Lázio",
+    "databaseBase": 4054218,
+    "injuryCandidates": [
+      {
+        "dateCandidate": {
+          "day": 224,
+          "year": 2003
+        },
+        "durationWordsUnconfirmed": [
+          96,
+          123
+        ],
+        "flagsUnconfirmed": [
+          1,
+          0
+        ],
+        "injuryIndexCandidate": 34,
+        "offset": 10462924,
+        "typeCandidate": {
+          "category": 4,
+          "chance": 8,
+          "extraDaysOut": 100,
+          "id": 34,
+          "inactiveRatio": 60,
+          "minimumDaysOut": 90,
+          "name": "perna partida",
+          "recurring": false,
+          "sentenceName": "uma perna partida",
+          "severity": 2,
+          "uid": 35
+        }
+      }
+    ],
+    "injuryViews": [
+      {
+        "name": "perna partida",
+        "recordedOn": {
+          "day": 224,
+          "year": 2003
+        }
+      }
+    ],
+    "name": "Demetrio Albertini",
+    "records": {
+      "banCountOffset": 10462966,
+      "bans": [],
+      "bookings": [],
+      "injuries": [
+        {
+          "bytes": [
+            34,
+            0,
+            0,
+            0,
+            224,
+            0,
+            211,
+            7,
+            185,
+            1,
+            5,
+            185,
+            1,
+            31,
+            0,
+            1,
+            0,
+            227,
+            2,
+            0,
+            0,
+            0,
+            176,
+            14,
+            0,
+            0,
+            4,
+            2,
+            186,
+            8,
+            0,
+            0,
+            224,
+            0,
+            211,
+            7,
+            96,
+            0,
+            123,
+            0,
+            1,
+            0
+          ],
+          "offset": 10462924
+        }
+      ],
+      "injuryCountOffset": 10462923,
+      "injuryStatus": {
+        "bytes": [
+          226,
+          0,
+          211,
+          7,
+          226,
+          0,
+          211,
+          7,
+          255,
+          255,
+          255,
+          255,
+          0,
+          255,
+          255,
+          255,
+          255,
+          0,
+          34,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          21
+        ],
+        "offset": 10462968
+      },
+      "injuryStatusFlagOffset": 10462967
+    },
+    "uid": 56
+  }
+]
