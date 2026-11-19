@@ -61,6 +61,15 @@ cargo run --offline -p cm0304-cli -- health-cases "origem.cm4"
 
 As consultas `players`, `career` e `health` aceitam `uid:<número>` para igualdade exata. Sem o prefixo, a pesquisa é textual e pode retornar UIDs que apenas contenham os dígitos informados.
 
+## Diagnóstico de staff
+
+```powershell
+cargo run --offline -p cm0304-cli -- staff "origem.cm4" "Braga"
+cargo run --offline -p cm0304-cli -- staff "origem.cm4" "uid:4950"
+```
+
+Leitura separada do modelo de jogadores, com vínculos de clube/seleção e atributos brutos. Não oferece escrita nem conversão validada para 1–20. Evidências e pendências em `reports/v0.6-staff-research.md`.
+
 ## Referências de Tauri
 
 - [Comandos Rust](https://v2.tauri.app/develop/calling-rust/)

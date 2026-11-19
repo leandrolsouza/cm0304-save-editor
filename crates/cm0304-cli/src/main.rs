@@ -50,7 +50,7 @@ fn run() -> Result<()> {
         return Ok(());
     }
     if a.len() < 2 {
-        return Err("Usage: cm0304-cli inspect <save> | players <save> [query] | career <save> [query] | health <save> [query] | health-cases <save> | injury-types <save> | career-summary <save> | export <save> <json> | edit <save> <new-copy> <fields.json> | apply-plan <save> <new-copy> <transaction.json>".into());
+        return Err("Usage: cm0304-cli inspect <save> | staff <save> [query or uid:number] | players <save> [query] | career <save> [query] | health <save> [query] | health-cases <save> | injury-types <save> | career-summary <save> | export <save> <json> | edit <save> <new-copy> <fields.json> | apply-plan <save> <new-copy> <transaction.json>".into());
     }
     let bytes = fs::read(&a[1]).map_err(|e| e.to_string())?;
     if command == "inspect" {
@@ -89,6 +89,34 @@ fn run() -> Result<()> {
         println!(
             "{}",
             serde_json::to_string_pretty(&summary).map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
+    if command == "staff" {
+        let mut rows = cm0304_core::staff::profiles(&db, &bytes, base)?;
+        if let Some(query) = a.get(2) {
+            if let Some(uid) = query.strip_prefix("uid:") {
+                let uid = uid.parse::<i32>().map_err(|_| "UID inválido")?;
+                rows.retain(|p| p.uid == uid);
+            } else {
+                let query = search::key(query);
+                rows.retain(|p| {
+                    search::key(&format!(
+                        "{} {} {} {} {} {}",
+                        p.uid,
+                        p.name,
+                        p.team.as_deref().unwrap_or(""),
+                        p.club_job,
+                        p.national_team.as_deref().unwrap_or(""),
+                        p.national_job,
+                    ))
+                    .contains(&query)
+                });
+            }
+        }
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&rows).map_err(|e| e.to_string())?
         );
         return Ok(());
     }

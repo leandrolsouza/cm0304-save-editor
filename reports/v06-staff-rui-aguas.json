@@ -1,0 +1,61 @@
+[
+  {
+    "uid": 4950,
+    "name": "Rui Águas",
+    "personKind": 1,
+    "isPlayer": false,
+    "isHuman": false,
+    "team": "Sporting Clube de Braga",
+    "clubJobRaw": 20,
+    "clubJob": "Treinador adjunto",
+    "nationalTeam": null,
+    "nationalJobRaw": 0,
+    "nationalJob": "Não informado",
+    "nation": "Portugal",
+    "dateOfBirth": {
+      "day": 118,
+      "year": 1960
+    },
+    "reputation": [
+      2500,
+      2500,
+      1000
+    ],
+    "currentAbility": 70,
+    "potentialAbility": 140,
+    "preferredFormationRaw": 0,
+    "attributeIndex": 157,
+    "rawAttributes": {
+      "attacking": 12,
+      "business": 7,
+      "buyingPlayers": 7,
+      "coachingGoalkeepers": -37,
+      "coachingOutfieldPlayers": 8,
+      "coachingTechnique": 17,
+      "determination": 12,
+      "directness": 6,
+      "discipline": 7,
+      "freeRoles": 13,
+      "interference": 7,
+      "judgingPlayerAbility": 13,
+      "judgingPlayerPotential": 8,
+      "manManagement": 45,
+      "marking": 5,
+      "mindGames": 1,
+      "motivating": 23,
+      "offside": 1,
+      "patience": 8,
+      "physiotherapy": -32,
+      "pressing": 6,
+      "resources": 8,
+      "sellingPlayers": 1,
+      "sittingBack": 4,
+      "tacticalKnowledge": -22,
+      "useOfPlaymaker": 9,
+      "useOfSubs": 8,
+      "workingWithYoungsters": 17
+    },
+    "infoOffset": 12219507,
+    "attributesOffset": 21315876
+  }
+]
