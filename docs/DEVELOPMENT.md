@@ -87,6 +87,8 @@ O frontend de consulta também pode ser verificado em navegador isolado com IPC 
 
 Na dupla função, alterar CA de jogador também pode recalcular atributos profissionais. O relatório transacional inclui esses efeitos derivados mesmo sem mudança no byte de staff e consolida alvos explícitos contra a origem. A política de jogador preserva seu grupo de atributos; use alvos profissionais para ajustar esse outro grupo. Verificação em `reports/v0.6-dual-staff-review.md`.
 
+`staffEdits` também aceita `personality.adaptability`, `ambition`, `loyalty`, `pressure`, `professionalism`, `sportsmanship`, `temperament` e `controversy`, todos com prefixo `personality.` e valores1–20. O registro é comum à pessoa. Referências compartilhadas entre pessoas e intenções conflitantes entre os grupos de jogador/staff são recusadas. Plano de exemplo em `reports/v06-staff-personality-plan.json`, evidência e pendências em `reports/v0.6-staff-personality.md`.
+
 ## Referências de Tauri
 
 - [Comandos Rust](https://v2.tauri.app/develop/calling-rust/)

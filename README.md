@@ -18,6 +18,8 @@ CA/PA e reputação de staff têm escrita experimental pelo plano CLI e formulá
 
 A conferência nativa corrigiu a conversão de jogador/staff: seus atributos profissionais usam a CA da função de jogador. O erro da cópia anterior foi corrigido e a nova cópia preservou os alvos após evolução e recarga; detalhes em [correção da dupla função](reports/v0.6-dual-staff-correction.md).
 
+Oito campos de personalidade também têm escrita experimental no núcleo e controles no formulário de staff, compartilhando os dados pessoais com o perfil de jogador quando há dupla função. Dois testes de integração e 12 verificações de frontend passaram; o ciclo nativo dessa edição ainda está pendente. Veja [personalidade de staff](reports/v0.6-staff-personality.md).
+
 ```powershell
 npm install
 npm run build:desktop

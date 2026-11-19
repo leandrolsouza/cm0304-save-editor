@@ -38,6 +38,22 @@ pub const EDITABLE: [&str; 11] = [
     "discipline",
 ];
 
+pub fn is_editable(key: &str) -> bool {
+    EDITABLE.contains(&key)
+        || key
+            .strip_prefix("personality.")
+            .is_some_and(|k| database::PERSONALITY_FIELDS.contains(&k))
+}
+
+pub fn value(profile: &staff::Staff, key: &str) -> Result<i8> {
+    let v = if let Some(key) = key.strip_prefix("personality.") {
+        profile.personality.as_ref().and_then(|a| a.get(key))
+    } else {
+        profile.attributes.as_ref().and_then(|a| a.get(key))
+    };
+    v.copied().ok_or("Staff sem campo disponível".into())
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AbilityProjection {
@@ -118,10 +134,21 @@ pub fn merge_plan(
         if !seen.insert(key.clone()) {
             return Err("Campo de staff repetido na mesma operação".into());
         }
-        if !EDITABLE.contains(&edit.attribute.as_str()) {
+        if !is_editable(&edit.attribute) {
             return Err("Campo de staff sem edição suportada".into());
         }
         let profile = index.get(&edit.uid).ok_or("Staff não encontrado")?;
+        if edit.attribute.starts_with("personality.") {
+            if !(1..=20).contains(&edit.value) {
+                return Err("Personalidade deve estar entre 1 e 20".into());
+            }
+            if value(profile, &edit.attribute)? == edit.value {
+                next.remove(&key);
+            } else {
+                next.insert(key, edit);
+            }
+            continue;
+        }
         let original = profile
             .attributes
             .as_ref()
@@ -171,13 +198,62 @@ pub fn apply(input: &[u8], edits: &[Edit]) -> Result<(Vec<u8>, Vec<Change>)> {
         if !seen.insert((edit.uid, edit.attribute.as_str())) {
             return Err("Campo de staff repetido na mesma operação".into());
         }
-        if !EDITABLE.contains(&edit.attribute.as_str()) {
+        if !is_editable(&edit.attribute) {
             return Err(format!(
                 "Campo de staff sem edição suportada: {}",
                 edit.attribute
             ));
         }
         let profile = index.get(&edit.uid).ok_or("Staff não encontrado")?;
+        if let Some(key) = edit.attribute.strip_prefix("personality.") {
+            if !(1..=20).contains(&edit.value) {
+                return Err("Personalidade deve estar entre 1 e 20".into());
+            }
+            let person = db
+                .people
+                .iter()
+                .find(|p| p.uid == edit.uid)
+                .ok_or("Pessoa de staff ausente")?;
+            if db
+                .people
+                .iter()
+                .filter(|p| p.personality == person.personality)
+                .count()
+                != 1
+            {
+                return Err("Personalidade compartilhada entre pessoas".into());
+            }
+            let index =
+                usize::try_from(person.personality).map_err(|_| "Staff sem personalidade")?;
+            let record = *db
+                .personality_offsets
+                .get(index)
+                .ok_or("Referência de personalidade inválida")?;
+            let field = database::PERSONALITY_FIELDS
+                .iter()
+                .position(|k| *k == key)
+                .ok_or("Campo de personalidade inválido")?;
+            let offset = base + record + field;
+            let before = value(profile, &edit.attribute)?;
+            let byte = output.get_mut(offset).ok_or("Personalidade truncada")?;
+            if *byte as i8 != before {
+                return Err("Byte de personalidade diverge do modelo".into());
+            }
+            *byte = edit.value as u8;
+            if before != edit.value {
+                changes.push(Change {
+                    uid: profile.uid,
+                    name: profile.name.clone(),
+                    attribute: edit.attribute.clone(),
+                    before,
+                    after: edit.value,
+                    raw_before: before,
+                    raw_after: edit.value,
+                    offset,
+                });
+            }
+            continue;
+        }
         let record = profile.attributes_offset.ok_or("Staff sem atributos")?;
         if profiles
             .iter()
@@ -225,12 +301,7 @@ pub fn apply(input: &[u8], edits: &[Edit]) -> Result<(Vec<u8>, Vec<Change>)> {
             .iter()
             .find(|p| p.uid == edit.uid)
             .ok_or("Staff perdido após edição")?;
-        if profile
-            .attributes
-            .as_ref()
-            .ok_or("Atributos perdidos após edição")?[&edit.attribute]
-            != edit.value
-        {
+        if value(profile, &edit.attribute)? != edit.value {
             return Err("Releitura de staff divergiu do plano".into());
         }
     }

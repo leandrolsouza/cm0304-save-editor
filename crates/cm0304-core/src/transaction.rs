@@ -105,11 +105,19 @@ impl Transaction {
             .collect::<BTreeMap<_, _>>();
         let mut seen = BTreeSet::new();
         for edit in edits {
+            if edit.attribute.starts_with("personality.")
+                && next.edits.iter().any(|p| {
+                    p.uid == edit.uid
+                        && p.attribute == edit.attribute
+                        && p.value != i32::from(edit.value)
+                })
+            {
+                return Err("Alvos conflitantes de personalidade entre jogador e staff".into());
+            }
             if !seen.insert((edit.uid, edit.attribute.clone())) {
                 return Err("Campo de staff repetido".into());
             }
-            if !crate::staff_editor::EDITABLE.contains(&edit.attribute.as_str())
-                || !(1..=20).contains(&edit.value)
+            if !crate::staff_editor::is_editable(&edit.attribute) || !(1..=20).contains(&edit.value)
             {
                 return Err("Campo ou valor de staff inválido".into());
             }
@@ -117,15 +125,11 @@ impl Transaction {
                 .iter()
                 .find(|p| p.uid == edit.uid)
                 .ok_or("Staff não encontrado")?;
-            let original = p
-                .attributes
-                .as_ref()
-                .and_then(|a| a.get(&edit.attribute))
-                .ok_or("Staff sem atributo")?;
+            let original = crate::staff_editor::value(p, &edit.attribute)?;
             let dependent = crate::staff::RELATIVE.contains(&edit.attribute.as_str())
                 && dependencies.contains(&edit.uid);
             let key = (edit.uid, edit.attribute.clone());
-            if edit.value == *original && !dependent {
+            if edit.value == original && !dependent {
                 fields.remove(&key);
             } else {
                 fields.insert(key, edit);
@@ -135,9 +139,8 @@ impl Transaction {
             profiles
                 .iter()
                 .find(|p| p.uid == e.uid)
-                .and_then(|p| p.attributes.as_ref())
-                .and_then(|a| a.get(&e.attribute))
-                .is_none_or(|v| *v != e.value)
+                .and_then(|p| crate::staff_editor::value(p, &e.attribute).ok())
+                .is_none_or(|v| v != e.value)
                 || (crate::staff::RELATIVE.contains(&e.attribute.as_str())
                     && dependencies.contains(&e.uid))
         });
@@ -154,6 +157,17 @@ impl Transaction {
             && self.clear_suspensions.is_empty()
     }
     pub fn merge_fields(&mut self, players: &[Player], edits: Vec<Edit>) -> Result<()> {
+        for edit in &edits {
+            if edit.attribute.starts_with("personality.")
+                && self.staff_edits.iter().any(|s| {
+                    s.uid == edit.uid
+                        && s.attribute == edit.attribute
+                        && i32::from(s.value) != edit.value
+                })
+            {
+                return Err("Alvos conflitantes de personalidade entre jogador e staff".into());
+            }
+        }
         let previous = self
             .edits
             .iter()
@@ -183,6 +197,15 @@ pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
     if plan.is_empty() {
         return Err("Plano de alterações vazio".into());
     }
+    for e in &plan.staff_edits {
+        if e.attribute.starts_with("personality.")
+            && plan.edits.iter().any(|p| {
+                p.uid == e.uid && p.attribute == e.attribute && p.value != i32::from(e.value)
+            })
+        {
+            return Err("Alvos conflitantes de personalidade entre jogador e staff".into());
+        }
+    }
     // Fixed fields are applied first, while their source offsets still hold.
     let (fields_output, _, mut changes) = if plan.edits.is_empty() {
         (input.to_vec(), 0, Vec::new())
@@ -200,10 +223,11 @@ pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
         .staff_edits
         .iter()
         .filter(|e| {
-            !plan
-                .staff_header_edits
-                .iter()
-                .any(|h| h.uid == e.uid && h.current_ability.is_some())
+            !plan.staff_header_edits.iter().any(|h| {
+                h.uid == e.uid
+                    && h.current_ability.is_some()
+                    && crate::staff_editor::EDITABLE.contains(&e.attribute.as_str())
+            })
         })
         .cloned()
         .collect::<Vec<_>>();

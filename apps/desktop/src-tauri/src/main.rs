@@ -325,15 +325,23 @@ async fn staff_detail(uid: i32, state: State<'_, Shared>) -> Result<StaffDetail>
         .date_of_birth
         .as_ref()
         .and_then(|date| date.age_on(&data.game_date));
-    Ok(StaffDetail {
-        editable: if profile.attributes.is_some() {
-            cm0304_core::staff_editor::EDITABLE
+    let mut editable = if profile.attributes.is_some() {
+        cm0304_core::staff_editor::EDITABLE
+            .iter()
+            .map(|k| k.to_string())
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+    if profile.personality.is_some() {
+        editable.extend(
+            database::PERSONALITY_FIELDS
                 .iter()
-                .map(|k| k.to_string())
-                .collect()
-        } else {
-            Vec::new()
-        },
+                .map(|k| format!("personality.{k}")),
+        );
+    }
+    Ok(StaffDetail {
+        editable,
         profile,
         age,
         pending_player_fields,
@@ -413,24 +421,29 @@ async fn player_detail(uid: i32, state: State<'_, Shared>) -> Result<Detail> {
         .collect::<Vec<_>>();
     let heal_pending = plan.heal_injuries.contains(&uid);
     let suspension_pending = plan.clear_suspensions.contains(&uid);
-    let effective = if pending.is_empty() && !heal_pending && !suspension_pending {
-        p.clone()
-    } else {
-        let bytes = data.bytes.clone();
-        // Related entities can be necessary for validity (e.g. swapping shirts).
-        // Always project the complete transaction, then select this player.
-        let edits = plan;
-        tauri::async_runtime::spawn_blocking(move || -> Result<Player> {
-            let (output, _) = transaction::apply(&bytes, &edits)?;
-            let (db, base) = database::load(&output)?;
-            db.players(base)?
-                .into_iter()
-                .find(|p| p.uid == uid)
-                .ok_or("Jogador não encontrado após revisão".into())
-        })
-        .await
-        .map_err(|e| e.to_string())??
-    };
+    let shared_personality = plan
+        .staff_edits
+        .iter()
+        .any(|e| e.uid == uid && e.attribute.starts_with("personality."));
+    let effective =
+        if pending.is_empty() && !heal_pending && !suspension_pending && !shared_personality {
+            p.clone()
+        } else {
+            let bytes = data.bytes.clone();
+            // Related entities can be necessary for validity (e.g. swapping shirts).
+            // Always project the complete transaction, then select this player.
+            let edits = plan;
+            tauri::async_runtime::spawn_blocking(move || -> Result<Player> {
+                let (output, _) = transaction::apply(&bytes, &edits)?;
+                let (db, base) = database::load(&output)?;
+                db.players(base)?
+                    .into_iter()
+                    .find(|p| p.uid == uid)
+                    .ok_or("Jogador não encontrado após revisão".into())
+            })
+            .await
+            .map_err(|e| e.to_string())??
+        };
     Ok(Detail {
         player: p.clone(),
         age: effective.date_of_birth.age_on(&data.game_date),

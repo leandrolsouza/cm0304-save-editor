@@ -120,7 +120,10 @@ pub fn apply(
                 .policy
                 .ok_or("Escolha uma política para a CA de staff")?;
             let mut targets = BTreeMap::new();
-            for target in attributes.iter().filter(|a| a.uid == p.uid) {
+            for target in attributes
+                .iter()
+                .filter(|a| a.uid == p.uid && !a.attribute.starts_with("personality."))
+            {
                 if targets
                     .insert(target.attribute.clone(), target.value)
                     .is_some()

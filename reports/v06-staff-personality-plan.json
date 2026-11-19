@@ -1,0 +1,8 @@
+{
+  "staffEdits": [
+    {"uid":4950,"attribute":"personality.adaptability","value":20},
+    {"uid":4950,"attribute":"personality.professionalism","value":20},
+    {"uid":600,"attribute":"personality.adaptability","value":20},
+    {"uid":600,"attribute":"personality.professionalism","value":20}
+  ]
+}

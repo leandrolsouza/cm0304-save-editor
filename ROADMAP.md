@@ -47,6 +47,8 @@ Na v0.6, CA/PA e reputação de staff têm escrita experimental no plano CLI e f
 
 A conferência no jogo validou os efeitos previstos de Rui no carregamento e revelou uma correção necessária para jogador/staff: os atributos profissionais usam CA de jogador. Leitura, inversa e projeção foram corrigidas; a nova cópia passou o ciclo no jogo, e falta ampliar a matriz. Evidências em `reports/v0.6-dual-staff-correction.md`.
 
+A edição experimental de oito campos de personalidade está integrada ao núcleo e ao formulário de staff, com proteção a registros compartilhados e conflitos entre papéis. Dois testes de integração e 12 verificações de frontend aprovados; conferência nativa e ciclo dessa edição ainda pendentes. Detalhes em `reports/v0.6-staff-personality.md`. Gestão de clubes permanece no escopo da v0.6.
+
 Na v0.5, os casos de suspensão de 19 e 58 bytes passaram avanço/regravação/recarga. Contratos de Clodoaldo e empréstimo de Liam passaram o mesmo ciclo: o vencimento de Clodoaldo foi convertido pelo jogo em contrato mensal; salários e vínculos de Liam persistiram. Detalhes e pendências em `reports/v0.5-suspensions.md` e `reports/v0.5-contract-variants.md`. O marco permanece aberto.
 
 ## Funcionalidades da v1.0

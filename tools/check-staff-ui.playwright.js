@@ -19,6 +19,7 @@ async page => {
     const player = { uid: 600, name: 'Pär Zetterberg', firstName: 'Pär', surname: 'Zetterberg', club: 'RSC Anderlecht', nation: 'Suécia', currentAbility: 140, potentialAbility: 150, attributes: {}, rawAttributes: {}, fields: { 'birth.year': field(1970), 'birth.day': field(286), nationality: field(0), passing: { ...field(15), min: 1, max: 20 } } };
     window.__testCalls = [];
     let edits=[], header=null, undo=[], redo=[]; const snapshot=()=>structuredClone({edits,header});
+    const original=e=>{const p=profiles.find(p=>p.uid===e.uid);return e.attribute.startsWith('personality.')?p.personality[e.attribute.slice(12)]:p.attributes[e.attribute];};
     const pending=()=>({edits:[],staffEdits:edits,staffHeaderEdits:header?[header]:[],healInjuries:[],clearSuspensions:[],undo:undo.length>0,redo:redo.length>0});
     window.__TAURI__ = { core: { invoke: async (command, args = {}) => {
       window.__testCalls.push({ command, args });
@@ -30,13 +31,13 @@ async page => {
       }
       if (command === 'staff_detail') {
         const profile=structuredClone(profiles.find(p=>p.uid===args.uid));
-        for(const e of edits.filter(e=>e.uid===args.uid))profile.attributes[e.attribute]=e.value;
-        if(header?.uid===args.uid){if(header.currentAbility!=null)profile.currentAbility=header.currentAbility;if(header.potentialAbility!=null)profile.potentialAbility=header.potentialAbility;if(header.reputation)profile.reputation=header.reputation;}return {profile,age:args.uid===600?32:43,pendingPlayerFields:0,pendingHeader:header?.uid===args.uid?header:null,editable:Object.keys(profile.attributes)};
+        for(const e of edits.filter(e=>e.uid===args.uid))if(e.attribute.startsWith('personality.'))profile.personality[e.attribute.slice(12)]=e.value;else profile.attributes[e.attribute]=e.value;
+        if(header?.uid===args.uid){if(header.currentAbility!=null)profile.currentAbility=header.currentAbility;if(header.potentialAbility!=null)profile.potentialAbility=header.potentialAbility;if(header.reputation)profile.reputation=header.reputation;}return {profile,age:args.uid===600?32:43,pendingPlayerFields:0,pendingHeader:header?.uid===args.uid?header:null,editable:[...Object.keys(profile.attributes),'personality.adaptability']};
       }
-      if(command==='stage_staff_edits'){undo.push(snapshot());redo=[];if(args.header)header=args.header;for(const e of args.edits){edits=edits.filter(x=>x.uid!==e.uid||x.attribute!==e.attribute);if(e.value!==profiles.find(p=>p.uid===e.uid).attributes[e.attribute])edits.push(e);}return pending();}
+      if(command==='stage_staff_edits'){undo.push(snapshot());redo=[];if(args.header)header=args.header;for(const e of args.edits){edits=edits.filter(x=>x.uid!==e.uid||x.attribute!==e.attribute);if(e.value!==original(e))edits.push(e);}return pending();}
       if(command==='pending_edits')return pending();
       if(command==='history_action'){if(args.action==='undo'){redo.push(snapshot());({edits,header}=undo.pop());}else if(args.action==='redo'){undo.push(snapshot());({edits,header}=redo.pop());}else {undo.push(snapshot());edits=[];header=null;}return pending();}
-      if(command==='preview_edits')return {changes:header?[{uid:header.uid,name:profiles.find(p=>p.uid===header.uid).name,attribute:'currentAbility',before:70,after:header.currentAbility??70,derived:false,context:'Staff'}]:[],staffChanges:edits.map(e=>({...e,before:profiles.find(p=>p.uid===e.uid).attributes[e.attribute],after:e.value})),removals:[],fieldChangedBytes:edits.length,removedBytes:0};
+      if(command==='preview_edits')return {changes:header?[{uid:header.uid,name:profiles.find(p=>p.uid===header.uid).name,attribute:'currentAbility',before:70,after:header.currentAbility??70,derived:false,context:'Staff'}]:[],staffChanges:edits.map(e=>({...e,before:original(e),after:e.value})),removals:[],fieldChangedBytes:edits.length,removedBytes:0};
       if (command === 'player_detail') return { player, effective: player, age: 32, contracts: [], editable: ['passing'], pending: [], nations: ['Suécia'], injuries: [], healPending: false, suspensionCount: 0, suspensionPending: false };
       throw new Error('Unexpected IPC command: ' + command);
     } } };
@@ -60,7 +61,7 @@ async page => {
   await page.locator('#staff-profile h2').filter({ hasText: 'Rui Águas' }).waitFor();
   assert((await page.locator('#staff-profile').innerText()).includes('Treinador adjunto'), 'Staff role must be visible');
   assert(await page.locator('#staff-physiotherapy').inputValue() === '7', 'Staff ratings must show the converted value, not the raw byte');
-  assert(await page.locator('#staff-profile [data-staff-field]').count() === 11, 'Only the 11 professional fields may be editable');
+  assert(await page.locator('#staff-profile [data-staff-field]:not([data-staff-field^="personality."])').count() === 11, 'Only the 11 professional fields may be editable');
   await page.locator('#staff-coachingOutfieldPlayers').fill('20');
   await page.locator('#staff-stage').click();
   await page.locator('#status').filter({hasText:'Atributos de staff adicionados'}).waitFor();
@@ -103,6 +104,17 @@ async page => {
   await page.locator('#status').filter({hasText:'Plano de alterações atualizado'}).waitFor();
   assert(await page.locator('#staff-currentAbility').inputValue()==='70','Undo must restore header');
   await page.locator('#nav-staff').click();
+  await page.locator('[data-staff-field="personality.adaptability"]').fill('20');
+  await page.locator('#staff-stage').click();
+  await page.locator('#status').filter({hasText:'Atributos de staff adicionados'}).waitFor();
+  assert(await page.locator('[data-staff-field="personality.adaptability"]').inputValue()==='20','Personality projection must update');
+  await page.locator('#review').click();
+  await page.locator('#changes-list').filter({hasText:'11 → 20'}).waitFor();
+  assert((await page.locator('#changes-list').innerText()).includes('Adaptação'),'Personality review must use a readable label');
+  await page.locator('#undo').click();
+  await page.locator('#status').filter({hasText:'Plano de alterações atualizado'}).waitFor();
+  assert(await page.locator('[data-staff-field="personality.adaptability"]').inputValue()==='11','Personality undo must restore source');
+  await page.locator('#nav-staff').click();
   await page.locator('#staff-search').fill('fisioterapeuta');
   await page.locator('#staff-results button').filter({ hasText: 'Francisco Miranda' }).waitFor();
   await page.locator('#staff-search').fill('par zetterberg');
@@ -130,7 +142,7 @@ async page => {
   assert(await page.locator('#staff-search').inputValue() === '', 'Opening a save must reset staff query');
   assert(await page.locator('#staff-page-label').innerText() === '1 / 2', 'Opening a save must reset pagination');
   assert((await page.locator('#staff-profile').innerText()).includes('Escolha um membro do staff'), 'Opening a save must clear previous staff profile');
-  const result = { passed: true, checks: ['pagination', 'accentless search', 'role search', '11 staff controls', 'staff staging and review', 'staff undo/redo/clear', 'staff draft cancel/discard', 'dual-role navigation', 'player draft cancel/discard', 'save session reset', 'staff header policy/payload/projection/review/undo'], frontendErrors: errors };
+  const result = { passed: true, checks: ['pagination', 'accentless search', 'role search', '11 staff controls', 'staff staging and review', 'staff undo/redo/clear', 'staff draft cancel/discard', 'dual-role navigation', 'player draft cancel/discard', 'save session reset', 'staff header policy/payload/projection/review/undo', 'staff personality staging/review/undo'], frontendErrors: errors };
   await page.evaluate(value => { window.__staffUiResult = value; }, result);
   return result;
 }
