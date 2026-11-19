@@ -12,6 +12,83 @@ fn sample() -> Vec<u8> {
 }
 
 #[test]
+fn staff_form_merges_header_and_dependent_attribute_targets_atomically() {
+    let input = sample();
+    let (db, base) = database::load(&input).unwrap();
+    let profiles = staff::profiles(&db, &input, base).unwrap();
+    let mut plan = transaction::Transaction::default();
+    let header = staff_header::Edit {
+        uid: 4950,
+        current_ability: Some(100),
+        potential_ability: Some(180),
+        policy: Some(AbilityPolicy::PreserveRelative),
+        ..Default::default()
+    };
+    plan.merge_staff(
+        &profiles,
+        vec![staff_editor::Edit {
+            uid: 4950,
+            attribute: "coachingOutfieldPlayers".into(),
+            value: 12,
+        }],
+        Some(header),
+    )
+    .unwrap();
+    assert_eq!(plan.staff_edits.len(), 1); // Source-value target overrides the CA effect.
+    let snapshot = plan.clone();
+    assert!(
+        plan.merge_staff(
+            &profiles,
+            vec![staff_editor::Edit {
+                uid: 4950,
+                attribute: "discipline".into(),
+                value: 0
+            }],
+            None
+        )
+        .is_err()
+    );
+    assert_eq!(plan, snapshot);
+    plan.merge_staff(
+        &profiles,
+        vec![],
+        Some(staff_header::Edit {
+            uid: 4950,
+            current_ability: Some(70),
+            ..Default::default()
+        }),
+    )
+    .unwrap();
+    assert!(plan.staff_edits.is_empty());
+    assert_eq!(plan.staff_header_edits[0].potential_ability, Some(180));
+    assert!(plan.staff_header_edits[0].policy.is_none());
+    plan.merge_staff(
+        &profiles,
+        vec![],
+        Some(staff_header::Edit {
+            uid: 4950,
+            potential_ability: Some(140),
+            ..Default::default()
+        }),
+    )
+    .unwrap();
+    assert!(plan.is_empty());
+    assert!(
+        plan.merge_staff(
+            &profiles,
+            vec![],
+            Some(staff_header::Edit {
+                uid: 4950,
+                current_ability: Some(100),
+                ..Default::default()
+            })
+        )
+        .is_err()
+    );
+    assert!(plan.is_empty());
+}
+
+#[test]
 fn header_edits_preserve_player_role_and_show_ca_effects_for_both_policies() {
     let input = sample();
     let (db, base) = database::load(&input).unwrap();

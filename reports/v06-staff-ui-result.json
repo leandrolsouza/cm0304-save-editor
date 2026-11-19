@@ -10,7 +10,8 @@
     "staff draft cancel/discard",
     "dual-role navigation",
     "player draft cancel/discard",
-    "save session reset"
+    "save session reset",
+    "staff header policy/payload/projection/review/undo"
   ],
   "frontendErrors": []
 }

@@ -72,7 +72,7 @@ cargo run --offline -p cm0304-cli -- staff-ability "origem.cm4" 4950 100 preserv
 
 A política é obrigatória. Preservar valores exige inversa exata; preservar bytes mostra atributos recalculados. Esta é uma prévia de diagnóstico, ainda sem escrita de CA. Exemplos e verificação em `reports/v0.6-staff-ability.md`.
 
-Para escrita experimental de CA/PA e reputação no CLI, `apply-plan` aceita `staffHeaderEdits`; exemplo em `reports/v06-staff-header-plan.json`. Esse grupo usa o cabeçalho da função de staff e inclui os efeitos de CA na revisão. Limites e pendências nativas em `reports/v0.6-staff-header.md`. O comando `staff-ability` permanece apenas uma prévia, e os novos campos ainda não têm formulário no Tauri.
+Para escrita experimental de CA/PA e reputação no CLI, `apply-plan` aceita `staffHeaderEdits`; exemplo em `reports/v06-staff-header-plan.json`. Esse grupo usa o cabeçalho da função de staff e inclui os efeitos de CA na revisão. O Tauri prepara cabeçalho e atributos juntos por `stage_staff_edits`, usando `Transaction::merge_staff`; campos não enviados preservam as intenções anteriores. Limites e pendências nativas em `reports/v0.6-staff-header.md`. O comando `staff-ability` permanece apenas uma prévia.
 
 ```powershell
 cargo run --offline -p cm0304-cli -- staff "origem.cm4" "Braga"

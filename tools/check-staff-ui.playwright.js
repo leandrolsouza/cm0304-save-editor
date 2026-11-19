@@ -18,8 +18,8 @@ async page => {
     const field = value => ({ value, min: 0, max: 2003, width: 2, offset: 0 });
     const player = { uid: 600, name: 'Pär Zetterberg', firstName: 'Pär', surname: 'Zetterberg', club: 'RSC Anderlecht', nation: 'Suécia', currentAbility: 140, potentialAbility: 150, attributes: {}, rawAttributes: {}, fields: { 'birth.year': field(1970), 'birth.day': field(286), nationality: field(0), passing: { ...field(15), min: 1, max: 20 } } };
     window.__testCalls = [];
-    let edits=[], undo=[], redo=[];
-    const pending=()=>({edits:[],staffEdits:edits,healInjuries:[],clearSuspensions:[],undo:undo.length>0,redo:redo.length>0});
+    let edits=[], header=null, undo=[], redo=[]; const snapshot=()=>structuredClone({edits,header});
+    const pending=()=>({edits:[],staffEdits:edits,staffHeaderEdits:header?[header]:[],healInjuries:[],clearSuspensions:[],undo:undo.length>0,redo:redo.length>0});
     window.__TAURI__ = { core: { invoke: async (command, args = {}) => {
       window.__testCalls.push({ command, args });
       if (command === 'open_save') return { name: 'controle_ui.cm4', path: 'controle_ui.cm4', players: 1, staff: 51, sha256: 'controlled-fixture' };
@@ -31,12 +31,12 @@ async page => {
       if (command === 'staff_detail') {
         const profile=structuredClone(profiles.find(p=>p.uid===args.uid));
         for(const e of edits.filter(e=>e.uid===args.uid))profile.attributes[e.attribute]=e.value;
-        return {profile,age:args.uid===600?32:43,pendingPlayerFields:0,editable:Object.keys(profile.attributes)};
+        if(header?.uid===args.uid){if(header.currentAbility!=null)profile.currentAbility=header.currentAbility;if(header.potentialAbility!=null)profile.potentialAbility=header.potentialAbility;if(header.reputation)profile.reputation=header.reputation;}return {profile,age:args.uid===600?32:43,pendingPlayerFields:0,pendingHeader:header?.uid===args.uid?header:null,editable:Object.keys(profile.attributes)};
       }
-      if(command==='stage_staff_edits'){undo.push(structuredClone(edits));redo=[];for(const e of args.edits){edits=edits.filter(x=>x.uid!==e.uid||x.attribute!==e.attribute);if(e.value!==profiles.find(p=>p.uid===e.uid).attributes[e.attribute])edits.push(e);}return pending();}
+      if(command==='stage_staff_edits'){undo.push(snapshot());redo=[];if(args.header)header=args.header;for(const e of args.edits){edits=edits.filter(x=>x.uid!==e.uid||x.attribute!==e.attribute);if(e.value!==profiles.find(p=>p.uid===e.uid).attributes[e.attribute])edits.push(e);}return pending();}
       if(command==='pending_edits')return pending();
-      if(command==='history_action'){if(args.action==='undo'){redo.push(edits);edits=undo.pop();}else if(args.action==='redo'){undo.push(edits);edits=redo.pop();}else {undo.push(edits);edits=[];}return pending();}
-      if(command==='preview_edits')return {changes:[],staffChanges:edits.map(e=>({...e,before:profiles.find(p=>p.uid===e.uid).attributes[e.attribute],after:e.value})),removals:[],fieldChangedBytes:edits.length,removedBytes:0};
+      if(command==='history_action'){if(args.action==='undo'){redo.push(snapshot());({edits,header}=undo.pop());}else if(args.action==='redo'){undo.push(snapshot());({edits,header}=redo.pop());}else {undo.push(snapshot());edits=[];header=null;}return pending();}
+      if(command==='preview_edits')return {changes:header?[{uid:header.uid,name:profiles.find(p=>p.uid===header.uid).name,attribute:'currentAbility',before:70,after:header.currentAbility??70,derived:false,context:'Staff'}]:[],staffChanges:edits.map(e=>({...e,before:profiles.find(p=>p.uid===e.uid).attributes[e.attribute],after:e.value})),removals:[],fieldChangedBytes:edits.length,removedBytes:0};
       if (command === 'player_detail') return { player, effective: player, age: 32, contracts: [], editable: ['passing'], pending: [], nations: ['Suécia'], injuries: [], healPending: false, suspensionCount: 0, suspensionPending: false };
       throw new Error('Unexpected IPC command: ' + command);
     } } };
@@ -60,7 +60,7 @@ async page => {
   await page.locator('#staff-profile h2').filter({ hasText: 'Rui Águas' }).waitFor();
   assert((await page.locator('#staff-profile').innerText()).includes('Treinador adjunto'), 'Staff role must be visible');
   assert(await page.locator('#staff-physiotherapy').inputValue() === '7', 'Staff ratings must show the converted value, not the raw byte');
-  assert(await page.locator('#staff-profile input').count() === 11, 'Only the 11 professional fields may be editable');
+  assert(await page.locator('#staff-profile [data-staff-field]').count() === 11, 'Only the 11 professional fields may be editable');
   await page.locator('#staff-coachingOutfieldPlayers').fill('20');
   await page.locator('#staff-stage').click();
   await page.locator('#status').filter({hasText:'Atributos de staff adicionados'}).waitFor();
@@ -84,6 +84,24 @@ async page => {
   page.once('dialog',dialog=>dialog.accept());
   await page.locator('#nav-players').click();
   assert(await page.locator('#staff-coachingOutfieldPlayers').inputValue()==='12','Discard must reset staff draft');
+  await page.locator('#nav-staff').click();
+  await page.locator('#staff-currentAbility').fill('100');
+  await page.locator('#staff-stage').click();
+  await page.locator('#status').filter({hasText:'Escolha uma política'}).waitFor();
+  assert(await page.locator('#pending-count').innerText()==='0','Missing CA policy must not stage');
+  await page.locator('#staff-ca-policy').selectOption('preserveRelative');
+  await page.locator('#staff-potentialAbility').fill('180');
+  await page.locator('#staff-reputation-0').fill('8000');
+  await page.locator('#staff-stage').click();
+  await page.locator('#status').filter({hasText:'Atributos de staff adicionados'}).waitFor();
+  assert(await page.locator('#staff-currentAbility').inputValue()==='100','Projected CA must be displayed');
+  const submitted=await page.evaluate(()=>window.__testCalls.filter(c=>c.command==='stage_staff_edits').at(-1).args.header);
+  assert(submitted.currentAbility===100&&submitted.potentialAbility===180&&submitted.reputation[0]===8000&&submitted.policy==='preserveRelative','Header payload must carry values and policy');
+  await page.locator('#review').click();
+  await page.locator('#changes-list').filter({hasText:'70 → 100'}).waitFor();
+  await page.locator('#undo').click();
+  await page.locator('#status').filter({hasText:'Plano de alterações atualizado'}).waitFor();
+  assert(await page.locator('#staff-currentAbility').inputValue()==='70','Undo must restore header');
   await page.locator('#nav-staff').click();
   await page.locator('#staff-search').fill('fisioterapeuta');
   await page.locator('#staff-results button').filter({ hasText: 'Francisco Miranda' }).waitFor();
@@ -112,7 +130,7 @@ async page => {
   assert(await page.locator('#staff-search').inputValue() === '', 'Opening a save must reset staff query');
   assert(await page.locator('#staff-page-label').innerText() === '1 / 2', 'Opening a save must reset pagination');
   assert((await page.locator('#staff-profile').innerText()).includes('Escolha um membro do staff'), 'Opening a save must clear previous staff profile');
-  const result = { passed: true, checks: ['pagination', 'accentless search', 'role search', '11 staff controls', 'staff staging and review', 'staff undo/redo/clear', 'staff draft cancel/discard', 'dual-role navigation', 'player draft cancel/discard', 'save session reset'], frontendErrors: errors };
+  const result = { passed: true, checks: ['pagination', 'accentless search', 'role search', '11 staff controls', 'staff staging and review', 'staff undo/redo/clear', 'staff draft cancel/discard', 'dual-role navigation', 'player draft cancel/discard', 'save session reset', 'staff header policy/payload/projection/review/undo'], frontendErrors: errors };
   await page.evaluate(value => { window.__staffUiResult = value; }, result);
   return result;
 }

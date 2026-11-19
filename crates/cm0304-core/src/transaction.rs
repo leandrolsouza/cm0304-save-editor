@@ -28,6 +28,115 @@ pub struct Transaction {
     pub clear_suspensions: BTreeSet<i32>,
 }
 impl Transaction {
+    /// Merge a staff form atomically against the source snapshot. Final byte validation
+    /// remains in apply(), where CA and explicit attribute targets are resolved together.
+    pub fn merge_staff(
+        &mut self,
+        profiles: &[crate::staff::Staff],
+        edits: Vec<crate::staff_editor::Edit>,
+        header: Option<crate::staff_header::Edit>,
+    ) -> Result<()> {
+        let mut next = self.clone();
+        if let Some(update) = header {
+            let p = profiles
+                .iter()
+                .find(|p| p.uid == update.uid)
+                .ok_or("Staff não encontrado")?;
+            let mut combined = next
+                .staff_header_edits
+                .iter()
+                .find(|e| e.uid == update.uid)
+                .cloned()
+                .unwrap_or(crate::staff_header::Edit {
+                    uid: update.uid,
+                    ..Default::default()
+                });
+            if let Some(ca) = update.current_ability {
+                combined.current_ability = (ca != p.current_ability).then_some(ca);
+                combined.policy = if combined.current_ability.is_some() {
+                    Some(
+                        update
+                            .policy
+                            .ok_or("Escolha uma política para a CA de staff")?,
+                    )
+                } else {
+                    None
+                };
+            } else if update.policy.is_some() {
+                if combined.current_ability.is_none() {
+                    return Err("Política de CA sem alvo de CA".into());
+                }
+                combined.policy = update.policy;
+            }
+            if let Some(pa) = update.potential_ability {
+                combined.potential_ability = (pa != p.potential_ability).then_some(pa);
+            }
+            if let Some(rep) = update.reputation {
+                combined.reputation = (rep != p.reputation).then_some(rep);
+            }
+            next.staff_header_edits.retain(|e| e.uid != update.uid);
+            if combined.current_ability.is_some()
+                || combined.potential_ability.is_some()
+                || combined.reputation.is_some()
+            {
+                next.staff_header_edits.push(combined);
+            }
+        }
+        let mut fields = next
+            .staff_edits
+            .iter()
+            .cloned()
+            .map(|e| ((e.uid, e.attribute.clone()), e))
+            .collect::<BTreeMap<_, _>>();
+        let mut seen = BTreeSet::new();
+        for edit in edits {
+            if !seen.insert((edit.uid, edit.attribute.clone())) {
+                return Err("Campo de staff repetido".into());
+            }
+            if !crate::staff_editor::EDITABLE.contains(&edit.attribute.as_str())
+                || !(1..=20).contains(&edit.value)
+            {
+                return Err("Campo ou valor de staff inválido".into());
+            }
+            let p = profiles
+                .iter()
+                .find(|p| p.uid == edit.uid)
+                .ok_or("Staff não encontrado")?;
+            let original = p
+                .attributes
+                .as_ref()
+                .and_then(|a| a.get(&edit.attribute))
+                .ok_or("Staff sem atributo")?;
+            let dependent = crate::staff::RELATIVE.contains(&edit.attribute.as_str())
+                && next
+                    .staff_header_edits
+                    .iter()
+                    .any(|h| h.uid == edit.uid && h.current_ability.is_some());
+            let key = (edit.uid, edit.attribute.clone());
+            if edit.value == *original && !dependent {
+                fields.remove(&key);
+            } else {
+                fields.insert(key, edit);
+            }
+        }
+        fields.retain(|_, e| {
+            profiles
+                .iter()
+                .find(|p| p.uid == e.uid)
+                .and_then(|p| p.attributes.as_ref())
+                .and_then(|a| a.get(&e.attribute))
+                .is_none_or(|v| *v != e.value)
+                || (crate::staff::RELATIVE.contains(&e.attribute.as_str())
+                    && next
+                        .staff_header_edits
+                        .iter()
+                        .any(|h| h.uid == e.uid && h.current_ability.is_some()))
+        });
+        next.staff_edits = fields.into_values().collect();
+        next.staff_header_edits.sort_by_key(|h| h.uid);
+        *self = next;
+        Ok(())
+    }
     pub fn is_empty(&self) -> bool {
         self.edits.is_empty()
             && self.staff_edits.is_empty()

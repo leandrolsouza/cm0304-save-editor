@@ -43,7 +43,7 @@ Essa é a base histórica em JavaScript. A migração e a primeira interface já
 
 Evidências: `reports/v0.2-v0.3-validation.md` e `reports/v0.4-validation.md`. As prévias são marcos de desenvolvimento, não uma declaração de estabilidade da v1.0.
 
-Na v0.6, CA/PA e reputação de staff têm escrita experimental no plano CLI, com políticas de CA e efeitos derivados registrados. A cópia de teste foi preparada; interface e ciclo no jogo desses campos permanecem pendentes. Detalhes em `reports/v0.6-staff-header.md`.
+Na v0.6, CA/PA e reputação de staff têm escrita experimental no plano CLI e formulário integrado ao Tauri, com políticas de CA e efeitos derivados registrados. Onze verificações de frontend com IPC controlado passaram. A cópia de teste foi preparada; execução nativa do novo formulário e ciclo no jogo desses campos permanecem pendentes. Detalhes em `reports/v0.6-staff-header.md`.
 
 Na v0.5, os casos de suspensão de 19 e 58 bytes passaram avanço/regravação/recarga. Contratos de Clodoaldo e empréstimo de Liam passaram o mesmo ciclo: o vencimento de Clodoaldo foi convertido pelo jogo em contrato mensal; salários e vínculos de Liam persistiram. Detalhes e pendências em `reports/v0.5-suspensions.md` e `reports/v0.5-contract-variants.md`. O marco permanece aberto.
 

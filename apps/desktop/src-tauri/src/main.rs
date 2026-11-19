@@ -90,6 +90,7 @@ struct StaffDetail {
     age: Option<u16>,
     pending_player_fields: usize,
     editable: Vec<String>,
+    pending_header: Option<cm0304_core::staff_header::Edit>,
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -111,6 +112,7 @@ struct Detail {
 struct Pending {
     edits: Vec<Edit>,
     staff_edits: Vec<cm0304_core::staff_editor::Edit>,
+    staff_header_edits: Vec<cm0304_core::staff_header::Edit>,
     heal_injuries: Vec<i32>,
     clear_suspensions: Vec<i32>,
     undo: bool,
@@ -120,6 +122,7 @@ fn pending(s: &Session) -> Pending {
     Pending {
         edits: s.plan.edits.clone(),
         staff_edits: s.plan.staff_edits.clone(),
+        staff_header_edits: s.plan.staff_header_edits.clone(),
         heal_injuries: s.plan.heal_injuries.iter().copied().collect(),
         clear_suspensions: s.plan.clear_suspensions.iter().copied().collect(),
         undo: !s.undo.is_empty(),
@@ -297,7 +300,15 @@ async fn staff_detail(uid: i32, state: State<'_, Shared>) -> Result<StaffDetail>
         .ok_or("Staff não encontrado")?;
     let plan = state.lock().map_err(|e| e.to_string())?.plan.clone();
     let pending_player_fields = plan.edits.iter().filter(|e| e.uid == uid).count();
-    if pending_player_fields > 0 || plan.staff_edits.iter().any(|e| e.uid == uid) {
+    let pending_header = plan
+        .staff_header_edits
+        .iter()
+        .find(|h| h.uid == uid)
+        .cloned();
+    if pending_player_fields > 0
+        || plan.staff_edits.iter().any(|e| e.uid == uid)
+        || pending_header.is_some()
+    {
         let bytes = data.bytes.clone();
         profile = tauri::async_runtime::spawn_blocking(move || -> Result<Staff> {
             let (output, _) = transaction::apply(&bytes, &plan)?;
@@ -326,18 +337,19 @@ async fn staff_detail(uid: i32, state: State<'_, Shared>) -> Result<StaffDetail>
         profile,
         age,
         pending_player_fields,
+        pending_header,
     })
 }
 #[tauri::command]
 async fn stage_staff_edits(
     edits: Vec<cm0304_core::staff_editor::Edit>,
+    header: Option<cm0304_core::staff_header::Edit>,
     state: State<'_, Shared>,
 ) -> Result<Pending> {
     let data = loaded(&state)?;
     let previous = state.lock().map_err(|e| e.to_string())?.plan.clone();
     let mut next = previous.clone();
-    next.staff_edits =
-        cm0304_core::staff_editor::merge_plan(&data.staff, &previous.staff_edits, edits)?;
+    next.merge_staff(&data.staff, edits, header)?;
     if !next.is_empty() {
         let bytes = data.bytes.clone();
         let plan = next.clone();
