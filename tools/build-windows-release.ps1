@@ -29,8 +29,15 @@ try {
         } }
     } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $configPath -Encoding utf8
 
-    npm run build:installer -- --ci --config $configPath -- --locked --offline
-    if ($LASTEXITCODE -ne 0) { throw 'Falha na compilação do instalador assinado para o atualizador.' }
+    npm run build:ui
+    if ($LASTEXITCODE -ne 0) { throw 'Falha na compilação da interface.' }
+    Push-Location -LiteralPath 'apps/desktop'
+    try {
+        node ../../node_modules/@tauri-apps/cli/tauri.js build --bundles nsis --ci --config $configPath -- --locked --offline
+        if ($LASTEXITCODE -ne 0) { throw 'Falha na compilação do instalador assinado para o atualizador.' }
+    } finally {
+        Pop-Location
+    }
 
     $packageDir = Join-Path $staging.FullName 'package'
     & ./tools/package-windows-beta.ps1 -Supplements 'tools/notice-supplements' -Output $packageDir
