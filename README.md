@@ -10,6 +10,19 @@ Download the Windows x64 ZIP, extract it and run the installer. The editor uses 
 
 The editor checks for signed updates at startup. If a career is open or an operation is under way when the download finishes, the update waits until you next open the editor.
 
+## Screenshots
+
+![Player search and Quim's attributes in the CM0304 Save Editor](docs/screenshots/player-profile.png)
+
+<details>
+<summary>My club and change review</summary>
+
+![My club dashboard with finance and first-team shortcuts](docs/screenshots/my-club.png)
+
+![Change review showing recorded and proposed club finances before saving a validated copy](docs/screenshots/review-changes.png)
+
+</details>
+
 ## Using the editor
 
 1. Select **Open save** and choose an uncompressed `.cm4` save from CM0304 4.1.5.
