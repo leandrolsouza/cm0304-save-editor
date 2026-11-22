@@ -32,7 +32,7 @@ fn patch(input: &[u8], patches: &mut BTreeMap<usize, u8>, field: &Field, value: 
 pub fn validate_value(p: &Player, e: &Edit) -> Result<()> {
     let f = p
         .fields
-        .get(&e.attribute)
+        .get(e.attribute.as_str())
         .ok_or_else(|| format!("Unknown field {}", e.attribute))?;
     if e.value < f.min || e.value > f.max {
         return Err(format!("{} must be {}–{}", e.attribute, f.min, f.max));
@@ -51,13 +51,28 @@ pub fn apply(input: &[u8], edits: &[Edit]) -> Result<(Vec<u8>, Report)> {
         return Err("Empty edit plan".into());
     }
     let (db, base) = database::load(input)?;
-    let players = db.players(base)?;
-    let mut by_uid = BTreeMap::new();
-    for p in &players {
-        if by_uid.insert(p.uid, p).is_some() {
-            return Err(format!("Duplicate player UID {}", p.uid));
+    let mut people_by_uid = BTreeMap::new();
+    let mut playing_references = BTreeMap::new();
+    let mut personality_references = BTreeMap::new();
+    for person in &db.people {
+        *personality_references
+            .entry(person.personality)
+            .or_insert(0usize) += 1;
+        if let Some(playing) = &person.playing {
+            *playing_references
+                .entry(playing.playing_index)
+                .or_insert(0usize) += 1;
+            if people_by_uid.insert(person.uid, person).is_some() {
+                return Err(format!("Duplicate player UID {}", person.uid));
+            }
         }
     }
+    let selected = edits.iter().map(|edit| edit.uid).collect::<BTreeSet<_>>();
+    let players = db.players_matching(base, |uid| selected.contains(&uid))?;
+    let by_uid = players
+        .iter()
+        .map(|p| (p.uid, p))
+        .collect::<BTreeMap<_, _>>();
     let mut groups: BTreeMap<i32, BTreeMap<&str, &Edit>> = BTreeMap::new();
     for e in edits {
         let p = by_uid
@@ -77,11 +92,7 @@ pub fn apply(input: &[u8], edits: &[Edit]) -> Result<(Vec<u8>, Report)> {
     let mut expected: BTreeMap<(i32, String), i32> = BTreeMap::new();
     for (uid, group) in &groups {
         let p = by_uid[uid];
-        let person = db
-            .people
-            .iter()
-            .find(|v| v.uid == *uid && v.playing.is_some())
-            .ok_or("Missing person")?;
+        let person = people_by_uid.get(uid).ok_or("Missing person")?;
         crate::career::validate(&db, p, person, group, edits)?;
         let value = |key: &str| {
             group
@@ -129,36 +140,23 @@ pub fn apply(input: &[u8], edits: &[Edit]) -> Result<(Vec<u8>, Report)> {
             }
         }
         for (key, target) in targets {
-            let f = &p.fields[&key];
+            let f = &p.fields[key.as_str()];
             let playing_field = key.starts_with("position.") || FIELDS.contains(&key.as_str());
             if playing_field
-                && db
-                    .people
-                    .iter()
-                    .filter(|v| {
-                        v.playing.as_ref().is_some_and(|info| {
-                            info.playing_index == person.playing.as_ref().unwrap().playing_index
-                        })
-                    })
-                    .count()
-                    != 1
+                && playing_references[&person.playing.as_ref().unwrap().playing_index] != 1
             {
                 return Err("Shared playing data cannot be edited".into());
             }
-            if key.starts_with("personality.")
-                && db
-                    .people
-                    .iter()
-                    .filter(|v| v.personality == person.personality)
-                    .count()
-                    != 1
-            {
+            if key.starts_with("personality.") && personality_references[&person.personality] != 1 {
                 return Err("Shared personality data cannot be edited".into());
             }
             let encoded = if let Some(i) = FIELDS.iter().position(|v| *v == key) {
                 match attributes::mode(i, goalkeeper) {
                     Some(low) => {
-                        attributes::encode(target as i8, ca, low, p.raw_attributes[&key])? as i32
+                        attributes::encode(target as i8, ca, low, p.raw_attributes[key.as_str()])
+                            .map_err(|error| {
+                                format!("{} (UID {}) · {key}: {error}", p.name, p.uid)
+                            })? as i32
                     }
                     None => target,
                 }
@@ -191,7 +189,7 @@ pub fn apply(input: &[u8], edits: &[Edit]) -> Result<(Vec<u8>, Report)> {
     for ((uid, key), value) in &expected {
         if new_index
             .get(uid)
-            .and_then(|p| p.fields.get(key))
+            .and_then(|p| p.fields.get(key.as_str()))
             .map(|f| f.value)
             != Some(*value)
         {
@@ -202,11 +200,7 @@ pub fn apply(input: &[u8], edits: &[Edit]) -> Result<(Vec<u8>, Report)> {
     for uid in groups.keys() {
         let before = by_uid[uid];
         let after = new_index[uid];
-        let person = db
-            .people
-            .iter()
-            .find(|p| p.uid == *uid)
-            .ok_or("Missing person")?;
+        let person = people_by_uid.get(uid).ok_or("Missing person")?;
         let contracts = crate::career::contracts(&db, person);
         for (key, old) in &before.fields {
             let new = &after.fields[key];
@@ -216,14 +210,14 @@ pub fn apply(input: &[u8], edits: &[Edit]) -> Result<(Vec<u8>, Report)> {
                 changes.push(Change {
                     uid: *uid,
                     name: before.name.clone(),
-                    attribute: key.clone(),
+                    attribute: key.to_string(),
                     before: old.value,
                     after: new.value,
                     raw_before,
                     raw_after,
                     offset: old.offset,
                     width: old.width,
-                    derived: !groups[uid].contains_key(key.as_str()),
+                    derived: !groups[uid].contains_key(key.as_ref()),
                     context: key
                         .strip_prefix("contract.")
                         .and_then(|v| v.split('.').next())

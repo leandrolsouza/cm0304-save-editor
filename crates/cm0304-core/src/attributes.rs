@@ -88,7 +88,7 @@ pub const DIRECT: [&str; 18] = [
     "naturalFitness",
     "determination",
 ];
-pub type Attributes = BTreeMap<String, i8>;
+pub type Attributes = BTreeMap<&'static str, i8>;
 pub fn mode(index: usize, goalkeeper: i8) -> Option<bool> {
     match index {
         12..=22 => Some(goalkeeper >= 15),
@@ -115,7 +115,7 @@ pub fn encode(value: i8, ca: i16, low: bool, original: i8) -> Result<i8> {
             (convert(raw, ca, low).ok() == Some(value)).then_some(raw)
         })
         .min_by_key(|v| (*v as i16 - original as i16).abs())
-        .ok_or_else(|| format!("Target {value} not representable at CA {ca}"))
+        .ok_or_else(|| format!("O valor {value} não pode ser representado com CA {ca}"))
 }
 pub fn decoded(raw: &[i8; 65], ca: i16) -> Result<Attributes> {
     FIELDS
@@ -123,7 +123,7 @@ pub fn decoded(raw: &[i8; 65], ca: i16) -> Result<Attributes> {
         .enumerate()
         .map(|(i, key)| {
             Ok((
-                key.to_string(),
+                *key,
                 match mode(i, raw[0]) {
                     Some(low) => convert(raw[i], ca, low)?,
                     None => raw[i],

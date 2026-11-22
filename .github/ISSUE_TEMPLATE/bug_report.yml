@@ -1,0 +1,24 @@
+name: Relatar um problema
+description: Informe a versão e os passos para reproduzir um problema no editor.
+body:
+  - type: input
+    id: editor
+    attributes:
+      label: Versão do editor
+      description: A versão aparece no rodapé do aplicativo.
+    validations:
+      required: true
+  - type: input
+    id: game
+    attributes:
+      label: Versão do CM0304
+      placeholder: '4.1.5'
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Passos para reproduzir
+      description: Descreva o que aconteceu e o resultado esperado. Omita dados pessoais e arquivos do jogo.
+    validations:
+      required: true

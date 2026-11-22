@@ -89,6 +89,7 @@ fn reads_existing_contracts_state_and_loan_entities_without_changing_layout() {
     assert_eq!(hoekstra[0].name, "entorse dos ligamentos do tornozelo");
     let recorded = hoekstra[0].recorded_on.as_ref().unwrap();
     assert_eq!((recorded.year, recorded.month_day()), (2003, Some((7, 13))));
+    assert_eq!(hoekstra[0].estimated_days_remaining, Some(68));
     assert_eq!(db.players(base).unwrap().len(), 22062);
     let player = |uid| db.people.iter().find(|p| p.uid == uid).unwrap();
     let clodoaldo = player(2001642);

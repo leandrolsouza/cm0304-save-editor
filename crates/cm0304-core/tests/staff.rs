@@ -425,7 +425,7 @@ fn staff_conversion_matches_twenty_four_native_observations_and_exact_inverse() 
         let raw = observation["raw"].as_i64().unwrap() as i8;
         let ca = observation["ca"].as_i64().unwrap() as i16;
         let expected = observation["observed"].as_i64().unwrap() as i8;
-        let mut attributes: cm0304_core::attributes::Attributes = staff::FIELDS
+        let mut attributes: std::collections::BTreeMap<String, i8> = staff::FIELDS
             .iter()
             .map(|key| (key.to_string(), 0))
             .collect();

@@ -31,6 +31,7 @@ impl RemovalKind {
 pub struct InjuryView {
     pub name: String,
     pub recorded_on: Option<database::Date>,
+    pub estimated_days_remaining: Option<u16>,
 }
 pub fn injuries(db: &database::Database, person: &database::Person) -> Vec<InjuryView> {
     person
@@ -42,13 +43,17 @@ pub fn injuries(db: &database::Database, person: &database::Person) -> Vec<Injur
                 .iter()
                 .map(|record| {
                     let index = i32::from_le_bytes(record.bytes[..4].try_into().unwrap());
+                    let recorded_on = injury_date(record, &db.game_date);
                     InjuryView {
                         name: db
                             .injury_types
                             .get(index as usize)
                             .map(|v| v.name.clone())
                             .unwrap_or_else(|| "Lesão não identificada".into()),
-                        recorded_on: injury_date(record, &db.game_date),
+                        estimated_days_remaining: recorded_on.as_ref().and_then(|start| {
+                            estimated_days_remaining(record, start, &db.game_date)
+                        }),
+                        recorded_on,
                     }
                 })
                 .collect()
@@ -69,9 +74,49 @@ fn injury_date(record: &database::RecordSpan, today: &database::Date) -> Option<
         .then_some(date)
 }
 
+fn estimated_days_remaining(
+    record: &database::RecordSpan,
+    start: &database::Date,
+    today: &database::Date,
+) -> Option<u16> {
+    today.month_day()?;
+    let tail = record.bytes.get(record.bytes.len().checked_sub(4)?..)?;
+    let duration = u16::from_le_bytes([tail[0], tail[1]]);
+    if duration == u16::MAX {
+        return None;
+    }
+    let ordinal = |date: &database::Date| {
+        let years = i32::from(date.year) - 1;
+        years * 365 + years / 4 - years / 100 + years / 400 + i32::from(date.day)
+    };
+    let elapsed = u16::try_from(ordinal(today) - ordinal(start)).ok()?;
+    duration.checked_sub(elapsed).filter(|days| *days > 0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn injury_estimate_uses_the_second_duration_and_handles_year_boundaries() {
+        let record = database::RecordSpan {
+            offset: 0,
+            bytes: vec![90, 0, 115, 0, 1, 0],
+        };
+        let start = database::Date {
+            day: 297,
+            year: 2003,
+        };
+        let today = database::Date {
+            day: 35,
+            year: 2004,
+        };
+        assert_eq!(estimated_days_remaining(&record, &start, &today), Some(12));
+        let overdue = database::Date {
+            day: 47,
+            year: 2004,
+        };
+        assert_eq!(estimated_days_remaining(&record, &start, &overdue), None);
+    }
     #[test]
     fn injury_dates_follow_variable_record_tails_and_omit_unknown_or_invalid_dates() {
         let today = database::Date {

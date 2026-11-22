@@ -5,7 +5,7 @@ use crate::{
     editor::Edit,
 };
 use serde::Serialize;
-use std::collections::BTreeMap;
+use std::{borrow::Cow, collections::BTreeMap};
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -17,7 +17,21 @@ pub struct ContractView {
     pub entity: Option<String>,
     pub started: Date,
     pub monthly: bool,
+    pub transfer_status: u8,
 }
+
+pub fn contract_entity<'a>(
+    db: &'a Database,
+    contract: &Contract,
+) -> Option<&'a crate::database::Club> {
+    let index = usize::try_from(contract.entity_index).ok()?;
+    match contract.entity_type {
+        0 => db.clubs.get(index),
+        1 => db.nations.get(index),
+        _ => None,
+    }
+}
+
 pub fn contracts(db: &Database, person: &Person) -> Vec<ContractView> {
     person
         .contracts
@@ -34,14 +48,10 @@ pub fn contracts(db: &Database, person: &Person) -> Vec<ContractView> {
                 _ => "Desconhecido",
             },
             entity_type: c.entity_type,
-            entity: if c.entity_type == 0 {
-                db.clubs.get(c.entity_index as usize)
-            } else {
-                db.nations.get(c.entity_index as usize)
-            }
-            .map(|v| v.name.clone()),
+            entity: contract_entity(db, c).map(|entity| entity.name.clone()),
             started: c.started.clone(),
             monthly: is_monthly(&c.expires),
+            transfer_status: c.transfer_status,
         })
         .collect()
 }
@@ -49,10 +59,10 @@ pub fn is_monthly(date: &Date) -> bool {
     date.year == 1900 && date.day == 1
 }
 
-pub fn add_fields(person: &Person, base: usize, fields: &mut BTreeMap<String, Field>) {
+pub fn add_fields(person: &Person, base: usize, fields: &mut BTreeMap<Cow<'static, str>, Field>) {
     let Some(d) = &person.playing else { return };
     let s = &d.state;
-    let mut add = |key: String, value, offset, width, min, max| {
+    let mut add = |key: Cow<'static, str>, value, offset, width, min, max| {
         fields.insert(
             key,
             Field {
@@ -65,15 +75,22 @@ pub fn add_fields(person: &Person, base: usize, fields: &mut BTreeMap<String, Fi
         );
     };
     for (name, value, offset, width, min, max) in [
-        ("condition", s.condition as i32, 28, 2, 0, 10000),
-        ("fitness", s.fitness as i32, 24, 2, 0, 10000),
-        ("jadedness", s.jadedness as i32, 26, 2, -1500, 1000),
-        ("morale", s.morale as i32, 22, 1, 0, 20),
-        ("estimatedValue", s.estimated_value, 18, 4, 0, 1_000_000_000),
-        ("saleValue", s.sale_value, 42, 4, -1, 1_000_000_000),
+        ("state.condition", s.condition as i32, 28, 2, 0, 10000),
+        ("state.fitness", s.fitness as i32, 24, 2, 0, 10000),
+        ("state.jadedness", s.jadedness as i32, 26, 2, -1500, 1000),
+        ("state.morale", s.morale as i32, 22, 1, 0, 20),
+        (
+            "state.estimatedValue",
+            s.estimated_value,
+            18,
+            4,
+            0,
+            1_000_000_000,
+        ),
+        ("state.saleValue", s.sale_value, 42, 4, -1, 1_000_000_000),
     ] {
         add(
-            format!("state.{name}"),
+            Cow::Borrowed(name),
             value,
             d.offset + offset,
             width,
@@ -82,6 +99,32 @@ pub fn add_fields(person: &Person, base: usize, fields: &mut BTreeMap<String, Fi
         );
     }
     for (i, c) in person.contracts.iter().enumerate() {
+        for (name, value, offset) in [
+            ("appearanceBonus", c.appearance_bonus, c.offset + 5),
+            ("goalBonus", c.goal_bonus, c.offset + 9),
+            ("assistBonus", c.assist_bonus, c.offset + 13),
+        ] {
+            if let Some(value) = value.filter(|value| *value >= 0) {
+                add(
+                    format!("contract.{i}.{name}").into(),
+                    value,
+                    offset,
+                    4,
+                    0,
+                    1_000_000,
+                );
+            }
+        }
+        if let Some(clause) = &c.release_clause {
+            add(
+                format!("contract.{i}.releaseClause").into(),
+                clause.amount,
+                clause.offset,
+                4,
+                1,
+                1_000_000_000,
+            );
+        }
         for (name, value, offset, width, min, max) in [
             ("weeklyWage", c.weekly_wage, 5, 4, 0, 1_000_000),
             ("expires.day", c.expires.day as i32, 9, 2, 0, 365),
@@ -90,7 +133,7 @@ pub fn add_fields(person: &Person, base: usize, fields: &mut BTreeMap<String, Fi
             ("squadNumber", c.squad_number as i32, 30, 1, -1, 99),
         ] {
             add(
-                format!("contract.{i}.{name}"),
+                format!("contract.{i}.{name}").into(),
                 value,
                 c.common_offset + offset,
                 width,
@@ -153,7 +196,7 @@ pub fn validate(
             edits
                 .get(k.as_str())
                 .map(|e| e.value)
-                .unwrap_or(p.fields[&k].value)
+                .unwrap_or(p.fields[k.as_str()].value)
         };
         if edits.contains_key(key("expires.year").as_str())
             || edits.contains_key(key("expires.day").as_str())
@@ -177,22 +220,21 @@ pub fn validate(
             }
         }
         if edits.contains_key(key("squadNumber").as_str()) && value("squadNumber") > 0 {
-            for other in db
-                .people
-                .iter()
-                .filter(|v| v.uid != p.uid && v.team == person.team && person.team >= 0)
-            {
+            for other in db.people.iter().filter(|v| v.uid != p.uid) {
                 if other.contracts.iter().enumerate().any(|(j, v)| {
+                    if !same_entity(c, v) {
+                        return false;
+                    }
                     let key = format!("contract.{j}.squadNumber");
                     let number = plan
                         .iter()
                         .find(|e| e.uid == other.uid && e.attribute == key)
                         .map(|e| e.value)
                         .unwrap_or(v.squad_number as i32);
-                    same_entity(c, v) && number == value("squadNumber")
+                    number == value("squadNumber")
                 }) {
                     return Err(format!(
-                        "Camisa {} já usada por UID {} nesta equipe",
+                        "Camisa {} já usada por UID {} neste vínculo",
                         value("squadNumber"),
                         other.uid
                     ));
@@ -214,8 +256,8 @@ pub fn display_field(p: &Player, key: &str) -> Option<String> {
         && (prefix == "birth" || (prefix.starts_with("contract.") && prefix.ends_with(".expires")))
     {
         let date = Date {
-            year: p.fields[&format!("{prefix}.year")].value as u16,
-            day: p.fields[&format!("{prefix}.day")].value as u16,
+            year: p.fields[format!("{prefix}.year").as_str()].value as u16,
+            day: p.fields[format!("{prefix}.day").as_str()].value as u16,
         };
         if prefix != "birth" && is_monthly(&date) {
             return Some("Mensal".into());
@@ -232,7 +274,22 @@ pub fn display_field(p: &Player, key: &str) -> Option<String> {
     if key.ends_with(".weeklyWage") {
         return Some(format!("£{value} / semana"));
     }
+    if key.starts_with("contract.")
+        && [
+            ".appearanceBonus",
+            ".goalBonus",
+            ".assistBonus",
+            ".releaseClause",
+        ]
+        .iter()
+        .any(|suffix| key.ends_with(suffix))
+    {
+        return Some(format!("£{value}"));
+    }
     if key == "state.estimatedValue" || key == "state.saleValue" {
+        if key == "state.saleValue" && value == -1 {
+            return Some("Não especificado".into());
+        }
         return Some(if value == -1 {
             "Automático".into()
         } else {
@@ -281,34 +338,50 @@ pub fn player_wages_by_club(db: &Database) -> std::collections::BTreeMap<usize, 
 /// Weekly loan contributions that offset the owning club's wage obligation.
 pub fn loan_wage_offsets_by_club(db: &Database) -> std::collections::BTreeMap<usize, i64> {
     let mut offsets = std::collections::BTreeMap::new();
-    for person in db.people.iter().filter(|p| p.playing.is_some()) {
-        let mut owners = person
-            .contracts
-            .iter()
-            .filter(|c| c.kind == 0 && c.entity_type == 0);
-        let mut loans = person
-            .contracts
-            .iter()
-            .filter(|c| c.kind == 1 && c.entity_type == 0);
-        let (Some(owner), Some(loan)) = (owners.next(), loans.next()) else {
-            continue;
-        };
-        if owners.next().is_some()
-            || loans.next().is_some()
-            || owner.entity_index == loan.entity_index
-        {
-            continue;
-        }
-        let (Ok(owner_index), Ok(loan_index)) = (
-            usize::try_from(owner.entity_index),
-            usize::try_from(loan.entity_index),
-        ) else {
-            continue;
-        };
-        if owner_index < db.clubs.len() && loan_index < db.clubs.len() {
-            let contribution = loan.weekly_wage.min(owner.weekly_wage).max(0);
-            *offsets.entry(owner_index).or_default() += i64::from(contribution);
-        }
+    for (club, _, (_, owner), (_, loan)) in player_loan_wage_pairs(db) {
+        *offsets.entry(club).or_default() +=
+            loan_wage_contribution(owner.weekly_wage, loan.weekly_wage);
     }
     offsets
+}
+
+pub fn loan_wage_contribution(owner: i32, loan: i32) -> i64 {
+    i64::from(loan.min(owner).max(0))
+}
+
+/// Each unambiguous player loan with the owning club index and both contract indices.
+pub fn player_loan_wage_pairs(
+    db: &Database,
+) -> impl Iterator<Item = (usize, i32, (usize, &Contract), (usize, &Contract))> {
+    db.people
+        .iter()
+        .filter(|p| p.playing.is_some())
+        .filter_map(|person| {
+            let mut owners = person
+                .contracts
+                .iter()
+                .enumerate()
+                .filter(|(_, c)| c.kind == 0 && c.entity_type == 0);
+            let mut loans = person
+                .contracts
+                .iter()
+                .enumerate()
+                .filter(|(_, c)| c.kind == 1 && c.entity_type == 0);
+            let owner = owners.next()?;
+            let loan = loans.next()?;
+            if owners.next().is_some()
+                || loans.next().is_some()
+                || owner.1.entity_index == loan.1.entity_index
+            {
+                return None;
+            }
+            let owner_index = usize::try_from(owner.1.entity_index).ok()?;
+            let loan_index = usize::try_from(loan.1.entity_index).ok()?;
+            (owner_index < db.clubs.len() && loan_index < db.clubs.len()).then_some((
+                owner_index,
+                person.uid,
+                owner,
+                loan,
+            ))
+        })
 }

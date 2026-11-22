@@ -1,4 +1,5 @@
 pub mod attributes;
+pub mod batch;
 pub mod binary;
 pub mod career;
 pub mod clubs;
@@ -7,10 +8,14 @@ pub mod database;
 pub mod editor;
 pub mod extended;
 pub mod health;
+pub mod market_lab;
+pub mod roster_comparison;
 pub mod search;
 pub mod staff;
 pub mod staff_editor;
 pub mod staff_header;
+pub mod tactics;
 pub mod transaction;
+pub mod transfer_lab;
 
 pub type Result<T> = std::result::Result<T, String>;

@@ -1,5 +1,5 @@
 use cm0304_core::{
-    Result,
+    Result, career,
     container::read_container,
     database,
     editor::{Edit, save_copy},
@@ -16,6 +16,168 @@ fn main() {
 fn run() -> Result<()> {
     let a = env::args().skip(1).collect::<Vec<_>>();
     let command = a.first().map(String::as_str).unwrap_or("");
+    if command == "squad-entries" {
+        if a.len() != 3 {
+            return Err("Uso: cm0304-cli squad-entries <save> <uid-jogador>".into());
+        }
+        let uid = a[2].parse::<i32>().map_err(|_| "UID de jogador inválido")?;
+        let input = fs::read(&a[1]).map_err(|e| e.to_string())?;
+        let (db, _) = database::load(&input)?;
+        let mut matches = db.people.iter().filter(|person| person.uid == uid);
+        let person = matches.next().ok_or("UID não encontrado no save")?;
+        if matches.next().is_some() || person.playing.is_none() {
+            return Err("UID ambíguo ou sem perfil de jogador".into());
+        }
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&person.squad_entries_raw).map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
+    if command == "market-synth-lab" {
+        if a.len() != 5 {
+            return Err(
+                "Uso: cm0304-cli market-synth-lab <save> <nova-cópia> <uid-jogador> <status>"
+                    .into(),
+            );
+        }
+        let uid = a[3].parse::<i32>().map_err(|_| "UID de jogador inválido")?;
+        let status = a[4]
+            .parse::<u8>()
+            .map_err(|_| "Status de mercado inválido")?;
+        let report =
+            cm0304_core::market_lab::synthesize(Path::new(&a[1]), Path::new(&a[2]), uid, status)?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&report).map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
+    if command == "market-lab" {
+        if a.len() != 5 {
+            return Err(
+                "Uso: cm0304-cli market-lab <save> <nova-cópia> <save-referência> <uid-jogador>"
+                    .into(),
+            );
+        }
+        let uid = a[4].parse::<i32>().map_err(|_| "UID de jogador inválido")?;
+        let report = cm0304_core::market_lab::save(
+            Path::new(&a[1]),
+            Path::new(&a[2]),
+            Path::new(&a[3]),
+            uid,
+        )?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&report).map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
+    if command == "transfer-history" {
+        if a.len() != 2 {
+            return Err("Uso: cm0304-cli transfer-history <save>".into());
+        }
+        let input = fs::read(&a[1]).map_err(|e| e.to_string())?;
+        let history = cm0304_core::transfer_lab::inspect_history(&input)?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&history).map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
+    if command == "accepted-offers" {
+        if a.len() != 2 {
+            return Err("Uso: cm0304-cli accepted-offers <save>".into());
+        }
+        let input = fs::read(&a[1]).map_err(|e| e.to_string())?;
+        let offers = cm0304_core::transfer_lab::inspect_accepted_offers(&input)?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&offers).map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
+    if command == "transfer-references" {
+        if !(2..=3).contains(&a.len()) {
+            return Err("Uso: cm0304-cli transfer-references <save> [uid-jogador]".into());
+        }
+        let uid = a
+            .get(2)
+            .map(|value| value.parse::<i32>())
+            .transpose()
+            .map_err(|_| "UID de jogador inválido")?;
+        let input = fs::read(&a[1]).map_err(|e| e.to_string())?;
+        let mut rows = cm0304_core::transfer_lab::inspect_references(&input)?;
+        if let Some(uid) = uid {
+            let (db, _) = database::load(&input)?;
+            let mut people = db.people.iter().filter(|person| person.uid == uid);
+            let person = people
+                .next()
+                .ok_or("UID de jogador não encontrado no save")?;
+            if people.next().is_some() || person.playing.is_none() {
+                return Err("UID ambíguo ou sem perfil de jogador".into());
+            }
+            let person_id = u32::try_from(person.id).map_err(|_| "ID local inválido")?;
+            if db
+                .people
+                .iter()
+                .filter(|candidate| candidate.id == person.id)
+                .count()
+                != 1
+            {
+                return Err("ID local de jogador ambíguo".into());
+            }
+            rows.retain(|row| row.person_id == person_id);
+        }
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&rows).map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
+    if command == "preview-transfer-lab" {
+        let with_history = a.get(4).is_some_and(|arg| arg == "--with-history");
+        if a.len() != 4 + usize::from(with_history) {
+            return Err(
+                "Uso: cm0304-cli preview-transfer-lab <save> <uid-jogador> <uid-clube-destino> [--with-history]"
+                    .into(),
+            );
+        }
+        let player_uid = a[2].parse::<i32>().map_err(|_| "UID de jogador inválido")?;
+        let club_uid = a[3].parse::<i32>().map_err(|_| "UID de clube inválido")?;
+        let input = fs::read(&a[1]).map_err(|e| e.to_string())?;
+        let report = cm0304_core::transfer_lab::preview_with_options(
+            &input,
+            player_uid,
+            club_uid,
+            with_history,
+        )?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&report).map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
+    if command == "transfer-lab" {
+        let with_history = a.get(5).is_some_and(|arg| arg == "--with-history");
+        if a.len() != 5 + usize::from(with_history) {
+            return Err("Uso: cm0304-cli transfer-lab <save> <nova-cópia> <uid-jogador> <uid-clube-destino> [--with-history]".into());
+        }
+        let player_uid = a[3].parse::<i32>().map_err(|_| "UID de jogador inválido")?;
+        let club_uid = a[4].parse::<i32>().map_err(|_| "UID de clube inválido")?;
+        let report = cm0304_core::transfer_lab::save_with_options(
+            Path::new(&a[1]),
+            Path::new(&a[2]),
+            player_uid,
+            club_uid,
+            with_history,
+        )?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&report).map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
     if command == "staff-ability" && a.len() == 5 {
         let uid = a[2]
             .parse::<i32>()
@@ -79,9 +241,19 @@ fn run() -> Result<()> {
         return Ok(());
     }
     if a.len() < 2 {
-        return Err("Usage: cm0304-cli staff-ability <save> <uid> <ca> <preserveValues|preserveRelative> | inspect <save> | clubs <save> [query or uid:number] | club-data <save> [query or uid:number] | staff <save> [query or uid:number] | players <save> [query] | career <save> [query] | health <save> [query] | health-cases <save> | injury-types <save> | career-summary <save> | export <save> <json> | edit <save> <new-copy> <fields.json> | apply-plan <save> <new-copy> <transaction.json>".into());
+        return Err("Usage: cm0304-cli staff-ability <save> <uid> <ca> <preserveValues|preserveRelative> | inspect <save> | clubs <save> [query or uid:number] | club-data <save> [query or uid:number] | staff <save> [query or uid:number] | players <save> [query] | career <save> [query] | health <save> [query] | health-cases <save> | injury-types <save> | career-summary <save> | export <save> <json> | edit <save> <new-copy> <fields.json> | compare-roster <before-save> <after-save> <club-uid> | preview-expiries <save> <expiries.json> | preview-wages <save> <wages.json> | preview-batch <save> <batch.json> | apply-plan <save> <new-copy> <transaction.json>".into());
     }
     let bytes = fs::read(&a[1]).map_err(|e| e.to_string())?;
+    if command == "compare-roster" && a.len() == 4 {
+        let other = fs::read(&a[2]).map_err(|e| e.to_string())?;
+        let uid = a[3].parse::<i32>().map_err(|_| "UID de clube inválido")?;
+        let report = cm0304_core::roster_comparison::compare(&bytes, &other, uid)?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&report).map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
     if command == "inspect" {
         println!(
             "{}",
@@ -90,6 +262,45 @@ fn run() -> Result<()> {
         return Ok(());
     }
     let (db, base) = database::load(&bytes)?;
+    if matches!(
+        command,
+        "preview-batch" | "preview-wages" | "preview-expiries"
+    ) && a.len() == 3
+    {
+        let request = fs::read(&a[2]).map_err(|e| e.to_string())?;
+        let players = db.players(base)?;
+        let (edits, targets) = match command {
+            "preview-wages" => cm0304_core::batch::project_wages(
+                &players,
+                &serde_json::from_slice(&request).map_err(|e| e.to_string())?,
+            )?,
+            "preview-expiries" => cm0304_core::batch::project_expiries(
+                &players,
+                &serde_json::from_slice(&request).map_err(|e| e.to_string())?,
+            )?,
+            _ => cm0304_core::batch::project(
+                &players,
+                &serde_json::from_slice(&request).map_err(|e| e.to_string())?,
+            )?,
+        };
+        let plan = transaction::Transaction {
+            edits,
+            ..Default::default()
+        };
+        let report = if plan.is_empty() {
+            None
+        } else {
+            Some(transaction::apply(&bytes, &plan)?.1)
+        };
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "targets": targets, "plan": plan, "report": report
+            }))
+            .map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
     if command == "club-data" {
         let q = a.get(2).map(|q| search::key(q));
         let uid = q
@@ -99,6 +310,7 @@ fn run() -> Result<()> {
             .transpose()?;
         let wages = cm0304_core::career::player_wages_by_club(&db);
         let loan_offsets = cm0304_core::career::loan_wage_offsets_by_club(&db);
+        let stadiums = cm0304_core::clubs::stadiums_by_club(&db);
         let mut reputations = std::collections::BTreeMap::<i32, Vec<_>>::new();
         for team in db
             .teams
@@ -135,6 +347,7 @@ fn run() -> Result<()> {
                     "uid": c.uid,
                     "name": c.name,
                     "details": c.details,
+                    "stadium": stadiums.get(&c.uid),
                     "firstTeamReputation": reputations.get(&(index as i32)).map(Vec::as_slice).unwrap_or_default(),
                     "playerContractWagesWeekly": gross,
                     "loanWageOffsetWeekly": loan_offset,
@@ -292,8 +505,12 @@ fn run() -> Result<()> {
                 });
             }
             if command == "health" {
+                let mut people_by_uid = std::collections::HashMap::with_capacity(db.people.len());
+                for person in &db.people {
+                    people_by_uid.entry(person.uid).or_insert(person);
+                }
                 let rows = players.iter().filter_map(|p| {
-                    let person = db.people.iter().find(|v| v.uid == p.uid)?;
+                    let person = *people_by_uid.get(&p.uid)?;
                     let health = &person.playing.as_ref()?.health_records;
                     if a.get(2).is_none() && health.injuries.is_empty() && health.bans.is_empty() && health.injury_status.is_none() && health.bookings.is_empty() { return None; }
                     let candidates = health.injuries.iter().filter_map(|record| {
@@ -322,7 +539,7 @@ fn run() -> Result<()> {
                     let person = people_by_uid[&p.uid];
                     let state = &person.playing.as_ref().unwrap().state;
                     let contracts = person.contracts.iter().map(|c| {
-                        let entity = if c.entity_type == 0 { db.clubs.get(c.entity_index as usize) } else { db.nations.get(c.entity_index as usize) };
+                        let entity = career::contract_entity(&db, c);
                         serde_json::json!({"contract":c, "entity":entity.map(|e| &e.name)})
                     }).collect::<Vec<_>>();
                     serde_json::json!({"uid":p.uid,"name":p.name,"club":p.club,"databaseBase":base,"state":state,"contracts":contracts})

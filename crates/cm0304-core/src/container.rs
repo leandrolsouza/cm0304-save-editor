@@ -25,11 +25,64 @@ pub struct Container {
     pub blocks: Vec<Block>,
 }
 pub fn read_container(bytes: &[u8]) -> Result<Container> {
+    let mut blocks = Vec::new();
+    visit_blocks(bytes, |name, extension, offset, payload_offset, payload| {
+        blocks.push(Block {
+            name,
+            extension,
+            offset,
+            payload_offset,
+            size: payload.len(),
+            sha256: hash(payload),
+        });
+    })?;
+    Ok(Container {
+        size: bytes.len(),
+        sha256: hash(bytes),
+        blocks,
+    })
+}
+
+/// Finds one payload while validating all container record boundaries.
+pub(crate) fn find_block<'a>(
+    bytes: &'a [u8],
+    name: &str,
+    extension: &str,
+) -> Result<(&'a [u8], usize)> {
+    find_optional_block(bytes, name, extension)?
+        .ok_or_else(|| format!("Expected exactly one {name}{extension} block"))
+}
+
+pub(crate) fn find_optional_block<'a>(
+    bytes: &'a [u8],
+    name: &str,
+    extension: &str,
+) -> Result<Option<(&'a [u8], usize)>> {
+    let mut matches = 0;
+    let mut block = None;
+    visit_blocks(
+        bytes,
+        |block_name, block_extension, _, payload_offset, payload| {
+            if block_name == name && block_extension == extension {
+                matches += 1;
+                block = Some((payload, payload_offset));
+            }
+        },
+    )?;
+    if matches > 1 {
+        return Err(format!("Expected exactly one {name}{extension} block"));
+    }
+    Ok(block)
+}
+
+fn visit_blocks<'a>(
+    bytes: &'a [u8],
+    mut visit: impl FnMut(String, String, usize, usize, &'a [u8]),
+) -> Result<()> {
     let mut r = Reader::new(bytes);
     if r.take(12)? != [0, 46, 0, 99, 0, 109, 0, 52, 0, 2, 0, 0] {
         return Err("Unsupported CM4 signature".into());
     }
-    let mut blocks = Vec::new();
     while r.pos < bytes.len() {
         let offset = r.pos;
         if r.u32()? != 123456789 {
@@ -43,57 +96,27 @@ pub fn read_container(bytes: &[u8]) -> Result<Container> {
                 let extension = utf16(r.take(10)?)?.trim_end_matches('\0').to_string();
                 let size = r.u32()? as usize;
                 let payload_offset = r.pos;
-                let sha256 = hash(r.take(size)?);
-                blocks.push(Block {
-                    name,
-                    extension,
-                    offset,
-                    payload_offset,
-                    size,
-                    sha256,
-                });
+                visit(name, extension, offset, payload_offset, r.take(size)?);
             }
             t => return Err(format!("Unsupported record type {t} at {offset}")),
         }
     }
-    Ok(Container {
-        size: bytes.len(),
-        sha256: hash(bytes),
-        blocks,
-    })
+    Ok(())
 }
 
 /// Replace exactly one payload, preserving record headers, ordering and every
 /// unrelated payload. Used when a validated edit changes a database record size.
 pub fn replace_block(input: &[u8], name: &str, extension: &str, payload: &[u8]) -> Result<Vec<u8>> {
-    let original = read_container(input)?;
-    let matches = original
-        .blocks
-        .iter()
-        .filter(|b| b.name == name && b.extension == extension)
-        .collect::<Vec<_>>();
-    if matches.len() != 1 {
-        return Err(format!("Expected exactly one {name}{extension} block"));
-    }
-    let block = matches[0];
+    let (original, offset) = find_block(input, name, extension)?;
     let size = u32::try_from(payload.len()).map_err(|_| "Block exceeds container size limit")?;
-    let mut output = Vec::with_capacity(input.len() - block.size + payload.len());
-    output.extend_from_slice(&input[..block.payload_offset]);
-    output[block.payload_offset - 4..block.payload_offset].copy_from_slice(&size.to_le_bytes());
+    let mut output = Vec::with_capacity(input.len() - original.len() + payload.len());
+    output.extend_from_slice(&input[..offset - 4]);
+    output.extend_from_slice(&size.to_le_bytes());
     output.extend_from_slice(payload);
-    output.extend_from_slice(&input[block.payload_offset + block.size..]);
-    let checked = read_container(&output)?;
-    if checked.blocks.len() != original.blocks.len() {
-        return Err("Block count changed during replacement".into());
-    }
-    for (before, after) in original.blocks.iter().zip(&checked.blocks) {
-        if before.name != after.name
-            || before.extension != after.extension
-            || ((before.name != name || before.extension != extension)
-                && (before.size != after.size || before.sha256 != after.sha256))
-        {
-            return Err("Unrelated block changed during replacement".into());
-        }
+    output.extend_from_slice(&input[offset + original.len()..]);
+    let (checked, checked_offset) = find_block(&output, name, extension)?;
+    if checked_offset != offset || checked != payload {
+        return Err("Block verification failed during replacement".into());
     }
     Ok(output)
 }
@@ -138,6 +161,14 @@ mod tests {
         let mut duplicate = original.clone();
         let first_end = read_container(&original).unwrap().blocks[1].offset;
         duplicate.extend_from_slice(&original[12..first_end]);
+        let (payload, offset) = find_block(&original, "a", ".dat").unwrap();
+        assert_eq!(payload, &[1, 2, 3]);
+        assert_eq!(
+            offset,
+            read_container(&original).unwrap().blocks[0].payload_offset
+        );
+        assert!(find_block(&duplicate, "a", ".dat").is_err());
+        assert!(find_block(&original[..original.len() - 1], "a", ".dat").is_err());
         assert!(replace_block(&duplicate, "a", ".dat", &[]).is_err());
         assert!(replace_block(&original[..original.len() - 1], "a", ".dat", &[]).is_err());
     }

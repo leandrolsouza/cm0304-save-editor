@@ -1,14 +1,16 @@
 {
   "name": "cm0304-save-editor",
-  "version": "0.5.0-alpha.1",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test",
+    "test:ui": "node tools/build-ui.js && node tools/run-desktop-ui-checks.js",
     "compare": "node tools/save-cli.js compare",
     "analyze": "node tools/game-db-cli.js analyze",
     "build:ui": "node tools/build-ui.js",
     "build:desktop": "node tools/build-ui.js && cargo build --offline -p cm0304-desktop",
+    "build:installer": "node tools/build-ui.js && cd apps/desktop && tauri build --bundles nsis",
     "test:rust": "cargo test --offline",
     "verify:parity": "cargo build --offline -p cm0304-cli && node tools/verify-rust-parity.js"
   },
@@ -16,6 +18,8 @@
     "node": ">=22"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "2.9.6",
+    "playwright-core": "1.56.1",
     "typescript": "^7.0.2"
   }
 }

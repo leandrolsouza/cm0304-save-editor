@@ -46,6 +46,29 @@ fn rejects_truncated_and_unknown_formats() {
     assert!(r.string().is_err());
     assert!(database::read_database(&[0; 11]).is_err());
 }
+
+#[test]
+fn a_valid_container_with_an_unknown_database_version_cannot_be_edited() {
+    let mut bytes = fs::read(sample("save_inicial.cm4")).unwrap();
+    let container = read_container(&bytes).unwrap();
+    let game_db = container
+        .blocks
+        .iter()
+        .find(|block| block.name == "game_db" && block.extension == ".dat")
+        .unwrap();
+    let version = game_db.payload_offset + 9;
+    bytes[version..version + 2].copy_from_slice(&148_u16.to_le_bytes());
+    assert!(read_container(&bytes).is_ok());
+
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("unknown.cm4");
+    let target = temp.path().join("copy.cm4");
+    fs::write(&source, &bytes).unwrap();
+    let result = editor::save_copy(&source, &target, &edits(), &AtomicBool::new(false));
+    assert!(result.unwrap_err().contains("Versão interna 148"));
+    assert!(!target.exists());
+    assert_eq!(fs::read(&source).unwrap(), bytes);
+}
 #[test]
 fn inverse_roundtrips_and_rejects_unreachable_targets() {
     for ca in 0..=200 {
@@ -85,6 +108,13 @@ fn real_saves_parse_and_resolve_every_player() {
         let zidane = players.iter().find(|p| p.uid == 8076).unwrap();
         assert_eq!(zidane.name, "Zinedine Zidane");
         assert_eq!(zidane.club.as_deref(), Some("Real Madrid C.F."));
+        let targeted = db.players_by_uid(base, zidane.uid).unwrap();
+        assert_eq!(targeted.len(), 1);
+        assert_eq!(
+            serde_json::to_value(&targeted[0]).unwrap(),
+            serde_json::to_value(zidane).unwrap()
+        );
+        assert!(db.players_by_uid(base, i32::MIN).unwrap().is_empty());
         for p in &players {
             assert_eq!(p.raw_attributes.len(), 65);
             assert_eq!(
@@ -130,7 +160,7 @@ fn multi_player_transaction_changes_only_planned_bytes() {
     let players = db.players(base).unwrap();
     for e in edits() {
         assert_eq!(
-            players.iter().find(|p| p.uid == e.uid).unwrap().attributes[&e.attribute],
+            players.iter().find(|p| p.uid == e.uid).unwrap().attributes[e.attribute.as_str()],
             e.value as i8
         );
     }

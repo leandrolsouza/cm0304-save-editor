@@ -21,7 +21,14 @@
     "club balance review/history/save",
     "club infrastructure and reputation atomic review and undo",
     "club transfer budget field count",
-    "club expiry opens exact loan"
+    "club expiry opens exact loan",
+    "club batch preview invalidation and review",
+    "club copy group and field exclusions",
+    "club batch preset persistence",
+    "preset import validation and export",
+    "combined player filters and saved search",
+    "filtered batch cross-page selection",
+    "save comparison contracts and CSV"
   ],
   "frontendErrors": []
 }

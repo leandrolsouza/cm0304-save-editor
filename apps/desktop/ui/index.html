@@ -1,38 +1,462 @@
 <!doctype html>
 <html lang="pt-BR">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CM0304 Save Editor</title><link rel="stylesheet" href="style.css"></head>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CM0304 Save Editor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
 <body>
   <aside class="sidebar">
-    <div class="brand"><div class="brand-mark">CM<span>03·04</span></div><strong>Save Editor<small>O seu jogo, nos detalhes.</small></strong></div>
-    <div class="nav-label">ÁREA DE TRABALHO</div>
-    <button class="nav active" id="nav-players">◉ <span>Jogadores</span><span id="player-count" class="nav-count">—</span></button>
-    <button class="nav" id="nav-staff">♙ <span>Staff</span><span id="staff-count" class="nav-count">—</span></button>
-    <button class="nav" id="nav-clubs">⚑ <span>Clubes</span><span id="club-count" class="nav-count">—</span></button>
-    <button class="nav" id="nav-changes">⇄ <span>Alterações</span><span id="pending-count" class="nav-count">0</span></button>
-    <button class="nav" id="nav-diagnostics">≡ <span>Diagnóstico</span></button>
-    <div class="sidebar-bottom"><span class="dot"></span> Edição local em cópia<small>CM0304 4.1.5 · Rust + Tauri<br>Prévia 0.5 alpha · em validação</small></div>
+    <div class="brand">
+      <div class="brand-mark">CM<span>03·04</span></div><strong>Save Editor</strong>
+    </div>
+    <nav class="section-nav" aria-label="Área de trabalho">
+      <button class="nav" id="nav-my-club" type="button" hidden disabled><svg class="icon" aria-hidden="true"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path d="M12 22s7-3 7-9V5l-7-3-7 3v8c0 6 7 9 7 9Z M9 12l2 2 4-4" />
+        </svg> <span>Meu clube</span></button>
+      <button class="nav" id="nav-players" disabled><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path
+            d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M20 21v-2a4 4 0 0 0-3-4 M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0 M17 3a4 4 0 0 1 0 8" />
+        </svg> <span>Jogadores</span><span id="player-count" class="nav-count">—</span></button>
+      <button class="nav" id="nav-staff" disabled><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2 M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0" />
+        </svg> <span>Staff</span><span id="staff-count" class="nav-count">—</span></button>
+      <button class="nav" id="nav-clubs" disabled><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 22V3h14l-3 5 3 5H5" />
+        </svg> <span>Clubes</span><span id="club-count" class="nav-count">—</span></button>
+      <button class="nav" id="nav-changes" disabled><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 8h17l-4-4 M21 16H4l4 4" />
+        </svg> <span>Alterações</span><span id="pending-count" class="nav-count">0</span></button>
+      <button class="nav" id="nav-diagnostics" disabled><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 5h14 M5 12h14 M5 19h9" />
+        </svg> <span>Diagnóstico</span></button>
+    </nav>
+    <div class="sidebar-bottom"><span class="dot"></span> Edição local em cópia<small>CM0304 4.1.5<span
+          id="editor-version" hidden></span></small></div>
   </aside>
   <main>
-    <header><div><div class="eyebrow">CHAMPIONSHIP MANAGER 03/04</div><h1>Editor de save</h1></div><button id="open-save" class="primary">＋ Abrir save</button></header>
-    <section class="filebar"><div><span class="file-symbol">▤</span><strong id="file-name">Nenhum save aberto</strong><span id="file-info">Selecione um arquivo .cm4 para começar</span></div><span class="pill">4.1.5</span></section>
-    <div id="status" role="status" aria-live="polite">Pronto para abrir uma carreira.</div>
-    <section id="empty" class="empty"><div class="pitch"><div></div><span></span></div><div class="eyebrow">UMA NOVA PERSPECTIVA SOBRE O SEU ELENCO</div><h2>Conheça cada detalhe.<br>Faça cada ajuste contar.</h2><p>Abra uma carreira para consultar os jogadores e editar seus atributos.<br>As alterações são revisadas e gravadas em uma nova cópia.</p><button id="empty-open" class="primary">Abrir meu save</button></section>
+    <header class="editor-header" data-tauri-drag-region>
+      <div class="editor-heading" data-tauri-drag-region="deep">
+        <div class="eyebrow">CHAMPIONSHIP MANAGER 03/04</div>
+        <h1>Editor de save</h1>
+      </div>
+      <div class="header-actions">
+        <div class="theme-picker">
+          <label for="language-select">Idioma</label>
+          <select id="language-select">
+            <option value="pt-BR" lang="pt-BR">Português</option>
+            <option value="en-GB" lang="en-GB">English</option>
+          </select>
+        </div>
+        <div class="theme-picker">
+          <label for="theme-select">Tema</label>
+          <select id="theme-select">
+            <option value="green">Verde original</option>
+            <option value="retro">CM0304 retrô</option>
+            <option value="light">Claro</option>
+          </select>
+        </div>
+        <div id="open-in-header"></div>
+      </div>
+      <div class="window-controls" role="group" aria-label="Controles da janela">
+        <button id="window-minimize" type="button" aria-label="Minimizar janela" title="Minimizar janela">
+          <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3 8.5h10" /></svg>
+        </button>
+        <button id="window-maximize" type="button" aria-label="Maximizar janela" title="Maximizar janela">
+          <svg aria-hidden="true" viewBox="0 0 16 16"><rect x="3.5" y="3.5" width="9" height="9" /></svg>
+          <svg class="window-restore-icon" aria-hidden="true" viewBox="0 0 16 16">
+            <rect x="3.5" y="5.5" width="7" height="7" /><path d="M5.5 5.5v-2h7v7h-2" />
+          </svg>
+        </button>
+        <button id="window-close" type="button" aria-label="Fechar janela" title="Fechar janela">
+          <svg aria-hidden="true" viewBox="0 0 16 16"><path d="m4 4 8 8m0-8-8 8" /></svg>
+        </button>
+      </div>
+    </header>
+    <section class="filebar" hidden>
+      <div><span class="file-symbol"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 3h9l5 5v13H5z M9 12h6 M9 16h6" />
+          </svg></span><strong id="file-name">Nenhum save aberto</strong><span id="file-info">Selecione um arquivo .cm4
+          para começar</span></div>
+    </section>
+    <section id="open-save-progress" class="open-card" aria-labelledby="open-save-title" hidden>
+      <h2 id="open-save-title">Abrindo <span id="opening-file"></span></h2>
+      <p id="opening-message" class="notice" data-notice="info"></p>
+      <progress aria-label="Abertura do save"></progress>
+      <button id="cancel-open-save" type="button">Cancelar abertura</button>
+    </section>
+    <section id="open-save-error" aria-labelledby="open-error-title" hidden>
+      <h2 id="open-error-title">Não foi possível abrir o save</h2>
+      <button id="retry-open-save" type="button">Tentar novamente</button>
+      <button id="choose-other-save" type="button">Escolher outro arquivo</button>
+    </section>
+    <div id="save-copy-progress" hidden><progress aria-label="Gravação da cópia"></progress> <button
+        id="cancel-save-copy" type="button">Cancelar gravação</button></div>
+    <button id="cancel-save-comparison" type="button" hidden>Cancelar comparação</button>
+    <section id="empty" class="empty">
+      <div class="pitch" aria-hidden="true"></div>
+      <h2>Abra uma carreira</h2>
+      <p>Escolha um save .cm4 para consultar jogadores, staff e clubes ou editar a carreira.</p>
+      <div id="open-in-start"><button id="open-save" class="primary"><svg class="icon" aria-hidden="true"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M12 5v14 M5 12h14" />
+          </svg> Abrir save</button></div>
+      <section id="recent-saves" hidden>
+        <h3>Saves recentes</h3>
+        <div id="recent-save-list"></div>
+      </section>
+    </section>
     <section id="workspace" hidden>
+      <section id="my-club-view" aria-labelledby="my-club-title" hidden>
+        <div class="my-club-content">
+          <div class="my-club-heading">
+            <div>
+              <p class="eyebrow">MEU CLUBE</p>
+              <h2 id="my-club-title" tabindex="-1">Meu clube</h2>
+              <p id="my-club-scope" hidden>Equipe principal</p>
+            </div>
+            <label id="my-club-picker" hidden>Clube do treinador <select id="my-club-select"></select></label>
+          </div>
+          <p id="my-club-message" class="notice" data-notice="info" hidden></p>
+          <div id="my-club-shortcuts" class="my-club-groups" hidden>
+            <section class="panel my-club-finances" aria-labelledby="my-club-finances-title">
+              <h3 id="my-club-finances-title">Finanças</h3>
+              <button type="button" class="primary" data-my-club-action="cash"><strong>+£100 mi no
+                  caixa</strong><span></span></button>
+              <button type="button" data-my-club-action="transfers"><strong>Definir £200 mi para
+                  contratar</strong><span></span></button>
+              <button type="button" data-my-club-action="wages"><strong>+£25 mil/semana no orçamento
+                  salarial</strong><span></span></button>
+            </section>
+            <section class="panel" aria-labelledby="my-club-squad-title">
+              <h3 id="my-club-squad-title">Equipe principal</h3>
+              <button type="button" data-my-club-action="injuries"><strong>Curar lesões</strong><span></span></button>
+              <button type="button" data-my-club-action="suspensions"><strong>Remover
+                  suspensões</strong><span></span></button>
+              <button type="button" data-my-club-action="condition"><strong>Colocar condição em
+                  100%</strong><span></span></button>
+              <button type="button" data-my-club-action="morale"><strong>Elevar moral para
+                  Excelente</strong><span></span></button>
+            </section>
+          </div>
+          <div id="my-club-actions" class="my-club-actions" hidden>
+            <p>Os atalhos adicionam alterações à revisão.</p>
+            <div><button type="button" id="my-club-undo">Desfazer</button> <button type="button" id="my-club-review">Ver
+                revisão</button></div>
+          </div>
+        </div>
+      </section>
       <div id="players-view" class="workspace-grid">
-        <section class="roster panel"><div class="panel-heading"><h2>Jogadores</h2><span id="result-count">0 resultados</span></div><label class="search-box"><span>⌕</span><input id="search" type="search" placeholder="Nome, clube ou UID" aria-label="Buscar jogadores"></label><div class="table-label"><span>JOGADOR / CLUBE</span><span>CA · PA</span></div><div id="results" class="results"></div><div class="pagination"><button id="previous" aria-label="Página anterior">←</button><span id="page-label">1</span><button id="next" aria-label="Próxima página">→</button></div></section>
-        <section id="profile" class="profile panel"><div class="profile-placeholder"><h2>Escolha um jogador</h2><p>Selecione um nome da lista para consultar o perfil e preparar as alterações.</p></div></section>
+        <section class="roster panel">
+          <div class="panel-heading">
+            <h2>Jogadores</h2><span id="result-count" role="status">0 resultados</span>
+          </div><label class="search-box"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 10a6 6 0 1 1-12 0 6 6 0 0 1 12 0 M15 15l5 5" />
+            </svg><input id="search" type="search" placeholder="Nome, clube ou UID" aria-label="Buscar jogadores"
+              aria-controls="results"></label>
+          <p id="player-search-error" class="notice" data-notice="error"></p>
+          <div class="search-tools">
+            <details id="watchlist-tools">
+              <summary>Observação</summary>
+              <div class="filter-panel"><label class="watch-filter"><input id="only-watchlist" type="checkbox"> Lista de
+                  observação <span id="watch-count"></span></label>
+                <div><label for="watchlist-select">Lista ativa</label> <select id="watchlist-select"></select> <button
+                    id="watchlist-delete" type="button">Excluir lista</button>
+                  <form id="watchlist-form"><label>Nome da nova lista <input id="watchlist-name" maxlength="60"
+                        required></label> <button type="submit">Criar lista</button></form>
+                </div>
+              </div>
+            </details>
+            <details id="player-filters">
+              <summary>Filtros</summary>
+              <div class="filter-panel player-filter-panel">
+                <form id="player-filter-form">
+                  <fieldset class="player-filter-group">
+                    <legend>Perfil</legend>
+                    <div class="player-filter-grid">
+                      <label>Posição (15+) <select name="position" id="player-filter-position"
+                          title="Posições com nota 15 ou mais"></select></label>
+                      <label>Nacionalidade <input name="nation" type="search"></label>
+                      <fieldset class="player-filter-range">
+                        <legend>Idade</legend>
+                        <label>Mínima <input name="minAge" aria-label="Idade mínima" type="number" min="0"
+                            max="150"></label>
+                        <label>Máxima <input name="maxAge" aria-label="Idade máxima" type="number" min="0"
+                            max="150"></label>
+                      </fieldset>
+                    </div>
+                  </fieldset>
+                  <details id="player-filter-attributes" class="player-filter-section">
+                    <summary>Capacidade e atributos <span class="filter-group-error">Revise os campos</span></summary>
+                    <div class="player-filter-grid">
+                      <fieldset class="player-filter-range">
+                        <legend>Capacidade atual (CA)</legend>
+                        <label>Mínima <input name="minCa" aria-label="CA mínima" type="number" min="0"
+                            max="200"></label>
+                        <label>Máxima <input name="maxCa" aria-label="CA máxima" type="number" min="0"
+                            max="200"></label>
+                      </fieldset>
+                      <fieldset class="player-filter-range">
+                        <legend>Potencial (PA)</legend>
+                        <label>Mínimo <input name="minPa" aria-label="PA mínima" type="number" min="-2"
+                            max="200"></label>
+                        <label>Máximo <input name="maxPa" aria-label="PA máxima" type="number" min="-2"
+                            max="200"></label>
+                      </fieldset>
+                      <label>Atributo <select name="attribute" id="player-filter-attribute"
+                          aria-describedby="player-attribute-filter-error"></select></label>
+                      <label>Valor mínimo <input name="minAttribute" type="number" min="0" max="20"
+                          aria-describedby="player-attribute-filter-error"></label>
+                      <p id="player-attribute-filter-error" class="notice" data-notice="error"></p>
+                    </div>
+                  </details>
+                  <details id="player-filter-contract" class="player-filter-section">
+                    <summary>Pé e vínculo</summary>
+                    <div class="player-filter-grid">
+                      <label>Pé <select name="foot">
+                          <option value="">Qualquer</option>
+                          <option value="left">Esquerdo mais forte</option>
+                          <option value="right">Direito mais forte</option>
+                          <option value="both">Ambos (15+)</option>
+                        </select></label>
+                      <label>Vínculo <select name="contract">
+                          <option value="">Qualquer</option>
+                          <option value="full">Completo com data</option>
+                          <option value="loan">Empréstimo</option>
+                          <option value="monthly">Mensal</option>
+                          <option value="noClubContract">Sem completo ou empréstimo</option>
+                        </select></label>
+                    </div>
+                  </details>
+                  <label class="player-filter-order">Ordenar resultados <select name="order">
+                      <option value="">Ordem do save</option>
+                      <option value="name">Nome</option>
+                      <option value="age">Mais jovens</option>
+                      <option value="ca">Maior CA</option>
+                      <option value="pa">Maior PA</option>
+                    </select></label>
+                  <div class="player-filter-actions"><button type="submit" class="primary">Aplicar
+                      filtros</button><button type="reset">Limpar filtros</button></div>
+                </form>
+                <details id="player-filter-saved" class="player-filter-section">
+                  <summary>Buscas salvas</summary>
+                  <div class="player-filter-grid">
+                    <label class="player-filter-wide">Busca salva <select id="saved-player-search"></select></label>
+                    <div class="player-filter-saved-actions"><button type="button"
+                        id="load-player-search">Carregar</button><button type="button"
+                        id="delete-player-search">Excluir</button></div>
+                    <label class="player-filter-wide">Nome da busca <input id="player-search-name"
+                        maxlength="60"></label>
+                    <div class="player-filter-saved-actions"><button type="button" id="save-player-search">Salvar busca
+                        atual</button></div>
+                  </div>
+                </details>
+              </div>
+            </details>
+            <details id="player-columns">
+              <summary>Colunas</summary>
+              <div id="player-column-options"></div>
+            </details>
+          </div>
+          <div id="active-filters" class="active-filters" aria-label="Filtros ativos" hidden></div><button
+            id="cancel-player-search" type="button" hidden>Cancelar busca</button>
+          <div id="results" class="results"></div>
+          <div class="result-actions"><button id="batch-filtered" type="button">Editar resultados em lote</button>
+            <details class="export-menu">
+              <summary>Exportar</summary>
+              <div><button id="export-filtered-players" type="button">Exportar resultados CSV</button><button
+                  id="export-filtered-players-json" type="button">Exportar resultados JSON</button></div>
+            </details>
+          </div>
+          <div class="pagination"><button id="previous" aria-label="Página anterior"><svg class="icon"
+                aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 5l-7 7 7 7" />
+              </svg></button><span id="page-label">1</span><button id="next" aria-label="Próxima página"><svg
+                class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 5l7 7-7 7" />
+              </svg></button></div>
+        </section>
+        <div class="pane-divider" role="separator" tabindex="0" aria-label="Largura da lista"
+          aria-orientation="vertical" aria-valuemin="230" aria-valuenow="290" aria-controls="profile"></div>
+        <section id="profile" class="profile panel">
+          <div class="profile-placeholder">
+            <h2>Escolha um jogador</h2>
+            <p>Selecione um nome da lista para consultar o perfil e preparar as alterações.</p>
+          </div>
+        </section>
       </div>
       <div id="staff-view" class="workspace-grid" hidden>
-        <section class="roster panel"><div class="panel-heading"><h2>Staff</h2><span id="staff-result-count">0 resultados</span></div><label class="search-box"><span>⌕</span><input id="staff-search" type="search" placeholder="Nome, clube, seleção ou função" aria-label="Buscar staff"></label><div class="table-label"><span>STAFF / FUNÇÃO</span><span>CA · PA</span></div><div id="staff-results" class="results"></div><div class="pagination"><button id="staff-previous" aria-label="Página anterior de staff">←</button><span id="staff-page-label">1</span><button id="staff-next" aria-label="Próxima página de staff">→</button></div></section>
-        <section id="staff-profile" class="profile panel"><div class="profile-placeholder"><h2>Escolha um membro do staff</h2><p>Consulte funções, vínculos e capacidade.</p></div></section>
+        <section class="roster panel">
+          <div class="panel-heading">
+            <h2>Staff</h2><span id="staff-result-count" role="status">0 resultados</span>
+          </div><label class="search-box"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 10a6 6 0 1 1-12 0 6 6 0 0 1 12 0 M15 15l5 5" />
+            </svg><input id="staff-search" type="search" placeholder="Nome, clube, seleção ou função"
+              aria-label="Buscar staff" aria-controls="staff-results"></label>
+          <div class="table-label"><span>STAFF / FUNÇÃO</span><span>CA · PA</span></div>
+          <div id="staff-results" class="results"></div>
+          <div class="pagination"><button id="staff-previous" aria-label="Página anterior de staff"><svg class="icon"
+                aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 5l-7 7 7 7" />
+              </svg></button><span id="staff-page-label">1</span><button id="staff-next"
+              aria-label="Próxima página de staff"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 5l7 7-7 7" />
+              </svg></button></div>
+        </section>
+        <div class="pane-divider" role="separator" tabindex="0" aria-label="Largura da lista"
+          aria-orientation="vertical" aria-valuemin="230" aria-valuenow="290" aria-controls="staff-profile"></div>
+        <section id="staff-profile" class="profile panel">
+          <div class="profile-placeholder">
+            <h2>Escolha um membro do staff</h2>
+            <p>Consulte funções, vínculos e capacidade.</p>
+          </div>
+        </section>
       </div>
       <div id="clubs-view" class="workspace-grid" hidden>
-        <section class="roster panel"><div class="panel-heading"><h2>Clubes</h2><span id="club-result-count">0 resultados</span></div><label class="search-box"><span>⌕</span><input id="club-search" type="search" placeholder="Nome ou UID do clube" aria-label="Buscar clubes"></label><div class="table-label"><span>CLUBE</span><span>JOGADORES</span></div><div id="club-results" class="results"></div><div class="pagination"><button id="club-previous" aria-label="Página anterior de clubes">←</button><span id="club-page-label">1</span><button id="club-next" aria-label="Próxima página de clubes">→</button></div></section>
-        <section id="club-profile" class="profile panel"><div class="profile-placeholder"><h2>Escolha um clube</h2><p>Consulte os vínculos e abra os perfis do elenco e staff.</p></div></section>
+        <section class="roster panel">
+          <div class="panel-heading">
+            <h2>Clubes</h2><span id="club-result-count" role="status">0 resultados</span>
+          </div><label class="search-box"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 10a6 6 0 1 1-12 0 6 6 0 0 1 12 0 M15 15l5 5" />
+            </svg><input id="club-search" type="search" placeholder="Digite parte do nome ou UID"
+              aria-label="Buscar clubes" aria-controls="club-results"></label>
+          <div class="table-label"><span>CLUBE</span><span>JOGADORES</span></div>
+          <div id="club-results" class="results"></div>
+          <div class="pagination"><button id="club-previous" aria-label="Página anterior de clubes"><svg class="icon"
+                aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 5l-7 7 7 7" />
+              </svg></button><span id="club-page-label">1</span><button id="club-next"
+              aria-label="Próxima página de clubes"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 5l7 7-7 7" />
+              </svg></button></div>
+        </section>
+        <div class="pane-divider" role="separator" tabindex="0" aria-label="Largura da lista"
+          aria-orientation="vertical" aria-valuemin="230" aria-valuenow="290" aria-controls="club-profile"></div>
+        <section id="club-profile" class="profile panel">
+          <div class="profile-placeholder">
+            <h2>Escolha um clube</h2>
+            <p>Consulte os vínculos e abra os perfis do elenco e staff.</p>
+          </div>
+        </section>
       </div>
-      <section id="changes-view" class="panel review" hidden><div class="panel-heading"><div><div class="eyebrow">ANTES DE GRAVAR</div><h2>Revise suas alterações</h2></div><div class="actions"><button id="undo">Desfazer</button><button id="redo">Refazer</button><button id="clear">Limpar</button></div></div><p>A origem permanece intacta. A cópia será relida e validada antes da conclusão.</p><div id="changes-list"></div><button id="save-copy" class="primary">Salvar cópia validada</button><p id="saved-path"></p></section>
-      <section id="diagnostics-view" class="panel review" hidden><div class="eyebrow">INFORMAÇÕES DO ARQUIVO</div><h2>Diagnóstico</h2><p>Formato validado: banco interno 147. Os valores convertidos seguem o modelo CM Scout 3.10; a interface do jogo pode ocultar ou estimar atributos de jogadores desconhecidos pelo treinador.</p><pre id="diagnostics"></pre></section>
+      <section id="changes-view" class="panel review" hidden>
+        <div id="active-save-review">
+          <div class="panel-heading">
+            <div>
+              <div class="eyebrow">ANTES DE GRAVAR</div>
+              <h2 id="review-title" tabindex="-1">Revise suas alterações</h2>
+            </div>
+            <div class="actions"><button id="undo">Desfazer</button><button id="redo">Refazer</button><button
+                id="clear">Limpar</button></div>
+          </div>
+          <p class="notice" data-notice="info">O save original permanece intacto. O editor valida a nova cópia antes de
+            concluir.</p>
+          <div id="review-error" hidden>
+            <p>A validação do plano falhou.</p><button id="retry-review" type="button">Validar novamente</button>
+          </div>
+          <div id="changes-list"></div>
+          <div class="review-save-bar"><span id="review-summary" aria-live="polite"></span><button id="save-copy"
+              class="primary">Salvar cópia validada</button></div> <button type="button"
+            id="export-plan-report">Exportar relatório JSON</button> <button type="button"
+            id="export-session-plan">Guardar plano</button> <button type="button" id="import-session-plan">Retomar
+            plano</button>
+          <details>
+            <summary>Salvar variante na pasta do save</summary>
+            <form id="save-variant-form"><label>Nome da variante <input id="save-variant-name" required maxlength="26"
+                  autocomplete="off"></label> <button id="save-variant" type="submit">Salvar variante</button>
+              <p class="notice" data-notice="info">Até 26 caracteres, sem a extensão .cm4.</p>
+            </form>
+          </details>
+          <section id="saved-path" aria-label="Última cópia gravada"></section>
+        </div>
+        <div id="history-start" class="panel-heading" hidden>
+          <h2 id="history-heading" tabindex="-1">Histórico de cópias</h2><button id="back-to-start" type="button">Voltar
+            ao início</button>
+        </div>
+        <details id="saved-copy-history" hidden>
+          <summary>Histórico de cópias gravadas</summary><label><input id="saved-copy-current-origin" type="checkbox">
+            Apenas cópias do save ativo</label>
+          <div id="saved-copy-entries"></div>
+        </details>
+      </section>
+      <section id="diagnostics-view" class="panel review" hidden>
+        <div class="eyebrow">INFORMAÇÕES DO ARQUIVO</div>
+        <h2>Diagnóstico</h2>
+        <p class="notice" data-notice="info">Formato validado: banco interno 147. Os valores convertidos seguem o modelo
+          CM Scout 3.10; a interface do jogo pode ocultar ou estimar atributos de jogadores desconhecidos pelo
+          treinador.</p>
+        <pre id="diagnostics"></pre>
+        <details id="player-diagnostics">
+          <summary>Dados técnicos do jogador selecionado</summary>
+          <p id="player-diagnostics-context"></p>
+          <pre id="player-diagnostics-raw" hidden></pre>
+        </details>
+      </section>
     </section>
-    <footer><span id="footer-state">Seu save original permanece intacto.</span><button id="review" disabled>Revisar alterações <span id="review-count">0</span> →</button></footer>
-  </main><script type="module" src="main.js"></script>
-</body></html>
+    <footer><span id="footer-state">Seu save original permanece intacto.</span><button id="review" disabled>Revisar
+        alterações <span id="review-count">0</span> <svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 5l7 7-7 7" />
+        </svg></button></footer>
+  </main>
+  <script type="module" src="main.js"></script>
+  <dialog id="confirm-action" aria-labelledby="confirm-action-title" aria-describedby="confirm-action-message">
+    <form method="dialog">
+      <h2 id="confirm-action-title"></h2>
+      <p id="confirm-action-message" class="notice" data-notice="warning"></p>
+      <button value="cancel" autofocus>Voltar</button>
+      <button id="confirm-action-accept" value="continue">Continuar</button>
+    </form>
+  </dialog>
+  <dialog id="filtered-batch-dialog" aria-labelledby="filtered-batch-title">
+    <div class="panel-heading">
+      <h2 id="filtered-batch-title" tabindex="-1" autofocus>Editar jogadores em lote</h2><button type="button"
+        id="filtered-batch-close">Fechar</button>
+    </div>
+    <div id="filtered-batch-content"></div>
+  </dialog>
+  <dialog id="player-comparison" aria-labelledby="player-comparison-title">
+    <header class="comparison-header">
+      <h2 id="player-comparison-title" tabindex="-1" autofocus>Comparação de jogadores</h2>
+      <div class="comparison-actions">
+        <details class="comparison-export">
+          <summary>Exportar</summary>
+          <div>
+            <button type="button" id="export-player-comparison">Exportar CSV</button>
+            <button type="button" id="export-player-comparison-json">Exportar JSON</button>
+          </div>
+        </details>
+        <form method="dialog"><button>Fechar</button></form>
+      </div>
+    </header>
+    <div id="player-comparison-content"></div>
+  </dialog>
+  <dialog id="club-comparison" aria-label="Comparação de elenco">
+    <form method="dialog"><button>Fechar</button></form><button type="button" id="export-club-comparison-csv">Exportar
+      CSV</button><button type="button" id="export-club-comparison">Exportar JSON</button>
+    <div id="club-comparison-content"></div>
+  </dialog>
+</body>
+
+</html>

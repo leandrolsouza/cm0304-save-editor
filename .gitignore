@@ -1,4 +1,9 @@
 /game/
+/output/
+/tools/CMScout/
+/tools/mcm0304.exe
+*.key
+*.pfx
 /node_modules/
 /target/
 /.playwright-cli/

@@ -14,10 +14,14 @@ use std::{
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Transaction {
     #[serde(default)]
+    pub club_stadium_capacities: BTreeMap<i32, StadiumCapacities>,
+    #[serde(default)]
     pub club_balances: BTreeMap<i32, i32>,
+    #[serde(default)]
+    pub club_wage_budgets: BTreeMap<i32, i32>,
     #[serde(default)]
     pub club_transfer_budgets: BTreeMap<i32, TransferBudgets>,
     #[serde(default)]
@@ -28,6 +32,8 @@ pub struct Transaction {
     pub club_youth_setup: BTreeMap<i32, u8>,
     #[serde(default)]
     pub edits: Vec<Edit>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub market_statuses: BTreeMap<i32, u8>,
     #[serde(default)]
     pub staff_edits: Vec<crate::staff_editor::Edit>,
     #[serde(default)]
@@ -42,8 +48,123 @@ pub struct TransferBudgets {
     pub season: i32,
     pub remaining: i32,
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StadiumCapacities {
+    pub capacity: i32,
+    pub seated_capacity: i32,
+}
+
+impl StadiumCapacities {
+    pub fn validate(self) -> Result<()> {
+        if self.capacity <= 0 || !(0..=self.capacity).contains(&self.seated_capacity) {
+            return Err(
+                "Informe lotação positiva e lugares sentados entre zero e a lotação total".into(),
+            );
+        }
+        Ok(())
+    }
+}
 
 impl Transaction {
+    /// Replay the explicit changes between two snapshots on another baseline.
+    /// Later targets are absolute values, so removing an earlier operation
+    /// does not reinterpret percentages or other operations already previewed.
+    pub fn replay_delta(
+        &mut self,
+        before: &Self,
+        after: &Self,
+        budget_origin: impl Fn(i32) -> Option<TransferBudgets>,
+        reputation_origin: impl Fn(i32) -> Option<[i16; 3]>,
+    ) {
+        replay_map(
+            &mut self.club_stadium_capacities,
+            &before.club_stadium_capacities,
+            &after.club_stadium_capacities,
+        );
+        replay_map(
+            &mut self.club_balances,
+            &before.club_balances,
+            &after.club_balances,
+        );
+        replay_map(
+            &mut self.club_wage_budgets,
+            &before.club_wage_budgets,
+            &after.club_wage_budgets,
+        );
+        for uid in before
+            .club_transfer_budgets
+            .keys()
+            .chain(after.club_transfer_budgets.keys())
+            .copied()
+            .collect::<BTreeSet<_>>()
+        {
+            let old = before.club_transfer_budgets.get(&uid);
+            let new = after.club_transfer_budgets.get(&uid);
+            if old == new {
+                continue;
+            }
+            let fields = |budget: &TransferBudgets| [budget.season, budget.remaining];
+            let target = replay_fields(
+                self.club_transfer_budgets.get(&uid).map(fields),
+                old.map(fields),
+                new.map(fields),
+                budget_origin(uid).as_ref().map(fields),
+            );
+            if let Some([season, remaining]) = target {
+                self.club_transfer_budgets
+                    .insert(uid, TransferBudgets { season, remaining });
+            } else {
+                self.club_transfer_budgets.remove(&uid);
+            }
+        }
+        replay_map(
+            &mut self.club_training,
+            &before.club_training,
+            &after.club_training,
+        );
+        replay_map(
+            &mut self.club_reputation,
+            &before.club_reputation,
+            &after.club_reputation,
+        );
+        replay_map(
+            &mut self.club_youth_setup,
+            &before.club_youth_setup,
+            &after.club_youth_setup,
+        );
+        replay_set(
+            &mut self.heal_injuries,
+            &before.heal_injuries,
+            &after.heal_injuries,
+        );
+        replay_set(
+            &mut self.clear_suspensions,
+            &before.clear_suspensions,
+            &after.clear_suspensions,
+        );
+        replay_list(&mut self.edits, &before.edits, &after.edits, |edit| {
+            (edit.uid, edit.attribute.clone())
+        });
+        replay_map(
+            &mut self.market_statuses,
+            &before.market_statuses,
+            &after.market_statuses,
+        );
+        replay_list(
+            &mut self.staff_edits,
+            &before.staff_edits,
+            &after.staff_edits,
+            |edit| (edit.uid, edit.attribute.clone()),
+        );
+        replay_staff_headers(
+            &mut self.staff_header_edits,
+            &before.staff_header_edits,
+            &after.staff_header_edits,
+            reputation_origin,
+        );
+    }
+
     /// Merge a staff form atomically against the source snapshot. Final byte validation
     /// remains in apply(), where CA and explicit attribute targets are resolved together.
     pub fn merge_staff(
@@ -167,12 +288,15 @@ impl Transaction {
     }
     pub fn is_empty(&self) -> bool {
         self.edits.is_empty()
+            && self.market_statuses.is_empty()
             && self.staff_edits.is_empty()
             && self.staff_header_edits.is_empty()
             && self.heal_injuries.is_empty()
             && self.clear_suspensions.is_empty()
             && self.club_balances.is_empty()
+            && self.club_stadium_capacities.is_empty()
             && self.club_transfer_budgets.is_empty()
+            && self.club_wage_budgets.is_empty()
             && self.club_training.is_empty()
             && self.club_reputation.is_empty()
             && self.club_youth_setup.is_empty()
@@ -201,6 +325,124 @@ impl Transaction {
         Ok(())
     }
 }
+
+fn replay_map<K: Clone + Ord, V: Clone + PartialEq>(
+    current: &mut BTreeMap<K, V>,
+    before: &BTreeMap<K, V>,
+    after: &BTreeMap<K, V>,
+) {
+    current.retain(|key, _| !before.contains_key(key) || after.contains_key(key));
+    for (key, value) in after {
+        if before.get(key) != Some(value) {
+            current.insert(key.clone(), value.clone());
+        }
+    }
+}
+
+fn replay_set<K: Clone + Ord>(
+    current: &mut BTreeSet<K>,
+    before: &BTreeSet<K>,
+    after: &BTreeSet<K>,
+) {
+    for key in before.difference(after) {
+        current.remove(key);
+    }
+    current.extend(after.difference(before).cloned());
+}
+
+fn replay_list<K: Clone + Ord, V: Clone + PartialEq>(
+    current: &mut Vec<V>,
+    before: &[V],
+    after: &[V],
+    key: impl Fn(&V) -> K,
+) {
+    let index = |items: &[V]| {
+        items
+            .iter()
+            .map(|item| (key(item), item.clone()))
+            .collect::<BTreeMap<_, _>>()
+    };
+    let mut values = index(current);
+    replay_map(&mut values, &index(before), &index(after));
+    *current = values.into_values().collect();
+}
+
+fn replay_staff_headers(
+    current: &mut Vec<crate::staff_header::Edit>,
+    before: &[crate::staff_header::Edit],
+    after: &[crate::staff_header::Edit],
+    reputation_origin: impl Fn(i32) -> Option<[i16; 3]>,
+) {
+    use crate::staff_header::Edit as Header;
+    let index = |headers: &[Header]| {
+        headers
+            .iter()
+            .map(|header| (header.uid, header.clone()))
+            .collect::<BTreeMap<_, _>>()
+    };
+    let before = index(before);
+    let after = index(after);
+    let mut headers = index(current);
+    for uid in before
+        .keys()
+        .chain(after.keys())
+        .copied()
+        .collect::<BTreeSet<_>>()
+    {
+        let empty = Header {
+            uid,
+            ..Default::default()
+        };
+        let old = before.get(&uid).unwrap_or(&empty);
+        let new = after.get(&uid).unwrap_or(&empty);
+        let target = headers.entry(uid).or_insert_with(|| empty.clone());
+        if old.current_ability != new.current_ability {
+            target.current_ability = new.current_ability;
+            target.policy = new.policy;
+        }
+        if old.potential_ability != new.potential_ability {
+            target.potential_ability = new.potential_ability;
+        }
+        if old.reputation != new.reputation {
+            target.reputation = replay_fields(
+                target.reputation,
+                old.reputation,
+                new.reputation,
+                reputation_origin(uid),
+            );
+        }
+        if old.policy != new.policy && target.current_ability.is_some() {
+            target.policy = new.policy;
+        }
+        if target.current_ability.is_none() {
+            target.policy = None;
+        }
+        if target == &empty {
+            headers.remove(&uid);
+        }
+    }
+    *current = headers.into_values().collect();
+}
+
+fn replay_fields<T: Copy + Eq, const N: usize>(
+    current: Option<[T; N]>,
+    before: Option<[T; N]>,
+    after: Option<[T; N]>,
+    origin: Option<[T; N]>,
+) -> Option<[T; N]> {
+    let Some(origin) = origin else {
+        return after;
+    };
+    let before = before.unwrap_or(origin);
+    let after = after.unwrap_or(origin);
+    let mut target = current.unwrap_or(origin);
+    for (index, value) in target.iter_mut().enumerate() {
+        if before[index] != after[index] {
+            *value = after[index];
+        }
+    }
+    (target != origin).then_some(target)
+}
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Report {
@@ -210,6 +452,8 @@ pub struct Report {
     pub size_after: usize,
     pub field_changed_bytes: usize,
     pub removed_bytes: usize,
+    pub market_journal_entries_added: usize,
+    pub market_journal_bytes_added: usize,
     pub changes: Vec<editor::Change>,
     pub staff_changes: Vec<crate::staff_editor::Change>,
     pub removals: Vec<health::Removal>,
@@ -335,17 +579,70 @@ pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
         }
     }
     let mut fields_output = fields_output;
-    if !plan.club_balances.is_empty()
+    if !plan.club_stadium_capacities.is_empty()
+        || !plan.club_balances.is_empty()
         || !plan.club_transfer_budgets.is_empty()
+        || !plan.club_wage_budgets.is_empty()
         || !plan.club_training.is_empty()
         || !plan.club_reputation.is_empty()
         || !plan.club_youth_setup.is_empty()
     {
         let (db, base) = crate::database::load(&fields_output)?;
+        if !plan.club_stadium_capacities.is_empty() {
+            let stadiums = crate::clubs::stadiums_by_club(&db);
+            for (&uid, &target) in &plan.club_stadium_capacities {
+                target.validate()?;
+                let ground = stadiums
+                    .get(&uid)
+                    .ok_or_else(|| format!("Clube {uid} sem estádio identificado"))?;
+                if ground.first_team_club_uids.as_slice() != [uid] {
+                    return Err(format!("O estádio do clube {uid} é compartilhado"));
+                }
+                let stadium = &ground.stadium;
+                let name = db
+                    .clubs
+                    .iter()
+                    .find(|club| club.uid == uid)
+                    .ok_or("Clube não encontrado")?
+                    .name
+                    .clone();
+                for (attribute, before, after, field_offset) in [
+                    ("club.stadiumCapacity", stadium.capacity, target.capacity, 1),
+                    (
+                        "club.stadiumSeatedCapacity",
+                        stadium.seated_capacity,
+                        target.seated_capacity,
+                        5,
+                    ),
+                ] {
+                    if before == after {
+                        continue;
+                    }
+                    let offset = base + stadium.record_offset + field_offset;
+                    fields_output[offset..offset + 4].copy_from_slice(&after.to_le_bytes());
+                    changes.push(crate::editor::Change {
+                        uid,
+                        name: name.clone(),
+                        attribute: attribute.into(),
+                        before,
+                        after,
+                        raw_before: before,
+                        raw_after: after,
+                        offset,
+                        width: 4,
+                        derived: false,
+                        context: Some("Clube · estádio".into()),
+                        display_before: None,
+                        display_after: None,
+                    });
+                }
+            }
+        }
         let club_uids = plan
             .club_balances
             .keys()
             .chain(plan.club_transfer_budgets.keys())
+            .chain(plan.club_wage_budgets.keys())
             .chain(plan.club_training.keys())
             .chain(plan.club_reputation.keys())
             .chain(plan.club_youth_setup.keys())
@@ -430,6 +727,23 @@ pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
                     .ok_or("Registro financeiro sem balanço")?;
                 fields.push(("club.balance", before, offset, target, 4));
             }
+            if let Some(&target) = plan.club_wage_budgets.get(&uid) {
+                if !(0..=i32::MAX / 4).contains(&target) {
+                    return Err(format!(
+                        "Orçamento salarial do clube {uid} fora do intervalo"
+                    ));
+                }
+                let before = details
+                    .wage_budget_weekly
+                    .ok_or("Orçamento salarial indisponível")?;
+                fields.push((
+                    "club.wageBudgetWeekly",
+                    before,
+                    details.finance_offset + crate::database::CLUB_WAGE_BUDGET_OFFSET,
+                    target,
+                    4,
+                ));
+            }
             if let Some(target) = plan.club_transfer_budgets.get(&uid) {
                 if target.season < 0 || target.remaining < 0 {
                     return Err(format!(
@@ -491,11 +805,23 @@ pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
             }
         }
     }
-    let field_changed_bytes = input
+    let mut field_changed_bytes = input
         .iter()
         .zip(&fields_output)
         .filter(|(a, b)| a != b)
         .count();
+    let (fields_output, market_journal_entries_added, market_journal_bytes_added) =
+        if plan.market_statuses.is_empty() {
+            (fields_output, 0, 0)
+        } else {
+            let (output, market_changes) =
+                crate::market_lab::apply(&fields_output, &plan.market_statuses)?;
+            let entries = market_changes.len();
+            let bytes_added = output.len() - fields_output.len();
+            field_changed_bytes += entries;
+            changes.extend(market_changes);
+            (output, entries, bytes_added)
+        };
     let selections = plan
         .heal_injuries
         .iter()
@@ -519,6 +845,8 @@ pub fn apply(input: &[u8], plan: &Transaction) -> Result<(Vec<u8>, Report)> {
         size_after: output.len(),
         field_changed_bytes,
         removed_bytes: removals.iter().map(|r| r.removed_bytes).sum(),
+        market_journal_entries_added,
+        market_journal_bytes_added,
         changes,
         staff_changes,
         removals,

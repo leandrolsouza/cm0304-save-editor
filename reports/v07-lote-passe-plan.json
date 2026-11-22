@@ -1,0 +1,23 @@
+{
+  "clearSuspensions": [],
+  "clubBalances": {},
+  "clubReputation": {},
+  "clubTraining": {},
+  "clubTransferBudgets": {},
+  "clubYouthSetup": {},
+  "edits": [
+    {
+      "attribute": "passing",
+      "uid": 2001642,
+      "value": 20
+    },
+    {
+      "attribute": "passing",
+      "uid": 1855,
+      "value": 20
+    }
+  ],
+  "healInjuries": [],
+  "staffEdits": [],
+  "staffHeaderEdits": []
+}

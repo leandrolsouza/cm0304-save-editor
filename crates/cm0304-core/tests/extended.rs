@@ -20,6 +20,44 @@ fn edit(key: &str, value: i32, policy: Option<AbilityPolicy>) -> Edit {
 }
 
 #[test]
+fn player_edits_reject_references_shared_with_another_person() {
+    let input = sample();
+    let (db, base) = database::load(&input).unwrap();
+    let player = db
+        .people
+        .iter()
+        .find(|person| person.uid == 2001642)
+        .unwrap();
+    let other = db.people.iter().find(|person| person.uid == 1855).unwrap();
+    let playing_offset = base + other.playing.as_ref().unwrap().offset + 10;
+    let personality_offset = base + other.common_offset + 43;
+
+    let mut shared = input.clone();
+    let playing_index = player.playing.as_ref().unwrap().playing_index;
+    shared[playing_offset..playing_offset + 4].copy_from_slice(&playing_index.to_le_bytes());
+    assert_eq!(
+        editor::apply(&shared, &[edit("passing", 20, None)]).unwrap_err(),
+        "Shared playing data cannot be edited"
+    );
+
+    shared[playing_offset..playing_offset + 4]
+        .copy_from_slice(&input[playing_offset..playing_offset + 4]);
+    shared[personality_offset..personality_offset + 4]
+        .copy_from_slice(&player.personality.to_le_bytes());
+    assert_eq!(
+        editor::apply(&shared, &[edit("personality.professionalism", 20, None)]).unwrap_err(),
+        "Shared personality data cannot be edited"
+    );
+
+    let (output, _) = editor::apply(&shared, &[edit("state.morale", 20, None)]).unwrap();
+    assert_eq!(shared.len(), output.len());
+    assert_eq!(
+        shared.iter().zip(&output).filter(|(a, b)| a != b).count(),
+        1
+    );
+}
+
+#[test]
 fn merging_forms_retains_overrides_and_cleans_up_removed_dependencies() {
     let input = sample();
     let (db, base) = database::load(&input).unwrap();
@@ -252,6 +290,10 @@ fn relative_policy_keeps_bytes_and_reports_indirect_attribute_effects() {
 #[test]
 fn dependent_edits_require_explicit_policy_and_invalid_dates_are_rejected() {
     let input = sample();
+    let error =
+        editor::apply(&input, &[edit("flair", 15, None), edit("passing", 1, None)]).unwrap_err();
+    assert!(error.contains("Clodoaldo (UID 2001642)"));
+    assert!(error.contains("passing: O valor 1 não pode ser representado com CA 142"));
     assert!(editor::apply(&input, &[edit("currentAbility", 150, None)]).is_err());
     assert!(editor::apply(&input, &[edit("position.goalkeeper", 20, None)]).is_err());
     assert!(editor::apply(&input, &[edit("potentialAbility", 100, None)]).is_err());

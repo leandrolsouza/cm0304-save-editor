@@ -1,0 +1,42 @@
+{
+  "sourceSha256": "1e2280f838e8516d4da69c3b15faf01df9ec7cd085a03f56a58e0f516894d3b4",
+  "copySha256": "b2fefa1c554a4ff1322c44c2c2cc9178a6539f09adf3f9914e0927ed4ec50f5c",
+  "sizeBefore": 35054444,
+  "sizeAfter": 35054444,
+  "fieldChangedBytes": 2,
+  "removedBytes": 0,
+  "changes": [
+    {
+      "uid": 1855,
+      "name": "Quim",
+      "attribute": "passing",
+      "before": 4,
+      "after": 20,
+      "rawBefore": -40,
+      "rawAfter": 90,
+      "offset": 19671557,
+      "width": 1,
+      "derived": false,
+      "context": null,
+      "displayBefore": null,
+      "displayAfter": null
+    },
+    {
+      "uid": 2001642,
+      "name": "Clodoaldo",
+      "attribute": "passing",
+      "before": 13,
+      "after": 20,
+      "rawBefore": -17,
+      "rawAfter": 26,
+      "offset": 20622032,
+      "width": 1,
+      "derived": false,
+      "context": null,
+      "displayBefore": null,
+      "displayAfter": null
+    }
+  ],
+  "staffChanges": [],
+  "removals": []
+}

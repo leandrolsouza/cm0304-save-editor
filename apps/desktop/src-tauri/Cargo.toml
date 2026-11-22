@@ -1,14 +1,20 @@
 [package]
 name = "cm0304-desktop"
-version = "0.5.0-alpha.1"
+version.workspace = true
 edition = "2024"
+license.workspace = true
 
 [build-dependencies]
-tauri-build = "2"
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
 cm0304-core = { path = "../../../crates/cm0304-core" }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-updater = { version = "2", default-features = false, features = ["rustls-tls"] }
 serde.workspace = true
 serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

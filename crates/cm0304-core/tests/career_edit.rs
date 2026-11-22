@@ -1,5 +1,5 @@
 use cm0304_core::{
-    database,
+    career, database,
     editor::{self, Edit},
 };
 use std::{fs, path::PathBuf};
@@ -20,6 +20,40 @@ fn e(uid: i32, key: &str, value: i32) -> Edit {
 }
 
 #[test]
+fn synthetic_national_contract_keeps_its_entity_during_a_salary_edit() {
+    let mut input = sample();
+    let uid = 2001642;
+    let (db, base) = database::load(&input).unwrap();
+    let person = db.people.iter().find(|person| person.uid == uid).unwrap();
+    let offset = base + person.contracts[0].common_offset;
+    let nation_index = db
+        .nations
+        .iter()
+        .position(|nation| nation.name == "Brasil")
+        .unwrap();
+    let nation_index = i32::try_from(nation_index).unwrap();
+
+    // No local career contains this contract type. Change only the fixture's entity.
+    input[offset] = 1;
+    input[offset + 1..offset + 5].copy_from_slice(&nation_index.to_le_bytes());
+    let (output, _) = editor::apply(&input, &[e(uid, "contract.0.weeklyWage", 2000)]).unwrap();
+    let (db, _) = database::load(&output).unwrap();
+    let person = db.people.iter().find(|person| person.uid == uid).unwrap();
+    let contract = &person.contracts[0];
+    assert_eq!(
+        (contract.entity_type, contract.entity_index),
+        (1, nation_index)
+    );
+    assert_eq!(contract.weekly_wage, 2000);
+    assert_eq!(
+        career::contracts(&db, person)[0].entity.as_deref(),
+        Some("Brasil")
+    );
+    assert_eq!(&input[..offset + 5], &output[..offset + 5]);
+    assert_eq!(&input[offset + 9..], &output[offset + 9..]);
+}
+
+#[test]
 fn career_transaction_preserves_entities_and_other_contracts() {
     let input = sample();
     let plan = vec![
@@ -34,6 +68,10 @@ fn career_transaction_preserves_entities_and_other_contracts() {
         e(2001642, "contract.0.expires.day", 0),
         e(2001642, "contract.0.squadStatus", 1),
         e(2001642, "contract.0.squadNumber", 99),
+        e(2001642, "contract.0.goalBonus", 600),
+        e(2001642, "contract.0.appearanceBonus", 900),
+        e(2001642, "contract.0.assistBonus", 300),
+        e(18, "contract.0.releaseClause", 800_000),
         e(5101855, "contract.1.weeklyWage", 500),
     ];
     let (output, report) = editor::apply(&input, &plan).unwrap();
@@ -41,7 +79,8 @@ fn career_transaction_preserves_entities_and_other_contracts() {
     let players = db.players(base).unwrap();
     for edit in &plan {
         assert_eq!(
-            players.iter().find(|p| p.uid == edit.uid).unwrap().fields[&edit.attribute].value,
+            players.iter().find(|p| p.uid == edit.uid).unwrap().fields[edit.attribute.as_str()]
+                .value,
             edit.value
         );
     }
@@ -86,6 +125,9 @@ fn career_rejects_invalid_dates_ranges_and_loan_relationships() {
         vec![e(2001642, "state.morale", 21)],
         vec![e(2001642, "contract.99.weeklyWage", 100)],
         vec![e(2001642, "contract.0.weeklyWage", -1)],
+        vec![e(2001642, "contract.0.releaseClause", 100_000)],
+        vec![e(18, "contract.0.releaseClause", 0)],
+        vec![e(5101855, "contract.1.appearanceBonus", 900)],
         vec![
             e(2001642, "contract.0.expires.year", 2003),
             e(2001642, "contract.0.expires.day", 365),
@@ -165,4 +207,94 @@ fn squad_numbers_consider_the_whole_transaction() {
             .squad_number,
         bc.squad_number
     );
+}
+
+#[test]
+fn porto_shirt_swap_preserves_european_squad_entries() {
+    let input = fs::read(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../game/user data/games/12.cm4"),
+    )
+    .unwrap();
+    let (output, _) = editor::apply(
+        &input,
+        &[
+            e(1106, "contract.0.squadNumber", 30),
+            e(1597, "contract.0.squadNumber", 99),
+        ],
+    )
+    .unwrap();
+    let (original, _) = database::load(&input).unwrap();
+    let (edited, _) = database::load(&output).unwrap();
+    let european_entry = [1, 25, 0, 0, 213, 2, 0, 0];
+    for (uid, number, registered) in [(1106, 30, true), (1597, 99, false)] {
+        let before = original
+            .people
+            .iter()
+            .find(|person| person.uid == uid)
+            .unwrap();
+        let after = edited
+            .people
+            .iter()
+            .find(|person| person.uid == uid)
+            .unwrap();
+        assert_eq!(after.contracts[0].squad_number, number);
+        assert_eq!(after.squad_entries_raw, before.squad_entries_raw);
+        assert_eq!(
+            after.squad_entries_raw.contains(&european_entry),
+            registered
+        );
+    }
+    assert_eq!(
+        cm0304_core::container::hash(&output),
+        "07df9c6d5cb4190463818963fa3786536ac39bdee786b18905f803c4f05f9f33"
+    );
+}
+
+#[test]
+fn braga_shirt_swap_preserves_the_loan_owners_number() {
+    let input = fs::read(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game/user data/games/save_modificado.cm4"),
+    )
+    .unwrap();
+    let quim = e(1855, "contract.0.squadNumber", 41);
+    let fredrik = e(1873, "contract.1.squadNumber", 1);
+    assert!(editor::apply(&input, std::slice::from_ref(&quim)).is_err());
+    assert!(editor::apply(&input, std::slice::from_ref(&fredrik)).is_err());
+
+    let (before, _) = database::load(&input).unwrap();
+    let loan_player = before.people.iter().find(|p| p.uid == 1873).unwrap();
+    let owner = &loan_player.contracts[0];
+    let occupied_at_porto = before
+        .people
+        .iter()
+        .filter(|p| p.uid != loan_player.uid && p.team != loan_player.team)
+        .flat_map(|p| &p.contracts)
+        .find(|c| {
+            c.entity_type == owner.entity_type
+                && c.entity_index == owner.entity_index
+                && c.squad_number > 0
+                && c.squad_number != owner.squad_number
+        })
+        .unwrap();
+    let conflict = e(
+        1873,
+        "contract.0.squadNumber",
+        occupied_at_porto.squad_number.into(),
+    );
+    assert!(
+        editor::apply(&input, &[conflict])
+            .unwrap_err()
+            .contains("já usada")
+    );
+
+    let (output, _) = editor::apply(&input, &[quim, fredrik]).unwrap();
+    let (db, _) = database::load(&output).unwrap();
+    let quim = db.people.iter().find(|p| p.uid == 1855).unwrap();
+    let fredrik = db.people.iter().find(|p| p.uid == 1873).unwrap();
+    assert_eq!(quim.contracts[0].squad_number, 41);
+    assert_eq!(fredrik.contracts[1].squad_number, 1);
+    assert_eq!(fredrik.contracts[0].squad_number, 24);
+    assert_eq!(input.len(), output.len());
+    assert_eq!(input.iter().zip(&output).filter(|(a, b)| a != b).count(), 2);
 }

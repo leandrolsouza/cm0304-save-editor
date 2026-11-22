@@ -2,10 +2,10 @@ use crate::{
     Result,
     attributes::{self, Attributes, FIELDS},
     binary::{Reader, check_type},
-    container::read_container,
+    container::find_block,
 };
 use serde::Serialize;
-use std::collections::BTreeMap;
+use std::{borrow::Cow, collections::BTreeMap, sync::LazyLock};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Date {
@@ -86,10 +86,51 @@ pub struct ClubDetails {
     pub finance_kind: u8,
     pub transfer_budget_season: Option<i32>,
     pub transfer_budget_remaining: Option<i32>,
+    pub payroll_expenses: Option<PayrollExpenses>,
+    pub finance_summary: Option<FinanceSummary>,
+    pub current_wages_weekly: Option<i32>,
+    pub wage_budget_weekly: Option<i32>,
     pub finance_offset: usize,
     pub finance_raw: Vec<u8>,
     pub balance: Option<i32>,
     pub balance_offset: Option<usize>,
+    pub sell_on_clauses: Vec<SellOnClause>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SellOnClause {
+    pub player_uid: i32,
+    pub beneficiary_club_index: i32,
+    pub percent: u8,
+    pub trailing_byte: u8,
+}
+pub(crate) const CLUB_WAGE_BUDGET_OFFSET: usize = 106;
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayrollExpenses {
+    pub wages: ExpensePeriods,
+    pub bonuses: ExpensePeriods,
+}
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpensePeriods {
+    pub current_month: i32,
+    pub previous_month: i32,
+    pub season: i32,
+}
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinanceSummary {
+    pub current_month: FinancePeriod,
+    pub previous_month: FinancePeriod,
+    pub season: FinancePeriod,
+}
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinancePeriod {
+    pub income: i64,
+    pub expenses: i64,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -109,10 +150,21 @@ pub struct InjuryType {
 #[derive(Debug)]
 pub struct Team {
     pub squad: u8,
+    pub stadium_index: Option<usize>,
+    pub roster_offset: usize,
+    pub roster_person_indices: Vec<i32>,
     pub reputation: i16,
     pub reputation_offset: usize,
     pub container_type: u8,
     pub container_index: i32,
+}
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Stadium {
+    pub uid: i32,
+    pub capacity: i32,
+    pub seated_capacity: i32,
+    pub record_offset: usize,
 }
 #[derive(Debug)]
 pub struct Playing {
@@ -171,6 +223,8 @@ pub struct Contract {
     pub kind: u8,
     pub offset: usize,
     pub common_offset: usize,
+    #[serde(skip)]
+    pub(crate) end_offset: usize,
     pub entity_type: u8,
     pub entity_index: i32,
     pub weekly_wage: i32,
@@ -179,6 +233,16 @@ pub struct Contract {
     pub squad_status: i8,
     pub transfer_status: u8,
     pub squad_number: i8,
+    pub appearance_bonus: Option<i32>,
+    pub goal_bonus: Option<i32>,
+    pub assist_bonus: Option<i32>,
+    pub release_clause: Option<ContractClause>,
+}
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContractClause {
+    pub amount: i32,
+    pub offset: usize,
 }
 #[derive(Debug)]
 pub struct Person {
@@ -197,6 +261,7 @@ pub struct Person {
     pub personality: i32,
     pub playing: Option<PlayingInfo>,
     pub contracts: Vec<Contract>,
+    pub squad_entries_raw: Vec<[u8; 8]>,
 }
 #[derive(Debug)]
 pub struct Database {
@@ -207,6 +272,7 @@ pub struct Database {
     pub nations: Vec<Club>,
     pub injury_types: Vec<InjuryType>,
     pub teams: Vec<Team>,
+    pub stadiums: Vec<Stadium>,
     pub names: [Vec<String>; 3],
     pub people: Vec<Person>,
     pub personalities: Vec<Attributes>,
@@ -242,7 +308,7 @@ pub struct Player {
     pub attributes: Attributes,
     pub personality: Option<Attributes>,
     pub offsets: Offsets,
-    pub fields: BTreeMap<String, Field>,
+    pub fields: BTreeMap<Cow<'static, str>, Field>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -269,12 +335,16 @@ fn table<T>(
     r: &mut Reader,
     sections: &mut Vec<Section>,
     name: &str,
+    cancelled: &impl Fn() -> bool,
     mut read: impl FnMut(&mut Reader, u8, usize) -> Result<T>,
 ) -> Result<Vec<T>> {
     let offset = r.pos;
     let count = r.count()?;
     let mut rows = Vec::new();
     for i in 0..count {
+        if i % 256 == 0 && cancelled() {
+            return Err("Leitura do banco cancelada".into());
+        }
         let start = r.pos;
         let t = r.u8()?;
         rows.push(read(r, t, i).map_err(|e| format!("{name}[{i}] at {start}: {e}"))?);
@@ -317,6 +387,10 @@ fn team_container(r: &mut Reader) -> Result<Club> {
     })
 }
 pub fn read_database(bytes: &[u8]) -> Result<Database> {
+    read_database_with_cancel(bytes, &|| false)
+}
+
+fn read_database_with_cancel(bytes: &[u8], cancelled: &impl Fn() -> bool) -> Result<Database> {
     let mut r = Reader::new(bytes);
     let mut s = Vec::new();
     if r.take(9)? != [0, 46, 0, 100, 0, 97, 0, 116, 0] {
@@ -324,18 +398,20 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
     }
     let version = r.u16()?;
     if version != 147 {
-        return Err(format!("Unsupported game_db version {version}"));
+        return Err(format!(
+            "Versão interna {version} de game_db.dat incompatível. O editor espera a versão interna 147."
+        ));
     }
     r.skip(6)?;
     let game_date = date(&mut r)?;
     r.skip(16)?;
     fixed(&mut r, &mut s, "awards", 45)?;
-    table(&mut r, &mut s, "cities", |r, _, _| {
+    table(&mut r, &mut s, "cities", cancelled, |r, _, _| {
         r.skip(18)?;
         r.string()?;
         r.skip(11)
     })?;
-    let clubs = table(&mut r, &mut s, "clubs", |r, t, _| {
+    let clubs = table(&mut r, &mut s, "clubs", cancelled, |r, t, _| {
         let record_offset = r.pos - 1;
         check_type(t, &[0, 12], r.pos - 1)?;
         if t == 12 {
@@ -367,10 +443,45 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
         };
         let balance =
             balance_local.map(|i| i32::from_le_bytes(finance_raw[i..i + 4].try_into().unwrap()));
+        let payroll_expenses = (finance == 1).then(|| {
+            let amount = |i| i32::from_le_bytes(finance_raw[i..i + 4].try_into().unwrap());
+            let periods = |season, current_month, previous_month| ExpensePeriods {
+                season: amount(season),
+                current_month: amount(current_month),
+                previous_month: amount(previous_month),
+            };
+            PayrollExpenses {
+                wages: periods(24, 126, 202),
+                bonuses: periods(32, 134, 210),
+            }
+        });
+        let finance_summary = (finance == 1).then(|| {
+            let period = |base: usize| {
+                // Each period stores eight expense lines followed by ten income lines.
+                let sum = |lines: &[u8]| {
+                    lines
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .map(|line| i64::from(i32::from_le_bytes(*line)))
+                        .sum()
+                };
+                FinancePeriod {
+                    expenses: sum(&finance_raw[base + 8..base + 40]),
+                    income: sum(&finance_raw[base + 40..base + 80]),
+                }
+            };
+            FinanceSummary {
+                season: period(0),
+                current_month: period(102),
+                previous_month: period(178),
+            }
+        });
         if r.i32()? != 0 {
             r.skip(13)?;
         }
         r.array(4, 2)?;
+        let mut sell_on_clauses = Vec::new();
         for _ in 0..r.u16()? {
             match r.u8()? {
                 0 | 2 => r.skip(5)?,
@@ -382,7 +493,12 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
                     r.skip(5)?;
                 }
                 4 => r.skip(16)?,
-                5 => r.skip(10)?,
+                5 => sell_on_clauses.push(SellOnClause {
+                    player_uid: r.i32()?,
+                    beneficiary_club_index: r.i32()?,
+                    percent: r.u8()?,
+                    trailing_byte: r.u8()?,
+                }),
                 6 => r.skip(15)?,
                 7 => r.skip(12)?,
                 t => return Err(format!("Unknown transfer info {t}")),
@@ -396,6 +512,7 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
         let mut club = team_container(r)?;
         let word = |i| i32::from_le_bytes(infrastructure[i..i + 4].try_into().unwrap());
         club.details = Some(ClubDetails {
+            sell_on_clauses,
             record_offset,
             nation_index,
             infrastructure_offset,
@@ -415,11 +532,19 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
             finance_offset,
             balance,
             balance_offset: balance_local.map(|i| finance_offset + i),
+            current_wages_weekly: (finance == 1)
+                .then(|| i32::from_le_bytes(finance_raw[82..86].try_into().unwrap())),
+            wage_budget_weekly: (finance == 1).then(|| {
+                let start = CLUB_WAGE_BUDGET_OFFSET;
+                i32::from_le_bytes(finance_raw[start..start + 4].try_into().unwrap())
+            }),
             finance_raw,
+            payroll_expenses,
+            finance_summary,
         });
         Ok(club)
     })?;
-    table(&mut r, &mut s, "competitions", |r, _, _| {
+    table(&mut r, &mut s, "competitions", cancelled, |r, _, _| {
         r.skip(11)?;
         let t = r.u8()?;
         r.skip(1)?;
@@ -430,7 +555,7 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
         r.skip(29)
     })?;
     fixed(&mut r, &mut s, "continents", 17)?;
-    let injury_types = table(&mut r, &mut s, "injuries", |r, _, _| {
+    let injury_types = table(&mut r, &mut s, "injuries", cancelled, |r, _, _| {
         let name = r.string()?;
         r.skip(1)?; // grammatical gender
         let category = r.u8()?;
@@ -457,7 +582,7 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
             uid,
         })
     })?;
-    table(&mut r, &mut s, "media", |r, _, _| {
+    table(&mut r, &mut s, "media", cancelled, |r, _, _| {
         r.string()?;
         r.skip(1)?;
         r.string()?;
@@ -465,11 +590,11 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
         r.array(4, 1)?;
         r.skip(14)
     })?;
-    table(&mut r, &mut s, "languages", |r, _, _| {
+    table(&mut r, &mut s, "languages", cancelled, |r, _, _| {
         r.string()?;
         r.skip(21)
     })?;
-    let nations = table(&mut r, &mut s, "nations", |r, t, _| {
+    let nations = table(&mut r, &mut s, "nations", cancelled, |r, t, _| {
         check_type(t, &[0], r.pos - 1)?;
         r.skip(51)?;
         r.array(2, 1)?;
@@ -497,7 +622,7 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
     })?;
     let mut names: [Vec<String>; 3] = Default::default();
     for (i, name) in ["firstNames", "surnames", "commonNames"].iter().enumerate() {
-        names[i] = table(&mut r, &mut s, name, |r, t, _| {
+        names[i] = table(&mut r, &mut s, name, cancelled, |r, t, _| {
             check_type(t, &[0], r.pos - 1)?;
             let value = r.string()?;
             r.skip(6)?;
@@ -506,15 +631,27 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
         })?;
     }
     fixed(&mut r, &mut s, "regions", 9)?;
-    table(&mut r, &mut s, "sponsors", |r, _, _| {
+    table(&mut r, &mut s, "sponsors", cancelled, |r, _, _| {
         r.string()?;
         r.skip(1)?;
         r.string()?;
         r.skip(10)
     })?;
-    fixed(&mut r, &mut s, "stadiums", 48)?;
+    let stadiums = table(&mut r, &mut s, "stadiums", cancelled, |r, _, _| {
+        let record_offset = r.pos - 1;
+        let capacity = r.i32()?;
+        let seated_capacity = r.i32()?;
+        r.skip(31)?;
+        let (_, uid) = r.identity()?;
+        Ok(Stadium {
+            uid,
+            capacity,
+            seated_capacity,
+            record_offset,
+        })
+    })?;
     fixed(&mut r, &mut s, "stadiumChanges", 38)?;
-    table(&mut r, &mut s, "stages", |r, _, _| {
+    table(&mut r, &mut s, "stages", cancelled, |r, _, _| {
         r.string()?;
         r.skip(1)?;
         r.string()?;
@@ -522,7 +659,7 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
         r.string()?;
         r.skip(9)
     })?;
-    let teams = table(&mut r, &mut s, "teams", |r, t, _| {
+    let teams = table(&mut r, &mut s, "teams", cancelled, |r, t, _| {
         check_type(t, &[10, 11], r.pos - 1)?;
         if t == 11 {
             r.skip(14)?;
@@ -530,9 +667,22 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
         r.skip(1)?;
         let reputation_offset = r.pos;
         let reputation = r.i16()?;
-        r.skip(39)?;
+        r.skip(12)?;
+        let stadium = r.i32()?;
+        let stadium_index = (t == 10)
+            .then(|| {
+                usize::try_from(stadium)
+                    .ok()
+                    .filter(|&i| i < stadiums.len())
+            })
+            .flatten();
+        r.skip(23)?;
         r.array(4, 1)?;
-        r.array(4, 2)?;
+        let roster_offset = r.pos;
+        let roster_count = r.u16()?;
+        let roster_person_indices = (0..roster_count)
+            .map(|_| r.i32())
+            .collect::<Result<Vec<_>>>()?;
         r.array(4, 1)?;
         r.array(4, 1)?;
         r.skip(1)?;
@@ -546,39 +696,33 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
         r.identity()?;
         Ok(Team {
             squad,
+            stadium_index,
+            roster_offset,
+            roster_person_indices,
             reputation,
             reputation_offset,
             container_type,
             container_index,
         })
     })?;
-    table(&mut r, &mut s, "weather", |r, _, _| {
+    table(&mut r, &mut s, "weather", cancelled, |r, _, _| {
         r.string()?;
         r.skip(87)
     })?;
     fixed(&mut r, &mut s, "playerTypes", 10)?;
-    let people = table(&mut r, &mut s, "people", read_person)?;
+    let people = table(&mut r, &mut s, "people", cancelled, read_person)?;
     let mut personality_offsets = Vec::new();
-    let personalities = table(&mut r, &mut s, "personData", |r, t, _| {
+    let personalities = table(&mut r, &mut s, "personData", cancelled, |r, t, _| {
         check_type(t, &[0], r.pos - 1)?;
         personality_offsets.push(r.pos);
         let mut attrs = BTreeMap::new();
-        for key in [
-            "adaptability",
-            "ambition",
-            "loyalty",
-            "pressure",
-            "professionalism",
-            "sportsmanship",
-            "temperament",
-            "controversy",
-        ] {
-            attrs.insert(key.into(), r.u8()? as i8);
+        for key in PERSONALITY_FIELDS {
+            attrs.insert(key, r.u8()? as i8);
         }
         r.identity()?;
         Ok(attrs)
     })?;
-    let playing = table(&mut r, &mut s, "playingData", |r, t, _| {
+    let playing = table(&mut r, &mut s, "playingData", cancelled, |r, t, _| {
         check_type(t, &[0], r.pos - 1)?;
         let offset = r.pos;
         let mut raw = [0i8; 65];
@@ -597,6 +741,7 @@ pub fn read_database(bytes: &[u8]) -> Result<Database> {
         nations,
         injury_types,
         teams,
+        stadiums,
         names,
         people,
         personalities,
@@ -703,10 +848,27 @@ fn read_player_info(r: &mut Reader) -> Result<PlayingInfo> {
 fn contract(r: &mut Reader, t: u8) -> Result<Contract> {
     let offset = r.pos - 1;
     check_type(t, &[0, 1, 2, 5], r.pos - 1)?;
+    let mut appearance_bonus = None;
+    let (mut goal_bonus, mut assist_bonus, mut release_clause) = (None, None, None);
     if t == 0 {
-        r.skip(20)?;
+        r.skip(4)?;
+        appearance_bonus = Some(r.i32()?);
+        goal_bonus = Some(r.i32()?);
+        assist_bonus = Some(r.i32()?);
+        r.skip(4)?;
         let n = r.u8()? as usize;
-        r.skip(6 + n * 5)?;
+        r.skip(6)?;
+        let mut release_count = 0;
+        for _ in 0..n {
+            let kind = r.u8()?;
+            let offset = r.pos;
+            let amount = r.i32()?;
+            if kind == 0 {
+                release_count += 1;
+                release_clause =
+                    (release_count == 1 && amount > 0).then_some(ContractClause { amount, offset });
+            }
+        }
     }
     if t == 1 {
         r.skip(6)?;
@@ -733,6 +895,7 @@ fn contract(r: &mut Reader, t: u8) -> Result<Contract> {
         kind: t,
         offset,
         common_offset,
+        end_offset: r.pos,
         entity_type,
         entity_index,
         weekly_wage,
@@ -741,6 +904,10 @@ fn contract(r: &mut Reader, t: u8) -> Result<Contract> {
         squad_status,
         transfer_status,
         squad_number,
+        appearance_bonus,
+        goal_bonus,
+        assist_bonus,
+        release_clause,
     })
 }
 fn read_person(r: &mut Reader, t: u8, index: usize) -> Result<Person> {
@@ -762,6 +929,7 @@ fn read_person(r: &mut Reader, t: u8, index: usize) -> Result<Person> {
         personality: -1,
         playing: None,
         contracts: Vec::new(),
+        squad_entries_raw: Vec::new(),
     };
     if t == 6 || t == 7 {
         r.skip(if t == 6 { 1 } else { 6 })?;
@@ -816,7 +984,8 @@ fn read_person(r: &mut Reader, t: u8, index: usize) -> Result<Person> {
         }
     }
     if r.boolean()? {
-        r.array(8, 1)?;
+        let count = usize::from(r.u8()?);
+        person.squad_entries_raw = r.take(count * 8)?.as_chunks::<8>().0.to_vec();
     }
     r.array(4, 2)?;
     if r.boolean()? {
@@ -902,8 +1071,23 @@ fn optional_name(table: &[String], index: i32) -> Result<String> {
 }
 impl Database {
     pub fn players(&self, base: usize) -> Result<Vec<Player>> {
+        self.players_matching(base, |_| true)
+    }
+
+    /// Decodes playing records matching a UID, including duplicates for caller validation.
+    pub fn players_by_uid(&self, base: usize, uid: i32) -> Result<Vec<Player>> {
+        self.players_matching(base, |candidate| candidate == uid)
+    }
+
+    /// Decodes player profiles whose UID passes the supplied filter.
+    pub fn players_matching(
+        &self,
+        base: usize,
+        includes: impl Fn(i32) -> bool,
+    ) -> Result<Vec<Player>> {
         self.people
             .iter()
+            .filter(|p| includes(p.uid))
             .filter_map(|p| p.playing.as_ref().map(|d| (p, d)))
             .map(|(p, d)| {
                 let first_name = optional_name(&self.names[0], p.first)?;
@@ -943,16 +1127,14 @@ impl Database {
                 let birth = p.birth.as_ref().ok_or("Missing birth date")?;
                 let decoded = attributes::decoded(&playing.raw, d.ca)?;
                 let mut fields = BTreeMap::new();
-                for (i, key) in FIELDS.iter().enumerate() {
-                    let name = if i < 12 {
-                        format!("position.{key}")
-                    } else {
-                        key.to_string()
-                    };
+                static POSITION_KEYS: LazyLock<[String; 12]> =
+                    LazyLock::new(|| std::array::from_fn(|i| format!("position.{}", FIELDS[i])));
+                for (i, &key) in FIELDS.iter().enumerate() {
+                    let name = POSITION_KEYS.get(i).map_or(key, String::as_str);
                     fields.insert(
-                        name,
+                        Cow::Borrowed(name),
                         Field {
-                            value: decoded[*key] as i32,
+                            value: decoded[key] as i32,
                             offset: base + playing.offset + i,
                             width: 1,
                             min: if i < 12 { 0 } else { 1 },
@@ -1035,6 +1217,12 @@ impl Database {
                     );
                 }
                 if p.personality >= 0 {
+                    static PERSONALITY_KEYS: LazyLock<[String; PERSONALITY_FIELDS.len()]> =
+                        LazyLock::new(|| {
+                            std::array::from_fn(|i| {
+                                format!("personality.{}", PERSONALITY_FIELDS[i])
+                            })
+                        });
                     let offset = *reference(
                         &self.personality_offsets,
                         p.personality,
@@ -1042,7 +1230,7 @@ impl Database {
                     )?;
                     for (i, key) in PERSONALITY_FIELDS.iter().enumerate() {
                         fields.insert(
-                            format!("personality.{key}"),
+                            Cow::Borrowed(PERSONALITY_KEYS[i].as_str()),
                             Field {
                                 value: self.personalities[p.personality as usize][*key] as i32,
                                 offset: base + offset + i,
@@ -1073,7 +1261,7 @@ impl Database {
                     raw_attributes: FIELDS
                         .iter()
                         .zip(playing.raw)
-                        .map(|(k, v)| (k.to_string(), v))
+                        .map(|(k, v)| (*k, v))
                         .collect(),
                     attributes: decoded,
                     personality,
@@ -1090,18 +1278,10 @@ impl Database {
     }
 }
 pub fn load(bytes: &[u8]) -> Result<(Database, usize)> {
-    let container = read_container(bytes)?;
-    let blocks = container
-        .blocks
-        .iter()
-        .filter(|b| b.name == "game_db" && b.extension == ".dat")
-        .collect::<Vec<_>>();
-    if blocks.len() != 1 {
-        return Err("Expected exactly one game_db.dat".into());
-    }
-    let b = blocks[0];
-    Ok((
-        read_database(&bytes[b.payload_offset..b.payload_offset + b.size])?,
-        b.payload_offset,
-    ))
+    load_with_cancel(bytes, &|| false)
+}
+
+pub fn load_with_cancel(bytes: &[u8], cancelled: &impl Fn() -> bool) -> Result<(Database, usize)> {
+    let (payload, offset) = find_block(bytes, "game_db", ".dat")?;
+    Ok((read_database_with_cancel(payload, cancelled)?, offset))
 }

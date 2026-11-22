@@ -1,8 +1,25 @@
 # Continuidade do desenvolvimento
 
-Objetivo ativo: desenvolver os marcos do ROADMAP até a v1.0, sem reduzir o escopo aprovado.
+## Primeira release pública
 
-## Estado atual — ler primeiro
+- **Atualização automática.** O instalador público da v1.1.0 precisa incluir o atualizador do Tauri com a chave pública do projeto e o endereço HTTPS do `latest.json` da release estável no GitHub. O aplicativo verifica novas versões ao abrir. A instalação automática aguarda um momento sem save aberto ou operação em andamento, para preservar rascunhos, revisão e gravações. O pacote local já validado da v1.1.0 precisa ser recompilado com esse suporte antes da publicação.
+- **Publicação.** O GitHub Actions gera o instalador NSIS x64, a assinatura do atualizador e o `latest.json` para cada release estável. Guarde a chave privada do atualizador nos Secrets do GitHub Actions e mantenha uma cópia de recuperação protegida para assinar as próximas versões. A assinatura do atualizador e o Authenticode do Windows são configurações independentes.
+- **Aceite.** Antes da primeira publicação, teste em Windows x64 a atualização de uma instalação candidata para uma versão de teste mais nova. Confira a versão após reabrir, a preservação dos saves e das preferências e o adiamento da instalação com um save aberto ou uma gravação em andamento.
+
+## Versão 1.1
+
+- **Fluxo de edição.** A versão 1.1 mantém a posição da ficha ao adicionar mudanças, mostra rascunhos e valores na revisão junto aos campos e permite voltar da revisão ao vínculo exato. A prévia de lotes permite exclusão individual. A confirmação da gravação dá acesso à pasta de destino e ao histórico. [Escopo da v1.1](../ROADMAP.md#v11--melhorias-no-fluxo-de-edição)
+- **Validação.** A regressão de interface cobre a correção pela revisão, a exclusão na prévia e a navegação compacta. O ensaio nativo editou dois contratos, gravou duas variantes e confirmou a persistência dos salários após regravação e recarga no CM0304. [Resultados e pacote Windows](DEVELOPMENT.md#validação-da-versão-110)
+- **Consulta.** Reaproveitar a busca, a comparação e as listas de observação no percurso de pesquisa por perfil. Validar o Scout Rating no mesmo save aberto pelo CM Scout 3.10 antes de usar a nota para ordenar resultados. [Prioridades de consulta](../ROADMAP.md#consulta-e-observação)
+- **Validação da v1.0.** Rodar o roteiro independente em uma carreira diferente das amostras locais. Usar os resultados para priorizar eventuais correções 1.0.x. [Roteiro de teste](DEVELOPMENT.md#beta-em-outra-carreira)
+
+## Estado da v1.0
+
+A versão **1.0.0** foi empacotada localmente em `target/distribution` para Windows x64. O aceite usa as validações locais nas duas carreiras, conforme decisão do responsável pelo projeto. O roteiro de teste independente continua disponível. [Critérios e auditoria](../ROADMAP.md#critérios-de-lançamento)
+
+A pesquisa continua para contratos ativos com seleções, estados adicionais de recuperação de lesões, saldo financeiro básico e edição de estádios compartilhados. A transferência definitiva continua na CLI de laboratório. [Matriz de carreira](../reports/v0.5-matrix.md) · [Decisões de escopo](../ROADMAP.md#decisões-de-escopo-das-ampliações-para-a-v10)
+
+## Registros anteriores
 
 **Consulta de staff integrada no código do Tauri:** cache/indexação na abertura; Summary.staff; comandos search_staff/staff_detail; navegação/perfil/paginação50/busca por função e vínculo nacional; ponte jogador/staff e projeção de dados compartilhados pela transação. BuildUI/cargo-checkworkspace/Clippy aprovados, três testesStaff passaram (novo: nascimento compartilhado sem mudar capacidade de staff). Teste headless Playwright com IPC controlado passou7checks: paginação, busca sem acentos, função, consulta, dupla função, rascunhos e reset ao abrirsave. Relatório `reports/v0.6-staff-ui.md` e screenshot/resultados de dados controlados. Servidor/navegador de teste encerrados. NÃO é validação de IPC nativo nem de save real no Tauri. Desktop antigo ainda aberto, Windows sem desbloqueio informado; não houve entradaUI nativa. Após desbloqueio, fechar/recompilar/executar e conferir saves reais. Edição/conversãoStaff, clubes, pendênciasv05 e demais marcos continuam no escopo.
 
@@ -69,4 +86,4 @@ A moeda/arredondamento salarial ainda requer validação específica: o campo é
 - Não sobrescrever saves. Arquivos existentes de teste permanecem em `game/user data/games`.
 - Antes de recompilar o desktop no Windows, fechar a instância pela UI para liberar o executável.
 - CM0304 não trata Ctrl+A/Ctrl+V como controles Windows convencionais nos campos personalizados: eles inseriram letras. Para nomes curtos, usar teclas individuais e BackSpace, com uma ação e screenshot por chamada conforme skill.
-- Ainda faltam v0.5–v1.0, nacionalidades adicionais em consulta, matriz de quatro saves de duas carreiras, outra pessoa e máquina limpa. Meta ativa.
+- Para as pendências vigentes, consulte o estado atual para a v1.0 no início deste documento.
