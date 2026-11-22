@@ -123,7 +123,7 @@ export default async function checkDesktopUi(page, url) {
         }
         return detail;
       }
-      if(command==='plugin:app|version')return '1.1.0';
+      if(command==='plugin:app|version')return '1.1.1';
       if(command==='download_update') {
         const updateMode = new URLSearchParams(location.search).get('update');
         if (updateMode === 'pending') return new Promise(resolve => { window.__finishUpdate = resolve; });
@@ -334,7 +334,7 @@ export default async function checkDesktopUi(page, url) {
   await page.locator('html[data-theme=retro]').waitFor();
   assert(await themePicker.inputValue() === 'retro' && await themeBackground() === retroBackground,
     'The theme and selector must be restored after reloading');
-  await page.locator('#editor-version').getByText('Editor 1.1.0').waitFor();
+  await page.locator('#editor-version').getByText('Editor 1.1.1').waitFor();
   assert(await page.locator('#empty #open-save').isVisible(),'Opening must be available inside the start screen');
   assert(await page.locator('#nav-staff').isDisabled()&&await page.locator('#nav-clubs').isDisabled(),
     'Career sections must communicate their unavailable state before opening a save');

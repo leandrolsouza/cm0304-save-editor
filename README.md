@@ -17,7 +17,7 @@ The editor checks for signed updates at startup. If a career is open or an opera
 3. Open **Changes** to review original and proposed values and any derived effects. You can search the changes, return to the affected field, or undo and redo edits.
 4. Select **Save validated copy** and choose a new filename. Use up to 26 characters before `.cm4`, the limit observed in the game. Load the copy in CM0304 to continue the career. To recover your original career, load the source save in the game.
 
-The **Language** control switches between English and Brazilian Portuguese. The editor remembers an explicit choice. English is the default in builds from the current branch. In the published v1.1.0, select **English** from **Idioma**.
+The **Language** control switches between English and Brazilian Portuguese. Starting with v1.1.1, the editor defaults to English if you have yet to select a language. An explicit choice carries over when you update.
 
 ### Features
 
@@ -38,6 +38,8 @@ The editor requires the uncompressed container and internal `game_db.dat` versio
 Edits are applied to a new file. The editor refuses to overwrite an existing destination or write against a source that changed since it was opened. It rejects attribute targets that have no exact representation, and changes to current ability require an explicit policy. [Save format research (Portuguese)](research/FORMAT.md) · [In-game validation (Portuguese)](reports/v0.5-matrix.md)
 
 ## Release notes
+
+**v1.1.1** defaults to English, preserves explicit language preferences and ships with an English installation guide. The public documentation and bug report form are now in English, with a Brazilian Portuguese user guide still available.
 
 **v1.1.0** keeps the active tab and scroll position when you add an edit to the review, shows draft and staged values on the profile, and lets you return directly to the relevant field from the review. You can remove individual players from a bulk preview and open the destination folder or history after saving a copy. This is the first public release with the signed updater. [GitHub Releases](https://github.com/leandrolsouza/cm0304-save-editor/releases)
 
