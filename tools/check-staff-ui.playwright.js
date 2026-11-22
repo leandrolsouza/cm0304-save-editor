@@ -298,6 +298,11 @@ export default async function checkDesktopUi(page, url) {
     const menu = page.locator(selector);
     if (await menu.getAttribute('open') === null) await menu.locator('summary').click();
   };
+  await page.goto(url);
+  await page.getByRole('heading', {name:'Open a career', exact:true}).waitFor();
+  assert(await page.locator('html').getAttribute('lang') === 'en-GB', 'A fresh start must default to English');
+  await page.locator('#language-select').selectOption('pt-BR');
+  await page.locator('html[lang="pt-BR"] #open-save').waitFor();
   await page.goto(new URL('?update=ready', url).href);
   await page.getByRole('alert').filter({hasText:'Não foi possível instalar a atualização'}).waitFor();
   assert(await page.evaluate(()=>!document.body.inert && window.__testCalls.some(call=>call.command==='install_update')),
@@ -309,7 +314,7 @@ export default async function checkDesktopUi(page, url) {
   await page.evaluate(()=>window.__finishUpdate(true));
   assert(await page.evaluate(()=>!window.__testCalls.some(call=>call.command==='install_update')),
     'A downloaded update must wait when a save is open');
-  await page.evaluate(()=>localStorage.clear());
+  await page.evaluate(()=>localStorage.removeItem('cm0304.recent-saves.v1'));
   await page.goto(url);
   const windowControls = page.getByRole('group',{name:'Controles da janela'});
   await windowControls.getByRole('button',{name:'Minimizar janela'}).press('Enter');

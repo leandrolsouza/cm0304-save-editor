@@ -47,33 +47,33 @@ try {
     }
 
     if ($isPrerelease) {
-        $documentation = Get-Content -LiteralPath 'docs/DEVELOPMENT.md' -Raw
+        $documentation = Get-Content -LiteralPath 'docs/DEVELOPMENT.pt-BR.md' -Raw
         $guide = [regex]::Match($documentation, '(?ms)^### Beta em outra carreira\r?\n.+?(?=^### Evidências locais do beta)').Value
         if (!$guide) { throw 'Roteiro do beta incompleto' }
         $guideName = "ROTEIRO-BETA-$version.md"
         $title = "Beta do CM0304 Save Editor $version"
     } else {
-        $guideName = "GUIA-$version.md"
+        $guideName = "GUIDE-$version.md"
         $title = "CM0304 Save Editor $version"
         $guide = @(
-            'Execute o instalador x64 do pacote. O editor usa o Microsoft Edge WebView2 Runtime.'
+            'Run the Windows x64 installer. The editor uses the Microsoft Edge WebView2 Runtime.'
             ''
-            'Abra um save do CM0304 4.1.5, revise as alterações e use Salvar cópia.'
-            'Carregue a cópia no jogo. Para voltar ao estado anterior, abra o save original.'
+            'Open an uncompressed CM0304 4.1.5 save, review your changes, and select Save validated copy.'
+            'Load the copy in the game. To return to your original career, load the source save.'
         )
     }
     $signature = (Get-AuthenticodeSignature -LiteralPath $installer.FullName).Status
     $guideHeader = @(
         "# $title"
         ''
-        "SHA-256 do instalador: $installerHash"
-        "Status da assinatura Authenticode: $signature"
+        "Installer SHA-256: $installerHash"
+        "Authenticode status: $signature"
         ''
-        'Para conferir o instalador, abra o PowerShell na pasta extraída do ZIP e execute:'
+        'To verify the installer, open PowerShell in the extracted folder and run:'
         ''
         '```powershell'
         ('$actual = (Get-FileHash -LiteralPath ''{0}'' -Algorithm SHA256).Hash' -f $installerName.Replace("'", "''"))
-        ('if ($actual -ne ''{0}'') {{ throw ''O SHA-256 do instalador diverge do esperado.'' }}' -f $installerHash)
+        ('if ($actual -ne ''{0}'') {{ throw ''The installer SHA-256 does not match.'' }}' -f $installerHash)
         '```'
         ''
     )
@@ -82,7 +82,7 @@ try {
 
     $staging = New-Item -ItemType Directory -Path (Join-Path $outputDir.FullName ([guid]::NewGuid()))
     $guidePath = Join-Path $staging.FullName $guideName
-    $noticePath = Join-Path $staging.FullName "AVISOS-DE-TERCEIROS-$version.md"
+    $noticePath = Join-Path $staging.FullName "THIRD-PARTY-NOTICES-$version.md"
     $guideHeader + $guide | Set-Content -Encoding utf8 -LiteralPath $guidePath
     $notices | Set-Content -Encoding utf8 -LiteralPath $noticePath
     $files = @($installer.FullName, $noticePath, $guidePath, (Resolve-Path -LiteralPath 'LICENSE').Path)

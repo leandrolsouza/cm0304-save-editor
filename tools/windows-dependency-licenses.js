@@ -77,12 +77,12 @@ if (format === '--inventory') {
   console.log(JSON.stringify({ target, root: desktop.name, dependencies: inventory }, null, 2));
 } else {
   const sections = [
-    release ? '# Avisos de terceiros para Windows x64' : '# Avisos de dependências Rust para Windows x64',
-    'Inventário do grafo de dependências normais do aplicativo desktop, fixado no Cargo.lock.',
+    release ? '# Third-party notices for Windows x64' : '# Rust dependency notices for Windows x64',
+    'Runtime dependencies of the desktop application, as locked in Cargo.lock.',
   ];
   for (const dep of dependencies) {
     sections.push(`## ${dep.name} ${dep.version}`,
-      `Licença declarada — ${dep.declaredLicense ?? 'ausente'}\nOrigem — ${dep.repository ?? dep.source}`);
+      `Declared licence — ${dep.declaredLicense ?? 'unavailable'}\nSource — ${dep.repository ?? dep.source}`);
     if (!dep.noticeFiles.length) {
       if (release) {
         const key = `${dep.name}@${dep.version}`;
@@ -90,7 +90,7 @@ if (format === '--inventory') {
         if (!filename) throw new Error(`Arquivo de aviso ausente para ${key}`);
         sections.push(supplementalNotice(filename));
       } else {
-        sections.push('Arquivo de aviso pendente de revisão.');
+        sections.push('Notice file pending review.');
       }
     }
     for (const notice of dep.noticeFiles) {

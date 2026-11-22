@@ -12,7 +12,7 @@
 
 - Preserve rascunho, prévia, revisão, efeitos derivados, desfazer/refazer e gravação em nova cópia.
 - Ao abrir outro save, evite reutilizar seleção, cache ou rascunho da sessão anterior. Preserve as proteções contra ações concorrentes e fechamento durante gravação.
-- Mostre apenas operações elegíveis para os registros carregados. Explique indisponibilidade e erros em português, distinguindo ausência de dados de formato não suportado.
+- Mostre apenas operações elegíveis para os registros carregados. Explique indisponibilidade e erros nos dois idiomas da interface, distinguindo ausência de dados de formato não suportado. Use as chaves em português e traduza o texto em `ui/en.ts`.
 - Mantenha unidades e vínculos claros: valores financeiros usam libras semanais quando aplicável; contrato proprietário e empréstimo são vínculos distintos.
 - Preserve navegação por teclado, rótulos dos controles, estados desabilitados e mensagens de progresso/erro nos fluxos alterados.
 - Mantenha permissões Tauri restritas ao necessário. Não acrescente acesso amplo ao filesystem para contornar um problema localizado.

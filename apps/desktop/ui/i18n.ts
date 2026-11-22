@@ -5,11 +5,11 @@ export type Locale = 'pt-BR' | 'en-GB';
 
 function storedLocale(): Locale {
   try {
-    if (localStorage.getItem(languageKey) === 'en-GB') return 'en-GB';
+    if (localStorage.getItem(languageKey) === 'pt-BR') return 'pt-BR';
   } catch {
     // O editor continua disponível quando o armazenamento local está indisponível.
   }
-  return 'pt-BR';
+  return 'en-GB';
 }
 
 export const locale = storedLocale();

@@ -7,7 +7,7 @@ Editor local para Windows x64 de saves do CM0304 4.1.5. O aplicativo usa Rust, T
 - Leia `README.md` e `docs/DEVELOPMENT.md` para entender os fluxos e comandos.
 - Consulte `docs/NEXT.md` e `ROADMAP.md` para continuidade e escopo. Esses arquivos contêm registros históricos: confira o estado atual no código e nas evidências antes de repetir pendências antigas.
 - Consulte `research/FORMAT.md` antes de alterar o formato binário; `reports/` registra as validações e seus limites.
-- Escreva documentação e textos da interface em português. Preserve os nomes técnicos e o estilo dos arquivos existentes.
+- Escreva a documentação pública e as notas de release em inglês. A interface usa inglês por padrão e mantém a tradução em português do Brasil. Preserve os nomes técnicos, as chaves de tradução e o idioma original das evidências históricas.
 
 ## Organização
 

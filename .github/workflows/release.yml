@@ -93,10 +93,10 @@ jobs:
         run: |
           $assets = (Get-ChildItem -LiteralPath release-assets -File).FullName
           $notes = @"
-          Baixe o ZIP para **Windows x64**, extraia o conteúdo e execute o instalador. O editor abre saves **.cm4 sem compactação** do **CM0304 4.1.5** e grava suas edições em uma cópia.
+          Download the **Windows x64** ZIP, extract it, and run the installer. The editor opens **uncompressed .cm4 saves** from **CM0304 4.1.5** and applies edits to a new copy.
 
-          Esta instalação verifica atualizações ao abrir e aplica versões assinadas quando não há carreira aberta. O instalador está sem assinatura Authenticode e pode gerar aviso do SmartScreen. O SHA-256 do ZIP está entre os arquivos da release.
+          The editor checks for signed updates at startup and waits until no career is open before installing them. Windows SmartScreen may show a warning because the installer has no Authenticode signature. The SHA-256 checksum is listed alongside the ZIP.
 
-          [Notas de versão e guia de uso](https://github.com/$env:GH_REPO/blob/$env:GITHUB_REF_NAME/README.md#notas-de-versão)
+          [Release notes and user guide](https://github.com/$env:GH_REPO/blob/$env:GITHUB_REF_NAME/README.md)
           "@
           gh release create $env:GITHUB_REF_NAME @assets --verify-tag --draft --title "CM0304 Save Editor $env:GITHUB_REF_NAME" --notes $notes

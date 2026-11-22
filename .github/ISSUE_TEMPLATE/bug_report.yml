@@ -1,24 +1,24 @@
-name: Relatar um problema
-description: Informe a versão e os passos para reproduzir um problema no editor.
+name: Report a bug
+description: Tell us which version you used and how to reproduce the problem.
 body:
   - type: input
     id: editor
     attributes:
-      label: Versão do editor
-      description: A versão aparece no rodapé do aplicativo.
+      label: Editor version
+      description: The version appears in the editor footer.
     validations:
       required: true
   - type: input
     id: game
     attributes:
-      label: Versão do CM0304
+      label: CM0304 version
       placeholder: '4.1.5'
     validations:
       required: true
   - type: textarea
     id: reproduction
     attributes:
-      label: Passos para reproduzir
-      description: Descreva o que aconteceu e o resultado esperado. Omita dados pessoais e arquivos do jogo.
+      label: Steps to reproduce
+      description: Describe what happened and what you expected. Leave out personal information and game files.
     validations:
       required: true
